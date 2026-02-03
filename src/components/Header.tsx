@@ -1,11 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from './Logo';
 import { CartDrawer } from './CartDrawer';
-import { Menu, X, Search, User, Heart } from 'lucide-react';
+import { Menu, X, Search, User, Heart, LayoutDashboard } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useWishlistStore } from '@/stores/wishlistStore';
+import { useAuthStore } from '@/stores/authStore';
 import { Input } from '@/components/ui/input';
 
 const navLinks = [
@@ -25,6 +26,9 @@ export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const wishlistItems = useWishlistStore(state => state.items);
+  const { user, isAuthenticated } = useAuthStore();
+
+  const isAdmin = isAuthenticated && user?.email === 'lydia@ninaarmend.co.site';
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +137,16 @@ export function Header() {
                   <User className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
               </Link>
+
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button variant="outline" size="sm" className="hidden md:flex gap-2 border-primary/20 text-primary hover:bg-primary/5 ml-2 font-sans text-[10px] uppercase tracking-widest">
+                    <LayoutDashboard className="h-3 w-3" />
+                    Admin Dashboard
+                  </Button>
+                </Link>
+              )}
+
               <CartDrawer />
             </div>
           </div>
@@ -149,6 +163,17 @@ export function Header() {
               className="md:hidden overflow-hidden border-t border-border/30"
             >
               <div className="py-6 space-y-4">
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="flex items-center gap-3 px-4 py-2 bg-primary/5 text-primary rounded-lg border border-primary/10 mb-4"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <LayoutDashboard className="h-5 w-5" />
+                    <span className="text-lg font-serif">Admin Dashboard</span>
+                  </Link>
+                )}
+
                 {navLinks.map((link) => (
                   <Link
                     key={link.name}

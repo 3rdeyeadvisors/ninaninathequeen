@@ -1,13 +1,14 @@
 
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, AreaChart, Area
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Users, DollarSign, Package, LayoutDashboard, Settings } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, Package, LayoutDashboard, Settings, Brain, Sparkles, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 const data = [
   { name: 'Mon', sales: 4000, traffic: 2400 },
@@ -48,7 +49,10 @@ export default function AdminDashboard() {
           {/* Main Content */}
           <main className="flex-1 space-y-8">
             <div className="flex justify-between items-center">
-              <h1 className="font-serif text-3xl">Store Overview</h1>
+              <div>
+                <h1 className="font-serif text-3xl">Store Overview</h1>
+                <p className="text-muted-foreground text-sm">Welcome back, Lydia. Here's what's happening today.</p>
+              </div>
               <div className="text-sm text-muted-foreground">Last updated: Just now</div>
             </div>
 
@@ -92,16 +96,6 @@ export default function AdminDashboard() {
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Active Now</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-serif">+573</div>
-                  <p className="text-xs text-muted-foreground mt-1">Current visitors</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Inventory Status</CardTitle>
                   <Package className="h-4 w-4 text-primary" />
                 </CardHeader>
@@ -112,6 +106,86 @@ export default function AdminDashboard() {
                   </p>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* AI Insights Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+               <Card className="lg:col-span-2 border-primary/20 bg-gradient-to-br from-background to-primary/5">
+                  <CardHeader>
+                    <div className="flex items-center gap-2 mb-2">
+                       <div className="p-2 bg-primary/10 rounded-lg">
+                          <Brain className="h-5 w-5 text-primary" />
+                       </div>
+                       <div>
+                          <CardTitle className="font-serif text-xl">Personal AI Insights</CardTitle>
+                          <CardDescription>AI-driven recommendations for your store</CardDescription>
+                       </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-card border rounded-xl space-y-3">
+                           <div className="flex items-center gap-2 text-primary">
+                              <Sparkles className="h-4 w-4" />
+                              <span className="text-xs font-sans tracking-widest uppercase font-bold">Trend Forecast</span>
+                           </div>
+                           <p className="text-sm leading-relaxed">
+                              "Highwaisted silhouettes in <strong>Copacabana Gold</strong> are trending up by 35% among Gen Z shoppers in the Miami area."
+                           </p>
+                           <Button variant="link" className="p-0 h-auto text-xs text-primary">View trend data →</Button>
+                        </div>
+                        <div className="p-4 bg-card border rounded-xl space-y-3">
+                           <div className="flex items-center gap-2 text-primary">
+                              <Package className="h-4 w-4" />
+                              <span className="text-xs font-sans tracking-widest uppercase font-bold">Inventory Alert</span>
+                           </div>
+                           <p className="text-sm leading-relaxed">
+                              "Suggested restock for <strong>Leblon One-Piece (Medium)</strong>. At current sales velocity, you will be out of stock in 4 days."
+                           </p>
+                           <Button variant="link" className="p-0 h-auto text-xs text-primary">Optimize inventory →</Button>
+                        </div>
+                     </div>
+                     <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl flex items-start gap-4">
+                        <div className="p-2 bg-primary/10 rounded-full mt-1">
+                           <MessageSquare className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                           <p className="text-sm font-medium">Customer Sentiment Analysis</p>
+                           <p className="text-xs text-muted-foreground leading-relaxed">
+                              Recent reviews mention the "buttery soft fabric" frequently. AI suggests highlighting this in your next email campaign to increase conversion by an estimated 12%.
+                           </p>
+                        </div>
+                     </div>
+                  </CardContent>
+               </Card>
+
+               <Card className="flex flex-col">
+                  <CardHeader>
+                     <CardTitle className="font-serif text-xl">Quick Actions</CardTitle>
+                     <CardDescription>Common tasks for today</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 space-y-3">
+                     <Button className="w-full justify-start font-sans" variant="outline">
+                        <ShoppingBag className="h-4 w-4 mr-2" /> Process 12 New Orders
+                     </Button>
+                     <Button className="w-full justify-start font-sans" variant="outline">
+                        <Package className="h-4 w-4 mr-2" /> Restock Low Inventory
+                     </Button>
+                     <Button className="w-full justify-start font-sans" variant="outline">
+                        <Users className="h-4 w-4 mr-2" /> Review Customer Inquiries
+                     </Button>
+                     <div className="pt-4 mt-4 border-t">
+                        <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-4">AI Concierge</p>
+                        <div className="relative">
+                           <textarea
+                             placeholder="Ask your AI assistant anything..."
+                             className="w-full h-24 bg-secondary/30 rounded-lg p-3 text-xs border-none focus:ring-1 focus:ring-primary resize-none font-sans"
+                           />
+                           <Button size="sm" className="absolute bottom-2 right-2 h-7 text-[10px] px-3">Send</Button>
+                        </div>
+                     </div>
+                  </CardContent>
+               </Card>
             </div>
 
             {/* Charts */}
