@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Package, Gift, Share2, Camera, LogOut, Lock } from 'lucide-react';
+import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
@@ -15,7 +15,9 @@ import { useAuthStore } from '@/stores/authStore';
 export default function Account() {
   const { user, isAuthenticated, login, logout, updateProfile } = useAuthStore();
   const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loginName, setLoginName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,9 +31,15 @@ export default function Account() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginEmail) {
-      login(loginEmail, loginName || undefined);
-      toast.success(`Welcome back${loginName ? ', ' + loginName : ''}!`);
+    if (loginEmail && loginPassword) {
+      const success = login(loginEmail, loginPassword, loginName || undefined);
+      if (success) {
+        toast.success(`Welcome back${loginName || user?.name ? ', ' + (loginName || user?.name) : ''}!`);
+      } else {
+        toast.error("Invalid email or password. Please try again.");
+      }
+    } else {
+      toast.error("Please fill in both email and password.");
     }
   };
 
@@ -67,11 +75,30 @@ export default function Account() {
                     <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
                     <Input
                       type="email"
-                      placeholder="lydia@ninaarmend.co.site"
+                      placeholder="your@email.com"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Password</label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Full Name (Optional)</label>
@@ -87,7 +114,7 @@ export default function Account() {
                   </Button>
                 </form>
                 <div className="mt-6 text-center text-xs text-muted-foreground">
-                  <p>Don't have an account? It will be created automatically.</p>
+                  <p>Secure login with encrypted password protection.</p>
                 </div>
               </CardContent>
             </Card>

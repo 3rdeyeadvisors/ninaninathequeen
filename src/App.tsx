@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useCartSync } from "@/hooks/useCartSync";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import ProductPage from "./pages/ProductPage";
@@ -40,9 +41,24 @@ function AppContent() {
         <Route path="/mix-and-match" element={<MixAndMatch />} />
         <Route path="/size-quiz" element={<SizeQuiz />} />
         <Route path="/fitting-room" element={<FittingRoom />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/products" element={<AdminProducts />} />
-        <Route path="/admin/orders" element={<AdminOrders />} />
+
+        {/* Protected Admin Routes */}
+        <Route path="/admin" element={
+          <ProtectedRoute adminOnly>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/products" element={
+          <ProtectedRoute adminOnly>
+            <AdminProducts />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/orders" element={
+          <ProtectedRoute adminOnly>
+            <AdminOrders />
+          </ProtectedRoute>
+        } />
+
         <Route path="/search" element={<SearchPage />} />
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/about" element={<About />} />
