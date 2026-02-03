@@ -128,9 +128,11 @@ export function Header() {
                   )}
                 </Button>
               </Link>
-              <Button variant="ghost" size="icon" className="h-9 w-9 hidden sm:flex">
-                <User className="h-4 w-4 md:h-5 md:w-5" />
-              </Button>
+              <Link to="/account">
+                <Button variant="ghost" size="icon" className="h-9 w-9 hidden sm:flex">
+                  <User className="h-4 w-4 md:h-5 md:w-5" />
+                </Button>
+              </Link>
               <CartDrawer />
             </div>
           </div>
@@ -164,9 +166,11 @@ export function Header() {
                   <Button variant="ghost" size="icon">
                     <Heart className="h-5 w-5" />
                   </Button>
-                  <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5" />
-                  </Button>
+                  <Link to="/account" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" size="icon">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </motion.div>

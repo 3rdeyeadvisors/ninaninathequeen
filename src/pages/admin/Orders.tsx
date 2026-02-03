@@ -7,10 +7,10 @@ import { Package, ShoppingBag, Box, Clock, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const orders = [
-  { id: '#ORD-7829', customer: 'Alice Johnson', date: '2025-05-15', total: '$160.00', status: 'Delivered' },
-  { id: '#ORD-7830', customer: 'Bob Smith', date: '2025-05-16', total: '$85.00', status: 'Processing' },
-  { id: '#ORD-7831', customer: 'Charlie Davis', date: '2025-05-17', total: '$245.00', status: 'Shipped' },
-  { id: '#ORD-7832', customer: 'Diana Prince', date: '2025-05-18', total: '$120.00', status: 'Pending' },
+  { id: '#ORD-7829', customer: 'Alice Johnson', date: '2025-05-15', total: '$160.00', status: 'Delivered', tracking: 'NA-982341' },
+  { id: '#ORD-7830', customer: 'Bob Smith', date: '2025-05-16', total: '$85.00', status: 'Processing', tracking: 'Pending' },
+  { id: '#ORD-7831', customer: 'Charlie Davis', date: '2025-05-17', total: '$245.00', status: 'Shipped', tracking: 'NA-982345' },
+  { id: '#ORD-7832', customer: 'Diana Prince', date: '2025-05-18', total: '$120.00', status: 'Pending', tracking: 'Pending' },
 ];
 
 export default function AdminOrders() {
@@ -47,6 +47,7 @@ export default function AdminOrders() {
                   <TableHead>Date</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Tracking</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -67,6 +68,9 @@ export default function AdminOrders() {
                         {order.status === 'Processing' && <Clock className="h-3 w-3 mr-1" />}
                         {order.status}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs font-mono text-muted-foreground">{order.tracking}</span>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="link" size="sm" className="text-primary">View Details</Button>

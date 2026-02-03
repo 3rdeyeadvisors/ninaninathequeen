@@ -15,6 +15,15 @@ import AdminProducts from "./pages/admin/Products";
 import AdminOrders from "./pages/admin/Orders";
 import SearchPage from "./pages/Search";
 import Wishlist from "./pages/Wishlist";
+import About from "./pages/About";
+import Sustainability from "./pages/Sustainability";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Shipping from "./pages/Shipping";
+import FAQ from "./pages/FAQ";
+import Contact from "./pages/Contact";
+import Account from "./pages/Account";
+import Demo from "./pages/Demo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +45,15 @@ function AppContent() {
         <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/sustainability" element={<Sustainability />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/shipping" element={<Shipping />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/demo" element={<Demo />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

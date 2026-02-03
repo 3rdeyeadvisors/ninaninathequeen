@@ -11,12 +11,12 @@ import { Link } from 'react-router-dom';
 
 const data = [
   { name: 'Mon', sales: 4000, traffic: 2400 },
-  { name: 'Tue', sales: 3000, traffic: 1398 },
-  { name: 'Wed', sales: 2000, traffic: 9800 },
+  { name: 'Tue', sales: 3000, traffic: 3398 },
+  { name: 'Wed', sales: 5000, traffic: 9800 },
   { name: 'Thu', sales: 2780, traffic: 3908 },
-  { name: 'Fri', sales: 1890, traffic: 4800 },
-  { name: 'Sat', sales: 2390, traffic: 3800 },
-  { name: 'Sun', sales: 3490, traffic: 4300 },
+  { name: 'Fri', sales: 4890, traffic: 4800 },
+  { name: 'Sat', sales: 6390, traffic: 7800 },
+  { name: 'Sun', sales: 8490, traffic: 9300 },
 ];
 
 export default function AdminDashboard() {
@@ -98,6 +98,18 @@ export default function AdminDashboard() {
                 <CardContent>
                   <div className="text-2xl font-serif">+573</div>
                   <p className="text-xs text-muted-foreground mt-1">Current visitors</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Inventory Status</CardTitle>
+                  <Package className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-serif">842 Items</div>
+                  <p className="text-xs text-amber-500 flex items-center mt-1">
+                    12 items low in stock
+                  </p>
                 </CardContent>
               </Card>
             </div>

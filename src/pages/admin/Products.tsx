@@ -79,9 +79,14 @@ export default function AdminProducts() {
                     <TableCell>{product.category}</TableCell>
                     <TableCell>${product.price.toFixed(2)}</TableCell>
                     <TableCell>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                        In Stock
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-sans tracking-widest uppercase font-medium bg-emerald-100 text-emerald-800 w-fit">
+                          In Stock
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {product.id === 'm1' ? '12' : product.id === 'm2' ? '8' : '24'} units
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
