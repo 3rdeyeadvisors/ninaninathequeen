@@ -19,6 +19,8 @@ interface AuthStore {
   users: AuthUser[];
   login: (email: string, password: string) => boolean;
   signup: (name: string, email: string, password: string) => boolean;
+  resetPassword: (email: string) => boolean;
+  deleteAccount: (email: string) => boolean;
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
 }
@@ -76,6 +78,37 @@ export const useAuthStore = create<AuthStore>()(
         const { password: _, ...userWithoutPassword } = newUser;
         set({ user: userWithoutPassword, isAuthenticated: true });
         return true;
+      },
+
+      resetPassword: (email) => {
+        const { users } = get();
+        const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+        if (foundUser) {
+          /**
+           * MOCK IMPLEMENTATION: In a real app, this would send an email.
+           * For this demo, we'll just return true to simulate success.
+           */
+          console.log(`Password reset requested for: ${email}`);
+          return true;
+        }
+        return false;
+      },
+
+      deleteAccount: (email) => {
+        const { users, user } = get();
+        const updatedUsers = users.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+
+        if (updatedUsers.length < users.length) {
+          // If the deleted user was the currently logged in user, log them out
+          if (user?.email.toLowerCase() === email.toLowerCase()) {
+            set({ user: null, isAuthenticated: false, users: updatedUsers });
+          } else {
+            set({ users: updatedUsers });
+          }
+          return true;
+        }
+        return false;
       },
 
       logout: () => set({ user: null, isAuthenticated: false }),
