@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { ShoppingBag, Minus, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { ShoppingBag, Minus, Plus, Trash2, ExternalLink, Loader2, Truck, CheckCircle2 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 
 export const CartDrawer = () => {
@@ -10,6 +10,13 @@ export const CartDrawer = () => {
   const { items, isLoading, isSyncing, updateQuantity, removeItem, getCheckoutUrl, syncCart } = useCartStore();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
+
+  const topsCount = items.filter(i => i.product.node.productType === 'Top').reduce((sum, i) => sum + i.quantity, 0);
+  const bottomsCount = items.filter(i => i.product.node.productType === 'Bottom').reduce((sum, i) => sum + i.quantity, 0);
+  const onePiecesCount = items.filter(i => i.product.node.productType === 'One-Piece').reduce((sum, i) => sum + i.quantity, 0);
+
+  const totalSets = Math.min(topsCount, bottomsCount) + onePiecesCount;
+  const freeShippingEligible = totalSets >= 2;
 
   useEffect(() => { if (isOpen) syncCart(); }, [isOpen, syncCart]);
 
@@ -107,6 +114,30 @@ export const CartDrawer = () => {
                 </div>
               </div>
               <div className="flex-shrink-0 space-y-4 pt-6 border-t border-border bg-background">
+                {/* Shipping Progress */}
+                <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
+                  <div className="flex items-center gap-3 mb-2">
+                    {freeShippingEligible ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    ) : (
+                      <Truck className="h-5 w-5 text-primary" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {freeShippingEligible
+                        ? "You've earned FREE SHIPPING!"
+                        : `Add ${2 - totalSets} more bikini set${2 - totalSets !== 1 ? 's' : ''} for FREE SHIPPING`}
+                    </span>
+                  </div>
+                  {!freeShippingEligible && (
+                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-primary h-full transition-all duration-500"
+                        style={{ width: `${(totalSets / 2) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-serif">Subtotal</span>
                   <span className="text-xl font-serif text-primary">

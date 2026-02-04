@@ -291,7 +291,7 @@ const ProductPage = () => {
               <div className="space-y-4 pt-8 border-t border-border">
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   <Truck className="h-5 w-5 text-primary" />
-                  <span>Free shipping on orders over $150</span>
+                  <span>Free shipping on 2+ bikini sets</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   <Shield className="h-5 w-5 text-primary" />

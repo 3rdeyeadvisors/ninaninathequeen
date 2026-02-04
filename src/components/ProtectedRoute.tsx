@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 import { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
@@ -16,7 +16,7 @@ export const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRoutePr
     return <Navigate to="/account" state={{ from: location }} replace />;
   }
 
-  if (adminOnly && user?.email !== 'lydia@ninaarmend.co.site') {
+  if (adminOnly && user?.email !== ADMIN_EMAIL) {
     // Redirect to home if trying to access admin page without admin email
     return <Navigate to="/" replace />;
   }

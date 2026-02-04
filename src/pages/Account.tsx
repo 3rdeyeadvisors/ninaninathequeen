@@ -446,8 +446,8 @@ export default function Account() {
                       <CardContent>
                          <p className="text-sm mb-6">Redeem your points for exclusive discounts and early access to new collections.</p>
                          <div className="flex gap-4">
-                            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Redeem Points</Button>
-                            <Button variant="outline">Learn More</Button>
+                            <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => toast.info("Points redemption available in the mobile app")}>Redeem Points</Button>
+                            <Button variant="outline" onClick={() => toast.info("Loyalty program details coming soon")}>Learn More</Button>
                          </div>
                       </CardContent>
                     </Card>

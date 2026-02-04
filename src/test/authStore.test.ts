@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useAuthStore } from "../stores/authStore";
+import { useAuthStore, ADMIN_EMAIL } from "../stores/authStore";
 
 describe("authStore", () => {
   beforeEach(() => {
@@ -11,8 +11,8 @@ describe("authStore", () => {
 
   it("should have resetPassword function that returns true for existing user", () => {
     const { resetPassword } = useAuthStore.getState();
-    // Default admin exists: lydia@ninaarmend.co.site
-    expect(resetPassword("lydia@ninaarmend.co.site")).toBe(true);
+    // Default admin exists
+    expect(resetPassword(ADMIN_EMAIL)).toBe(true);
   });
 
   it("should return false for non-existing user in resetPassword", () => {

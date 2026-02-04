@@ -5,7 +5,7 @@ const features = [
   {
     icon: Truck,
     title: 'Worldwide Express',
-    description: 'Free shipping on all orders over $150 USD',
+    description: 'Free shipping on all orders of 2 bikini sets or more',
   },
   {
     icon: Shield,

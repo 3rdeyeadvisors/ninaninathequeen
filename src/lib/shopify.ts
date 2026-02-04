@@ -2,6 +2,12 @@ import { toast } from "sonner";
 import { MOCK_PRODUCTS, type MockProduct } from "./mockData";
 
 // Shopify API Configuration
+/**
+ * SECURITY NOTE: The Storefront API token is hardcoded here for simplicity in this demo.
+ * Although Storefront tokens are meant for public-facing client use, in a production
+ * environment they should be stored in environment variables (e.g., VITE_SHOPIFY_STOREFRONT_TOKEN)
+ * to prevent accidental exposure and make them easier to rotate.
+ */
 const SHOPIFY_API_VERSION = '2025-07';
 const SHOPIFY_STORE_PERMANENT_DOMAIN = 'nina-armend-luxe-jakdx.myshopify.com';
 const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
@@ -14,6 +20,7 @@ export interface ShopifyProduct {
     title: string;
     description: string;
     handle: string;
+    productType?: string;
     priceRange: {
       minVariantPrice: {
         amount: string;
@@ -237,6 +244,7 @@ export const mapMockToShopify = (product: MockProduct): ShopifyProduct => ({
     title: product.title,
     description: "Experience the ultimate in Brazilian luxury. Our collection is handcrafted in Rio de Janeiro using sustainable, high-performance fabrics.",
     handle: product.handle,
+    productType: product.category,
     priceRange: {
       minVariantPrice: {
         amount: product.price.toString(),

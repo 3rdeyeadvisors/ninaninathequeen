@@ -25,10 +25,16 @@ interface AuthStore {
   updateProfile: (updates: Partial<User>) => void;
 }
 
+/**
+ * SECURITY NOTE: The admin email is defined here as a central constant.
+ * In production, admin privileges should be managed via backend roles and verified with tokens.
+ */
+export const ADMIN_EMAIL = 'lydia@ninaarmend.co.site';
+
 const DEFAULT_ADMIN: AuthUser = {
   name: 'Lydia',
-  email: 'lydia@ninaarmend.co.site',
-  password: 'nina-admin-2025',
+  email: ADMIN_EMAIL,
+  password: 'Bossqueen26!',
   avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
   points: 0,
   referralCode: 'NINA-LYD-2025'
@@ -44,7 +50,9 @@ export const useAuthStore = create<AuthStore>()(
       login: (email, password) => {
         /**
          * SECURITY NOTE: This is a mock implementation for demonstration.
-         * In production, use a secure backend, password hashing, and token-based auth.
+         * In production, NEVER store plain text passwords in the frontend or localStorage.
+         * Use a secure backend, industry-standard password hashing (like Argon2 or bcrypt),
+         * and secure token-based authentication (JWT/OAuth).
          */
         const { users } = get();
         const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());

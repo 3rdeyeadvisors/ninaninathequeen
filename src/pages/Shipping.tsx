@@ -17,7 +17,7 @@ export default function Shipping() {
                 <Truck className="h-6 w-6 text-primary" />
                 <h2 className="font-serif text-2xl">Shipping Policy</h2>
               </div>
-              <p className="text-muted-foreground">We offer complimentary express shipping on all orders over $150 USD. For orders under $150, a flat rate shipping fee of $15 applies.</p>
+              <p className="text-muted-foreground">We offer complimentary express shipping on all orders of 2 bikini sets or more. For other orders, a flat rate shipping fee applies.</p>
               <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
                 <li>Processing time: 1-2 business days</li>
                 <li>Domestic delivery: 2-4 business days</li>
