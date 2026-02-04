@@ -7,39 +7,58 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff } from 'lucide-react';
+import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function Account() {
-  const { user, isAuthenticated, login, logout, updateProfile } = useAuthStore();
+  const { user, isAuthenticated, login, signup, logout, updateProfile } = useAuthStore();
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Login states
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [loginName, setLoginName] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+
+  // Signup states
+  const [signupName, setSignupName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.target as HTMLFormElement);
     const name = formData.get('name') as string;
-    const email = formData.get('email') as string;
 
-    updateProfile({ name, email });
+    updateProfile({ name });
     toast.success("Profile updated successfully!");
   };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (loginEmail && loginPassword) {
-      const success = login(loginEmail, loginPassword, loginName || undefined);
+      const success = login(loginEmail, loginPassword);
       if (success) {
-        toast.success(`Welcome back${loginName || user?.name ? ', ' + (loginName || user?.name) : ''}!`);
+        toast.success(`Welcome back!`);
       } else {
         toast.error("Invalid email or password. Please try again.");
       }
     } else {
       toast.error("Please fill in both email and password.");
+    }
+  };
+
+  const handleSignup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signupName && signupEmail && signupPassword) {
+      const success = signup(signupName, signupEmail, signupPassword);
+      if (success) {
+        toast.success("Welcome to Nina Armend! Your account has been created.");
+      } else {
+        toast.error("This email is already registered. Please sign in instead.");
+      }
+    } else {
+      toast.error("Please fill in all required fields.");
     }
   };
 
@@ -61,63 +80,122 @@ export default function Account() {
         <Header />
         <main className="pt-32 pb-20">
           <div className="container mx-auto px-4 max-w-md">
-            <Card className="border-primary/10 shadow-xl">
-              <CardHeader className="text-center">
-                <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <Lock className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="font-serif text-2xl">Welcome to Nina Armend</CardTitle>
-                <CardDescription>Sign in to access your account and rewards</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
-                    <Input
-                      type="email"
-                      placeholder="your@email.com"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Password</label>
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
+            <Tabs defaultValue="signin" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="signin" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  Sign In
+                </TabsTrigger>
+                <TabsTrigger value="signup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  Sign Up
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="signin">
+                <Card className="border-primary/10 shadow-xl">
+                  <CardHeader className="text-center">
+                    <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                      <Lock className="h-6 w-6 text-primary" />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Full Name (Optional)</label>
-                    <Input
-                      type="text"
-                      placeholder="Your Name"
-                      value={loginName}
-                      onChange={(e) => setLoginName(e.target.value)}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
-                    Sign In
-                  </Button>
-                </form>
-                <div className="mt-6 text-center text-xs text-muted-foreground">
-                  <p>Secure login with encrypted password protection.</p>
-                </div>
-              </CardContent>
-            </Card>
+                    <CardTitle className="font-serif text-2xl">Welcome Back</CardTitle>
+                    <CardDescription>Enter your credentials to access your account</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
+                        <Input
+                          type="email"
+                          placeholder="isabella@example.com"
+                          value={loginEmail}
+                          onChange={(e) => setLoginEmail(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Password</label>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={loginPassword}
+                            onChange={(e) => setLoginPassword(e.target.value)}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
+                        Sign In
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="signup">
+                <Card className="border-primary/10 shadow-xl">
+                  <CardHeader className="text-center">
+                    <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                      <UserPlus className="h-6 w-6 text-primary" />
+                    </div>
+                    <CardTitle className="font-serif text-2xl">Join Nina Armend</CardTitle>
+                    <CardDescription>Create your account and earn 250 welcome points</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleSignup} className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Full Name</label>
+                        <Input
+                          type="text"
+                          placeholder="Isabella Silva"
+                          value={signupName}
+                          onChange={(e) => setSignupName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
+                        <Input
+                          type="email"
+                          placeholder="isabella@example.com"
+                          value={signupEmail}
+                          onChange={(e) => setSignupEmail(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Password</label>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={signupPassword}
+                            onChange={(e) => setSignupPassword(e.target.value)}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
+                        Create Account
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
         <Footer />
@@ -137,7 +215,7 @@ export default function Account() {
                 <div className="relative inline-block mb-4">
                   <Avatar className="h-24 w-24 border-2 border-primary/20">
                     <AvatarImage src={user?.avatar} />
-                    <AvatarFallback>{user?.name.charAt(0)}</AvatarFallback>
+                    <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <label className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1.5 rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform">
                     <Camera className="h-4 w-4" />
@@ -200,7 +278,7 @@ export default function Account() {
                           </div>
                           <div className="space-y-2">
                             <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
-                            <Input name="email" defaultValue={user?.email} />
+                            <Input name="email" defaultValue={user?.email} readOnly className="bg-secondary/50 cursor-not-allowed" />
                           </div>
                         </div>
                         <div className="space-y-2">
