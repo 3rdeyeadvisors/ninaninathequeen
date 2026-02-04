@@ -57,12 +57,12 @@ export function Header() {
             </Button>
 
             {/* Desktop navigation - left */}
-            <div className="hidden md:flex items-center gap-6 lg:gap-8">
+            <div className="hidden lg:flex items-center gap-8">
               {navLinks.slice(0, 2).map((link) => (
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-[11px] lg:text-xs font-sans tracking-widest text-foreground/80 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                  className="text-xs font-sans tracking-widest text-foreground/80 hover:text-primary transition-colors uppercase whitespace-nowrap"
                 >
                   {link.name}
                 </Link>
@@ -78,14 +78,14 @@ export function Header() {
           </div>
 
           {/* Right section - Desktop nav / Icons */}
-          <div className="flex items-center justify-end gap-2 md:gap-6 lg:gap-8">
+          <div className="flex items-center justify-end gap-2 md:gap-4 lg:gap-8">
             {/* Desktop navigation - right */}
-            <div className="hidden md:flex items-center gap-6 lg:gap-8">
+            <div className="hidden lg:flex items-center gap-8">
               {navLinks.slice(2, 4).map((link) => (
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-[11px] lg:text-xs font-sans tracking-widest text-foreground/80 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                  className="text-xs font-sans tracking-widest text-foreground/80 hover:text-primary transition-colors uppercase whitespace-nowrap"
                 >
                   {link.name}
                 </Link>
@@ -142,7 +142,7 @@ export function Header() {
 
               {isAdmin && (
                 <Link to="/admin">
-                  <Button variant="outline" size="sm" className="hidden md:flex gap-2 border-primary/20 text-primary hover:bg-primary/5 ml-2 font-sans text-[10px] uppercase tracking-widest">
+                  <Button variant="outline" size="sm" className="hidden lg:flex gap-2 border-primary/20 text-primary hover:bg-primary/5 ml-2 font-sans text-[10px] uppercase tracking-widest">
                     <LayoutDashboard className="h-3 w-3" />
                     Admin Dashboard
                   </Button>

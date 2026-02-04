@@ -4,16 +4,55 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, Plus, Search, Edit2, Trash2, Upload, Box, Loader2 } from 'lucide-react';
+import { Package, Plus, Search, Edit2, Trash2, Upload, Box, Loader2, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '@/hooks/useProducts';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+interface EditableProduct {
+  id: string;
+  title: string;
+  price: string;
+  inventory: number;
+  image: string;
+  description: string;
+}
 
 export default function AdminProducts() {
   const { data: products, isLoading } = useProducts(50);
+  const [editingProduct, setEditingProduct] = useState<EditableProduct | null>(null);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
 
   const handleDelete = (id: string) => {
     toast.error("Delete functionality is restricted in demo mode");
+  };
+
+  const handleAiDescription = () => {
+    setIsAiGenerating(true);
+    setTimeout(() => {
+      setEditingProduct({
+        ...editingProduct,
+        description: `Experience ultimate Brazilian luxury with the ${editingProduct.title}. Handcrafted from our signature double-lined Italian fabric, this piece features a sophisticated silhouette designed to accentuate your natural curves while providing premium comfort and support.`
+      });
+      setIsAiGenerating(false);
+      toast.success("Magic AI description generated!");
+    }, 1500);
+  };
+
+  const handleSave = () => {
+    toast.success("Product updated successfully (Simulated)");
+    setEditingProduct(null);
   };
 
   return (
@@ -55,6 +94,7 @@ export default function AdminProducts() {
               />
             </div>
 
+            <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -101,7 +141,14 @@ export default function AdminProducts() {
                       </Button>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingProduct({
+                        id: product.node.id,
+                        title: product.node.title,
+                        price: product.node.priceRange.minVariantPrice.amount,
+                        inventory: 45,
+                        image: product.node.images.edges[0]?.node.url,
+                        description: ""
+                      })}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(product.node.id)}>
@@ -112,6 +159,74 @@ export default function AdminProducts() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+
+            {/* Edit Product Dialog */}
+            <Dialog open={!!editingProduct} onOpenChange={(open) => !open && setEditingProduct(null)}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle className="font-serif text-2xl">Edit Product</DialogTitle>
+                  <DialogDescription>
+                    Make changes to your product here. Click save when you're done.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name" className="text-right font-sans text-xs uppercase tracking-wider">Name</Label>
+                    <Input
+                      id="name"
+                      value={editingProduct?.title || ""}
+                      onChange={(e) => setEditingProduct({...editingProduct, title: e.target.value})}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="image" className="text-right font-sans text-xs uppercase tracking-wider">Image URL</Label>
+                    <Input
+                      id="image"
+                      value={editingProduct?.image || ""}
+                      onChange={(e) => setEditingProduct({...editingProduct, image: e.target.value})}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="inventory" className="text-right font-sans text-xs uppercase tracking-wider">Inventory</Label>
+                    <Input
+                      id="inventory"
+                      type="number"
+                      value={editingProduct?.inventory || 0}
+                      onChange={(e) => setEditingProduct({...editingProduct, inventory: parseInt(e.target.value)})}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-start gap-4 pt-4 border-t">
+                    <div className="flex flex-col items-end gap-2">
+                      <Label htmlFor="desc" className="text-right font-sans text-xs uppercase tracking-wider pt-2">Description</Label>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 text-primary hover:text-primary border-primary/20 hover:bg-primary/5"
+                        onClick={handleAiDescription}
+                        disabled={isAiGenerating}
+                      >
+                        {isAiGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <Textarea
+                      id="desc"
+                      placeholder="Product description..."
+                      value={editingProduct?.description || ""}
+                      onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
+                      className="col-span-3 h-32 text-sm leading-relaxed"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditingProduct(null)}>Cancel</Button>
+                  <Button onClick={handleSave} className="bg-primary">Save Changes</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </main>
         </div>
       </div>

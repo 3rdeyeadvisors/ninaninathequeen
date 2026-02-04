@@ -6,9 +6,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, AreaChart, Area
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Users, DollarSign, Package, LayoutDashboard, Settings, Brain, Sparkles, MessageSquare } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, Package, LayoutDashboard, Settings, Brain, Sparkles, MessageSquare, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 const data = [
   { name: 'Mon', sales: 4000, traffic: 2400 },
@@ -58,49 +59,49 @@ export default function AdminDashboard() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
+              <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Total Revenue</CardTitle>
                   <DollarSign className="h-4 w-4 text-primary" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-serif">$45,231.89</div>
+                <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                  <div className="text-3xl font-serif mb-1">$45,231.89</div>
                   <p className="text-xs text-emerald-500 flex items-center mt-1">
                     <TrendingUp className="h-3 w-3 mr-1" /> +20.1% from last month
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Orders</CardTitle>
                   <ShoppingBag className="h-4 w-4 text-primary" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-serif">+2350</div>
+                <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                  <div className="text-3xl font-serif mb-1">+2350</div>
                   <p className="text-xs text-emerald-500 flex items-center mt-1">
                     <TrendingUp className="h-3 w-3 mr-1" /> +180.1% from last month
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Customers</CardTitle>
                   <Users className="h-4 w-4 text-primary" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-serif">+12,234</div>
+                <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                  <div className="text-3xl font-serif mb-1">+12,234</div>
                   <p className="text-xs text-emerald-500 flex items-center mt-1">
                     <TrendingUp className="h-3 w-3 mr-1" /> +19% from last month
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Inventory Status</CardTitle>
                   <Package className="h-4 w-4 text-primary" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-serif">842 Items</div>
+                <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                  <div className="text-3xl font-serif mb-1">842 Items</div>
                   <p className="text-xs text-amber-500 flex items-center mt-1">
                     12 items low in stock
                   </p>
@@ -108,59 +109,115 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
+            {/* Data Integration Section */}
+            <Card className="border-dashed border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors">
+              <CardContent className="flex flex-col items-center justify-center text-center py-10">
+                <div className="p-4 bg-background rounded-full mb-4 shadow-sm">
+                  <Upload className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="font-serif text-xl mb-2">Inventory Spreadsheet Upload</h3>
+                <p className="text-muted-foreground text-sm mb-6 max-w-md text-center">
+                  Drag and drop your product CSV or Excel file here. Our AI will automatically sync your inventory and suggest optimizations.
+                </p>
+                <div className="flex gap-3">
+                  <Button variant="outline" className="font-sans">
+                    Select File
+                  </Button>
+                  <Button className="bg-primary font-sans">
+                    <Brain className="h-4 w-4 mr-2" />
+                    Analyze with AI
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* AI Insights Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-               <Card className="lg:col-span-2 border-primary/20 bg-gradient-to-br from-background to-primary/5">
+               <Card className="lg:col-span-2 border-primary/20 bg-gradient-to-br from-background to-primary/5 shadow-gold">
                   <CardHeader>
-                    <div className="flex items-center gap-2 mb-2">
-                       <div className="p-2 bg-primary/10 rounded-lg">
-                          <Brain className="h-5 w-5 text-primary" />
-                       </div>
-                       <div>
-                          <CardTitle className="font-serif text-xl">Personal AI Insights</CardTitle>
-                          <CardDescription>AI-driven recommendations for your store</CardDescription>
-                       </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 mb-2">
+                         <div className="p-2 bg-primary/10 rounded-lg">
+                            <Brain className="h-5 w-5 text-primary" />
+                         </div>
+                         <div>
+                            <CardTitle className="font-serif text-xl">Store Intelligence</CardTitle>
+                            <CardDescription>Advanced AI-driven growth metrics</CardDescription>
+                         </div>
+                      </div>
+                      <Badge variant="outline" className="animate-pulse bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                        Live AI Analysis
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-card border rounded-xl space-y-3">
-                           <div className="flex items-center gap-2 text-primary">
-                              <Sparkles className="h-4 w-4" />
-                              <span className="text-xs font-sans tracking-widest uppercase font-bold">Trend Forecast</span>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                           <div className="flex flex-wrap gap-2">
+                             {['Trending: Metallic', 'High Demand: S', 'Miami Hotspot', 'Gen Z Favorite'].map(tag => (
+                               <Badge key={tag} className="bg-primary/5 text-primary hover:bg-primary/10 border-primary/10 transition-colors">
+                                 {tag}
+                               </Badge>
+                             ))}
                            </div>
-                           <p className="text-sm leading-relaxed">
-                              "Highwaisted silhouettes in <strong>Copacabana Gold</strong> are trending up by 35% among Gen Z shoppers in the Miami area."
-                           </p>
-                           <Button variant="link" className="p-0 h-auto text-xs text-primary">View trend data →</Button>
-                        </div>
-                        <div className="p-4 bg-card border rounded-xl space-y-3">
-                           <div className="flex items-center gap-2 text-primary">
-                              <Package className="h-4 w-4" />
-                              <span className="text-xs font-sans tracking-widest uppercase font-bold">Inventory Alert</span>
+                           <div className="p-4 bg-card border rounded-xl space-y-3">
+                              <div className="flex items-center gap-2 text-primary">
+                                 <Sparkles className="h-4 w-4" />
+                                 <span className="text-xs font-sans tracking-widest uppercase font-bold text-gold">AI Predictive Growth</span>
+                              </div>
+                              <div className="h-[120px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <LineChart data={data.slice(0, 5)}>
+                                    <Line type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} />
+                                    <Tooltip
+                                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                                    />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground text-center">Projected 24% revenue increase based on current trends</p>
                            </div>
-                           <p className="text-sm leading-relaxed">
-                              "Suggested restock for <strong>Leblon One-Piece (Medium)</strong>. At current sales velocity, you will be out of stock in 4 days."
-                           </p>
-                           <Button variant="link" className="p-0 h-auto text-xs text-primary">Optimize inventory →</Button>
                         </div>
-                     </div>
-                     <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl flex items-start gap-4">
-                        <div className="p-2 bg-primary/10 rounded-full mt-1">
-                           <MessageSquare className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="space-y-1">
-                           <p className="text-sm font-medium">Customer Sentiment Analysis</p>
-                           <p className="text-xs text-muted-foreground leading-relaxed">
-                              Recent reviews mention the "buttery soft fabric" frequently. AI suggests highlighting this in your next email campaign to increase conversion by an estimated 12%.
-                           </p>
+
+                        <div className="space-y-4">
+                           <div className="p-4 bg-card border rounded-xl space-y-3">
+                              <div className="flex items-center gap-2 text-primary">
+                                 <Package className="h-4 w-4" />
+                                 <span className="text-xs font-sans tracking-widest uppercase font-bold">Optimization Log</span>
+                              </div>
+                              <ul className="space-y-2">
+                                <li className="text-xs flex items-start gap-2">
+                                  <div className="h-1 w-1 rounded-full bg-primary mt-1.5" />
+                                  <span>Reduced stock risk for <strong>Ipanema Top</strong> by 12%</span>
+                                </li>
+                                <li className="text-xs flex items-start gap-2">
+                                  <div className="h-1 w-1 rounded-full bg-primary mt-1.5" />
+                                  <span>Automated price adjustment for <strong>Buzios Bottom</strong></span>
+                                </li>
+                                <li className="text-xs flex items-start gap-2">
+                                  <div className="h-1 w-1 rounded-full bg-primary mt-1.5" />
+                                  <span>New "Metallic" category suggested for Q3</span>
+                                </li>
+                              </ul>
+                           </div>
+                           <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl flex items-start gap-4">
+                              <div className="p-2 bg-primary/10 rounded-full mt-1 text-primary">
+                                 <MessageSquare className="h-4 w-4" />
+                              </div>
+                              <div className="space-y-1">
+                                 <p className="text-xs font-medium uppercase tracking-tighter">AI Concierge Note</p>
+                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    I've analyzed your latest spreadsheet. I recommend increasing inventory for Small sizes in metallic fabrics by 15% before the summer peak.
+                                 </p>
+                              </div>
+                           </div>
                         </div>
                      </div>
                   </CardContent>
                </Card>
 
                <Card className="flex flex-col">
-                  <CardHeader>
+                  <CardHeader className="text-center">
                      <CardTitle className="font-serif text-xl">Quick Actions</CardTitle>
                      <CardDescription>Common tasks for today</CardDescription>
                   </CardHeader>
@@ -191,7 +248,7 @@ export default function AdminDashboard() {
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <Card className="p-6">
-                <CardHeader className="px-0 pt-0">
+                <CardHeader className="px-0 pt-0 text-center">
                   <CardTitle className="font-serif text-xl">Sales Performance</CardTitle>
                 </CardHeader>
                 <div className="h-[300px]">
@@ -217,7 +274,7 @@ export default function AdminDashboard() {
               </Card>
 
               <Card className="p-6">
-                <CardHeader className="px-0 pt-0">
+                <CardHeader className="px-0 pt-0 text-center">
                   <CardTitle className="font-serif text-xl">Store Traffic</CardTitle>
                 </CardHeader>
                 <div className="h-[300px]">

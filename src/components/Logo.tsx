@@ -8,7 +8,7 @@ export function Logo({ className = "" }: { className?: string }) {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
-      <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-light tracking-[0.2em] sm:tracking-[0.3em] gradient-gold-text whitespace-nowrap">
+      <h1 className="text-xl sm:text-xl md:text-2xl lg:text-4xl font-light tracking-[0.15em] sm:tracking-[0.3em] gradient-gold-text whitespace-nowrap">
         NINA ARMEND
       </h1>
       <div className="flex items-center gap-2 mt-1">
