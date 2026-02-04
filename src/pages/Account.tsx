@@ -7,14 +7,36 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus, Trash2, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function Account() {
-  const { user, isAuthenticated, login, signup, logout, updateProfile } = useAuthStore();
+  const { user, isAuthenticated, login, signup, logout, updateProfile, resetPassword, deleteAccount } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   // Login states
   const [loginEmail, setLoginEmail] = useState('');
@@ -45,6 +67,31 @@ export default function Account() {
       }
     } else {
       toast.error("Please fill in both email and password.");
+    }
+  };
+
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetEmail) {
+      const success = resetPassword(resetEmail);
+      if (success) {
+        toast.success(`If an account exists for ${resetEmail}, a password reset link has been sent.`);
+        setIsResetDialogOpen(false);
+        setResetEmail('');
+      } else {
+        toast.error("Could not find an account with that email address.");
+      }
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (user?.email) {
+      const success = deleteAccount(user.email);
+      if (success) {
+        toast.success("Your account has been permanently deleted.");
+      } else {
+        toast.error("An error occurred while deleting your account.");
+      }
     }
   };
 
@@ -112,7 +159,40 @@ export default function Account() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Password</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Password</label>
+                          <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                            <DialogTrigger asChild>
+                              <button type="button" className="text-[10px] font-sans tracking-wider uppercase text-primary hover:underline">
+                                Forgot Password?
+                              </button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px] bg-card border-primary/20">
+                              <DialogHeader>
+                                <DialogTitle className="font-serif text-2xl">Reset Password</DialogTitle>
+                                <DialogDescription>
+                                  Enter your email address and we'll send you a link to reset your password.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <form onSubmit={handleResetPassword} className="space-y-4 pt-4">
+                                <div className="space-y-2">
+                                  <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
+                                  <Input
+                                    type="email"
+                                    placeholder="isabella@example.com"
+                                    value={resetEmail}
+                                    onChange={(e) => setResetEmail(e.target.value)}
+                                    required
+                                    className="bg-background"
+                                  />
+                                </div>
+                                <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
+                                  Send Reset Link
+                                </Button>
+                              </form>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
@@ -287,6 +367,37 @@ export default function Account() {
                         </div>
                         <Button type="submit" className="bg-primary hover:bg-primary/90">Save Changes</Button>
                       </form>
+
+                      <div className="mt-12 pt-8 border-t border-destructive/20">
+                        <h4 className="text-destructive font-serif text-lg mb-2 flex items-center gap-2">
+                          <AlertCircle className="h-5 w-5" /> Danger Zone
+                        </h4>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Once you delete your account, there is no going back. Please be certain.
+                        </p>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground">
+                              <Trash2 className="h-4 w-4 mr-2" /> Delete Account
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="bg-card border-destructive/20">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="font-serif text-2xl">Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete your account
+                                and remove your data from our servers.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="bg-secondary">Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Delete Account
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
