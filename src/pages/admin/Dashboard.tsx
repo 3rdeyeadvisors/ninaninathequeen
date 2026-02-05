@@ -11,8 +11,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import { useAdminStore } from '@/stores/adminStore';
 
 const data = [
   { name: 'Mon', sales: 4000, traffic: 2400 },
@@ -25,6 +26,7 @@ const data = [
 ];
 
 export default function AdminDashboard() {
+  const { orders, customers } = useAdminStore();
   const [chatMessages, setChatMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
     { role: 'ai', text: "Hello Lydia! How can I help you optimize your store today?" }
   ]);
@@ -97,6 +99,10 @@ export default function AdminDashboard() {
     }, 1500);
   };
 
+  const totalRevenue = useMemo(() => {
+    return orders.reduce((acc, order) => acc + parseFloat(order.total), 0);
+  }, [orders]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -142,8 +148,8 @@ export default function AdminDashboard() {
                   <DollarSign className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                  <div className="text-3xl font-serif mb-1">$45,231.89</div>
-                  <p className="text-xs text-emerald-500 flex items-center mt-1">
+                  <div className="text-3xl font-serif mb-1">${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  <p className="text-xs text-emerald-500 flex items-center mt-1 font-sans">
                     <TrendingUp className="h-3 w-3 mr-1" /> +20.1% from last month
                   </p>
                 </CardContent>
@@ -154,9 +160,9 @@ export default function AdminDashboard() {
                   <ShoppingBag className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                  <div className="text-3xl font-serif mb-1">+2350</div>
-                  <p className="text-xs text-emerald-500 flex items-center mt-1">
-                    <TrendingUp className="h-3 w-3 mr-1" /> +180.1% from last month
+                  <div className="text-3xl font-serif mb-1">{orders.length}</div>
+                  <p className="text-xs text-emerald-500 flex items-center mt-1 font-sans">
+                    <TrendingUp className="h-3 w-3 mr-1" /> +12% from last month
                   </p>
                 </CardContent>
               </Card>
@@ -166,8 +172,8 @@ export default function AdminDashboard() {
                   <Users className="h-4 w-4 text-primary" />
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                  <div className="text-3xl font-serif mb-1">+12,234</div>
-                  <p className="text-xs text-emerald-500 flex items-center mt-1">
+                  <div className="text-3xl font-serif mb-1">{customers.length}</div>
+                  <p className="text-xs text-emerald-500 flex items-center mt-1 font-sans">
                     <TrendingUp className="h-3 w-3 mr-1" /> +19% from last month
                   </p>
                 </CardContent>

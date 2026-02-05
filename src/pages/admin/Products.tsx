@@ -8,7 +8,7 @@ import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles } from 'lucide-r
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type ShopifyProduct } from '@/hooks/useProducts';
 import { toast } from 'sonner';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,37 +19,93 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
-interface EditableProduct {
-  id: string;
-  title: string;
-  price: string;
-  inventory: number;
-  image: string;
-  description: string;
-}
+import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 
 export default function AdminProducts() {
-  const { data: initialProducts, isLoading } = useProducts(50);
-  const [products, setProducts] = useState<ShopifyProduct[]>([]);
-  const [editingProduct, setEditingProduct] = useState<EditableProduct | null>(null);
+  const { data: initialProducts, isLoading } = useProducts(100);
+  const { productOverrides, updateProductOverride, deleteProduct } = useAdminStore();
+  const [editingProduct, setEditingProduct] = useState<Partial<ProductOverride> | null>(null);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (initialProducts && products.length === 0) {
-      // Check localStorage first
-      const savedProducts = localStorage.getItem('admin_products');
-      if (savedProducts) {
-        setProducts(JSON.parse(savedProducts));
-      } else {
-        setProducts(initialProducts);
+  const products = useMemo(() => {
+    if (!initialProducts) return [];
+
+    // Apply overrides and filter out deleted products
+    const overridenProducts = initialProducts.map(p => {
+      const override = productOverrides[p.node.id];
+      if (override) {
+        return {
+          ...p,
+          node: {
+            ...p.node,
+            title: override.title,
+            description: override.description,
+            priceRange: {
+              ...p.node.priceRange,
+              minVariantPrice: {
+                ...p.node.priceRange.minVariantPrice,
+                amount: override.price
+              }
+            },
+            images: {
+              ...p.node.images,
+              edges: [
+                {
+                  node: {
+                    ...p.node.images.edges[0]?.node,
+                    url: override.image
+                  }
+                },
+                ...p.node.images.edges.slice(1)
+              ]
+            }
+          }
+        };
       }
-    }
-  }, [initialProducts, products.length]);
+      return p;
+    }).filter(p => !productOverrides[p.node.id]?.isDeleted);
+
+    // Add entirely new products (those in overrides but not in initialProducts)
+    const existingIds = new Set(initialProducts.map(p => p.node.id));
+    const newProducts = Object.values(productOverrides)
+      .filter(o => !existingIds.has(o.id) && !o.isDeleted)
+      .map(o => ({
+        node: {
+          id: o.id,
+          title: o.title,
+          description: o.description,
+          handle: o.title.toLowerCase().replace(/ /g, '-'),
+          priceRange: {
+            minVariantPrice: { amount: o.price, currencyCode: 'USD' }
+          },
+          images: {
+            edges: [{ node: { url: o.image, altText: o.title } }]
+          },
+          variants: {
+            edges: [{ node: { availableForSale: true } }]
+          },
+          options: []
+        }
+      })) as ShopifyProduct[];
+
+    const allProducts = [...overridenProducts, ...newProducts];
+
+    // Apply search filter
+    if (!searchQuery) return allProducts;
+
+    const q = searchQuery.toLowerCase();
+    return allProducts.filter(p =>
+      p.node.title.toLowerCase().includes(q) ||
+      p.node.description?.toLowerCase().includes(q)
+    );
+  }, [initialProducts, productOverrides, searchQuery]);
 
   const handleDelete = (id: string) => {
-    toast.error("Delete functionality is restricted in demo mode");
+    deleteProduct(id);
+    toast.success("Product deleted successfully");
   };
 
   const handleAiDescription = () => {
@@ -77,50 +133,29 @@ export default function AdminProducts() {
   };
 
   const handleSave = () => {
-    if (!editingProduct) return;
-
-    const updatedProducts = products.map(p => {
-      if (p.node.id === editingProduct.id) {
-        return {
-          ...p,
-          node: {
-            ...p.node,
-            title: editingProduct.title,
-            priceRange: {
-              ...p.node.priceRange,
-              minVariantPrice: {
-                ...p.node.priceRange.minVariantPrice,
-                amount: editingProduct.price
-              }
-            },
-            images: {
-              ...p.node.images,
-              edges: [
-                {
-                  node: {
-                    ...p.node.images.edges[0].node,
-                    url: editingProduct.image
-                  }
-                },
-                ...p.node.images.edges.slice(1)
-              ]
-            }
-          }
-        };
-      }
-      return p;
-    });
-
-    setProducts(updatedProducts);
-    localStorage.setItem('admin_products', JSON.stringify(updatedProducts));
-    toast.success("Product updated successfully!");
+    if (!editingProduct || !editingProduct.id) return;
+    updateProductOverride(editingProduct.id, editingProduct);
+    toast.success(isAddingProduct ? "Product added successfully!" : "Product updated successfully!");
     setEditingProduct(null);
+    setIsAddingProduct(false);
+  };
+
+  const startAdding = () => {
+    setIsAddingProduct(true);
+    setEditingProduct({
+      id: `new-${Date.now()}`,
+      title: "",
+      price: "0.00",
+      inventory: 0,
+      image: "https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=800",
+      description: ""
+    });
   };
 
   return (
     <div className="min-h-screen bg-secondary/20">
       <Header />
-      <div className="pt-32 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
         <div className="flex flex-col xl:flex-row gap-8 lg:gap-12">
           <AdminSidebar />
 
@@ -128,7 +163,7 @@ export default function AdminProducts() {
           <main className="flex-1 space-y-8 bg-card p-8 rounded-2xl border border-border/50 shadow-sm">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h1 className="font-serif text-3xl">Products</h1>
-              <Button className="bg-primary">
+              <Button className="bg-primary" onClick={startAdding}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Product
               </Button>
@@ -138,7 +173,9 @@ export default function AdminProducts() {
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 placeholder="Search products..."
-                className="bg-transparent border-none outline-none text-sm w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none outline-none text-sm w-full font-sans"
               />
             </div>
 
@@ -146,13 +183,13 @@ export default function AdminProducts() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Image</TableHead>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Inventory</TableHead>
-                  <TableHead>360° View</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Image</TableHead>
+                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Product Name</TableHead>
+                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Category</TableHead>
+                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Price</TableHead>
+                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Status</TableHead>
+                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">360° View</TableHead>
+                  <TableHead className="text-right font-sans text-[10px] uppercase tracking-widest">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -165,11 +202,13 @@ export default function AdminProducts() {
                 ) : products.map((product) => (
                   <TableRow key={product.node.id}>
                     <TableCell>
-                      <img src={product.node.images.edges[0]?.node.url} alt="" className="w-12 h-16 object-cover rounded" />
+                      <img src={product.node.images.edges[0]?.node.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
                     </TableCell>
-                    <TableCell className="font-medium">{product.node.title}</TableCell>
-                    <TableCell>Swimwear</TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
+                    <TableCell className="font-sans text-xs text-muted-foreground">
+                      {product.node.productType || 'Swimwear'}
+                    </TableCell>
+                    <TableCell className="font-sans text-sm font-medium">
                       {product.node.priceRange.minVariantPrice.currencyCode} {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
                     </TableCell>
                     <TableCell>
@@ -177,15 +216,15 @@ export default function AdminProducts() {
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-sans tracking-widest uppercase font-medium bg-emerald-100 text-emerald-800 w-fit">
                           In Stock
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {product.node.variants.edges[0]?.node.availableForSale ? 'Available' : 'Out of Stock'}
+                        <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-tighter">
+                          {product.node.variants.edges[0]?.node.availableForSale ? 'Available Online' : 'Out of Stock'}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload Sequence
+                      <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 font-sans text-[10px] uppercase tracking-widest">
+                        <Upload className="h-3 w-3 mr-2" />
+                        Sequence
                       </Button>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
@@ -193,13 +232,13 @@ export default function AdminProducts() {
                         id: product.node.id,
                         title: product.node.title,
                         price: product.node.priceRange.minVariantPrice.amount,
-                        inventory: 45,
+                        inventory: productOverrides[product.node.id]?.inventory || 45,
                         image: product.node.images.edges[0]?.node.url,
-                        description: ""
+                        description: product.node.description || ""
                       })}>
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(product.node.id)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => handleDelete(product.node.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
@@ -209,27 +248,32 @@ export default function AdminProducts() {
             </Table>
             </div>
 
-            {/* Edit Product Dialog */}
-            <Dialog open={!!editingProduct} onOpenChange={(open) => !open && setEditingProduct(null)}>
+            {/* Edit/Add Product Dialog */}
+            <Dialog open={!!editingProduct} onOpenChange={(open) => {
+              if (!open) {
+                setEditingProduct(null);
+                setIsAddingProduct(false);
+              }
+            }}>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                  <DialogTitle className="font-serif text-2xl">Edit Product</DialogTitle>
-                  <DialogDescription>
-                    Make changes to your product here. Click save when you're done.
+                  <DialogTitle className="font-serif text-2xl">{isAddingProduct ? 'Add New Product' : 'Edit Product'}</DialogTitle>
+                  <DialogDescription className="font-sans text-sm text-muted-foreground">
+                    {isAddingProduct ? 'Enter the details for the new product.' : 'Make changes to your product here. Click save when you\'re done.'}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right font-sans text-xs uppercase tracking-wider">Name</Label>
+                    <Label htmlFor="name" className="text-right font-sans text-[10px] uppercase tracking-widest">Name</Label>
                     <Input
                       id="name"
                       value={editingProduct?.title || ""}
                       onChange={(e) => setEditingProduct({...editingProduct, title: e.target.value})}
-                      className="col-span-3"
+                      className="col-span-3 font-sans text-sm"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right font-sans text-xs uppercase tracking-wider">Product Image</Label>
+                    <Label className="text-right font-sans text-[10px] uppercase tracking-widest">Image</Label>
                     <div className="col-span-3 flex items-center gap-4">
                       {editingProduct?.image && (
                         <img src={editingProduct.image} alt="Preview" className="w-16 h-20 object-cover rounded-lg border shadow-sm" />
@@ -244,38 +288,38 @@ export default function AdminProducts() {
                         />
                         <Button
                           variant="outline"
-                          className="w-full font-sans text-xs uppercase tracking-widest"
+                          className="w-full font-sans text-[10px] uppercase tracking-widest h-10"
                           onClick={() => imageInputRef.current?.click()}
                         >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload New Image
+                          <Upload className="h-3 w-3 mr-2" />
+                          Upload
                         </Button>
                       </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="price" className="text-right font-sans text-xs uppercase tracking-wider">Price</Label>
+                    <Label htmlFor="price" className="text-right font-sans text-[10px] uppercase tracking-widest">Price</Label>
                     <Input
                       id="price"
                       type="text"
                       value={editingProduct?.price || ""}
                       onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
-                      className="col-span-3"
+                      className="col-span-3 font-sans text-sm"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="inventory" className="text-right font-sans text-xs uppercase tracking-wider">Inventory</Label>
+                    <Label htmlFor="inventory" className="text-right font-sans text-[10px] uppercase tracking-widest">Stock</Label>
                     <Input
                       id="inventory"
                       type="number"
                       value={editingProduct?.inventory || 0}
                       onChange={(e) => setEditingProduct({...editingProduct, inventory: parseInt(e.target.value)})}
-                      className="col-span-3"
+                      className="col-span-3 font-sans text-sm"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-start gap-4 pt-4 border-t">
                     <div className="flex flex-col items-end gap-2">
-                      <Label htmlFor="desc" className="text-right font-sans text-xs uppercase tracking-wider pt-2">Description</Label>
+                      <Label htmlFor="desc" className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Description</Label>
                       <Button
                         variant="outline"
                         size="icon"
@@ -291,13 +335,13 @@ export default function AdminProducts() {
                       placeholder="Product description..."
                       value={editingProduct?.description || ""}
                       onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
-                      className="col-span-3 h-32 text-sm leading-relaxed"
+                      className="col-span-3 h-32 text-sm leading-relaxed font-sans"
                     />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setEditingProduct(null)}>Cancel</Button>
-                  <Button onClick={handleSave} className="bg-primary">Save Changes</Button>
+                  <Button variant="outline" onClick={() => { setEditingProduct(null); setIsAddingProduct(false); }} className="font-sans text-[10px] uppercase tracking-widest">Cancel</Button>
+                  <Button onClick={handleSave} className="bg-primary font-sans text-[10px] uppercase tracking-widest">Save Changes</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
