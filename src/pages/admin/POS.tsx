@@ -1,13 +1,11 @@
-
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Plus, Minus, Trash2, CreditCard, User, ShoppingBag, CheckCircle } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type ShopifyProduct } from '@/hooks/useProducts';
-import { useAdminStore, type AdminOrder, type ProductOverride } from '@/stores/adminStore';
+import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 
@@ -30,7 +28,6 @@ export default function AdminPOS() {
   const products = useMemo(() => {
     if (!initialProducts) return [];
 
-    // Apply overrides
     const baseProducts = initialProducts.map(p => {
       const override = productOverrides[p.node.id];
       if (override) {
@@ -71,38 +68,6 @@ export default function AdminPOS() {
         price: product.priceRange.minVariantPrice.amount,
         image: product.images.edges[0]?.node.url || '',
         quantity: 1
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { useProducts } from '@/hooks/useProducts';
-import { useAdminStore } from '@/stores/adminStore';
-import { toast } from 'sonner';
-import { useState } from 'react';
-import { Search, ShoppingCart, Plus, Minus, Trash2, CreditCard, User } from 'lucide-react';
-
-export default function AdminPOS() {
-  const { data: products } = useProducts(50);
-  const { addOrder } = useAdminStore();
-  const [cart, setCart] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [customerName, setCustomerName] = useState('Walk-in Customer');
-
-  const filteredProducts = products?.filter(p =>
-    p.node.title.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
-
-  const addToCart = (product: any) => {
-    const existing = cart.find(item => item.id === product.node.id);
-    if (existing) {
-      setCart(cart.map(item =>
-        item.id === product.node.id ? { ...item, quantity: item.quantity + 1 } : item
-      ));
-    } else {
-      setCart([...cart, {
-        id: product.node.id,
-        title: product.node.title,
-        price: product.node.priceRange.minVariantPrice.amount,
-        quantity: 1,
-        image: product.node.images.edges[0]?.node.url
       }]);
     }
   };
@@ -113,11 +78,6 @@ export default function AdminPOS() {
 
   const updateQuantity = (id: string, delta: number) => {
     setPosCart(posCart.map(item => {
-    setCart(cart.filter(item => item.id !== id));
-  };
-
-  const updateQuantity = (id: string, delta: number) => {
-    setCart(cart.map(item => {
       if (item.id === id) {
         const newQty = Math.max(1, item.quantity + delta);
         return { ...item, quantity: newQty };
@@ -133,7 +93,6 @@ export default function AdminPOS() {
 
     setIsProcessing(true);
 
-    // Simulate payment processing
     setTimeout(() => {
       const newOrder: AdminOrder = {
         id: `#POS-${Math.floor(Math.random() * 9000) + 1000}`,
@@ -159,30 +118,6 @@ export default function AdminPOS() {
 
       setTimeout(() => setShowSuccess(false), 3000);
     }, 1500);
-  const subtotal = cart.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
-  const tax = subtotal * 0.075;
-  const total = subtotal + tax;
-
-  const handleCompleteOrder = () => {
-    if (cart.length === 0) {
-      toast.error("Cart is empty");
-      return;
-    }
-
-    addOrder({
-      customerName,
-      total: `$${total.toFixed(2)}`,
-      items: cart.map(item => ({
-        title: item.title,
-        price: item.price,
-        quantity: item.quantity
-      })),
-      type: 'POS'
-    });
-
-    toast.success("Transaction completed successfully!");
-    setCart([]);
-    setCustomerName('Walk-in Customer');
   };
 
   return (
@@ -192,250 +127,128 @@ export default function AdminPOS() {
         <div className="flex flex-col xl:flex-row gap-8 lg:gap-12">
           <AdminSidebar />
 
-          {/* Main POS Interface */}
           <main className="flex-1 flex flex-col lg:flex-row gap-8 h-[calc(100vh-280px)] min-h-[600px]">
-            {/* Product Catalog */}
             <div className="flex-1 flex flex-col space-y-4">
-               <div className="flex items-center gap-4 bg-card border rounded-xl px-4 py-3 shadow-sm">
-                  <Search className="h-5 w-5 text-muted-foreground" />
-                  <input
-                    placeholder="Search products by name or SKU..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-transparent border-none outline-none text-sm w-full font-sans"
-                  />
-               </div>
+              <div className="flex items-center gap-4 bg-card border rounded-xl px-4 py-3 shadow-sm">
+                <Search className="h-5 w-5 text-muted-foreground" />
+                <input
+                  placeholder="Search products by name or SKU..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm w-full font-sans"
+                />
+              </div>
 
-               <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-primary/10">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {products.map((product) => (
-                      <Card key={product.node.id} className="cursor-pointer hover:shadow-md transition-shadow group overflow-hidden border-border/50" onClick={() => addToCart(product.node)}>
-                        <div className="aspect-[3/4] overflow-hidden">
-                           <img src={product.node.images.edges[0]?.node.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        </div>
-                        <CardContent className="p-3">
-                           <p className="font-sans text-xs font-medium truncate">{product.node.title}</p>
-                           <p className="font-serif text-sm text-primary">${parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-               </div>
-            </div>
-
-            {/* Cart & Checkout */}
-            <div className="w-full lg:w-[400px] flex flex-col gap-4">
-               <Card className="flex-1 flex flex-col border-primary/20 shadow-gold overflow-hidden">
-                  <div className="bg-primary/5 p-4 border-b border-primary/10 flex items-center justify-between">
-                     <div className="flex items-center gap-2">
-                        <ShoppingBag className="h-5 w-5 text-primary" />
-                        <h2 className="font-serif text-lg">Current Sale</h2>
-                     </div>
-                     <span className="bg-primary text-primary-foreground text-[10px] font-sans px-2 py-0.5 rounded-full uppercase tracking-widest">{posCart.length} Items</span>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                     {posCart.length === 0 ? (
-                       <div className="h-full flex flex-col items-center justify-center text-center space-y-3 text-muted-foreground">
-                          <div className="p-4 bg-secondary/50 rounded-full">
-                             <ShoppingBag className="h-8 w-8 opacity-20" />
-                          </div>
-                          <p className="font-sans text-sm">Cart is empty.<br/>Select products to begin sale.</p>
-                       </div>
-                     ) : (
-                       posCart.map((item) => (
-                         <div key={item.id} className="flex items-center gap-3 bg-secondary/20 p-2 rounded-xl border border-border/50">
-                            <img src={item.image} alt="" className="w-10 h-14 object-cover rounded shadow-sm" />
-                            <div className="flex-1 min-w-0">
-                               <p className="font-sans text-[11px] font-medium truncate">{item.title}</p>
-                               <p className="font-serif text-xs">${item.price}</p>
-                            </div>
-                            <div className="flex items-center gap-2 bg-background rounded-lg border px-1">
-                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}>
-                                  <Minus className="h-3 w-3" />
-                               </Button>
-                               <span className="font-sans text-xs w-4 text-center">{item.quantity}</span>
-                               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}>
-                                  <Plus className="h-3 w-3" />
-                               </Button>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={(e) => { e.stopPropagation(); removeFromCart(item.id); }}>
-                               <Trash2 className="h-3 w-3" />
-                            </Button>
-                         </div>
-                       ))
-                     )}
-                  </div>
-
-                  <div className="p-6 bg-secondary/30 border-t space-y-4">
-                     <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-sans text-muted-foreground">
-                           <span>Subtotal</span>
-                           <span>${cartTotal.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs font-sans text-muted-foreground">
-                           <span>Tax (0%)</span>
-                           <span>$0.00</span>
-                        </div>
-                        <div className="flex justify-between font-serif text-xl border-t pt-2 mt-2">
-                           <span>Total</span>
-                           <span className="text-primary">${cartTotal.toFixed(2)}</span>
-                        </div>
-                     </div>
-
-                     <Button
-                       className="w-full h-14 bg-primary text-primary-foreground font-sans uppercase tracking-widest text-xs shadow-lg relative overflow-hidden group"
-                       disabled={posCart.length === 0 || isProcessing}
-                       onClick={completeSale}
-                     >
-                        {isProcessing ? (
-                           <div className="flex items-center gap-2">
-                              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              <span>Processing...</span>
-                           </div>
-                        ) : showSuccess ? (
-                           <div className="flex items-center gap-2 animate-in zoom-in duration-300">
-                              <CheckCircle className="h-4 w-4" />
-                              <span>Success!</span>
-                           </div>
-                        ) : (
-                           <div className="flex items-center justify-center gap-2">
-                              <CreditCard className="h-4 w-4" />
-                              <span>Complete Transaction</span>
-                           </div>
-                        )}
-                     </Button>
-                  </div>
-               </Card>
-
-               <Card className="p-4 border-border/50">
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                     <User className="h-4 w-4" />
-                     <span className="text-[11px] font-sans uppercase tracking-widest">Guest Customer</span>
-                     <Button variant="link" className="ml-auto text-[10px] uppercase tracking-widest h-auto p-0">Change</Button>
-                  </div>
-               </Card>
-            </div>
-          </main>
-        <div className="flex flex-col gap-4">
-          <AdminSidebar />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Product Selection */}
-            <main className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-serif">Inventory Selection</CardTitle>
-                  <CardDescription>Select items to add to the customer's cart</CardDescription>
-                  <div className="relative mt-4">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                      placeholder="Search by product name..."
-                      className="w-full bg-secondary/50 border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-primary outline-none"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredProducts.map((product) => (
-                      <button
-                        key={product.node.id}
-                        onClick={() => addToCart(product)}
-                        className="group flex flex-col items-center p-3 rounded-xl border border-border/50 bg-background hover:border-primary/50 transition-all text-left"
-                      >
-                        <img
-                          src={product.node.images.edges[0]?.node.url}
-                          alt=""
-                          className="w-full aspect-[3/4] object-cover rounded-lg mb-3 shadow-sm group-hover:scale-[1.02] transition-transform"
-                        />
-                        <p className="text-[11px] font-serif font-bold text-center mb-1 line-clamp-1">{product.node.title}</p>
-                        <p className="text-[10px] text-primary font-bold">${parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}</p>
-                      </button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </main>
-
-            {/* Checkout / Cart */}
-            <aside className="space-y-6">
-              <Card className="sticky top-48">
-                <CardHeader className="border-b bg-primary/5">
-                  <div className="flex items-center justify-between mb-4">
-                    <CardTitle className="font-serif flex items-center gap-2">
-                      <ShoppingCart className="h-5 w-5" />
-                      Cart
-                    </CardTitle>
-                    <Badge variant="outline" className="bg-background">{cart.length} Items</Badge>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 bg-background rounded-lg border">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <input
-                      className="bg-transparent border-none outline-none text-xs w-full"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Customer Name"
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="space-y-4 max-h-[400px] overflow-y-auto mb-6 pr-2">
-                    {cart.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground italic text-sm">
-                        Cart is currently empty.
+              <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-primary/10">
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {products.map((product) => (
+                    <Card key={product.node.id} className="cursor-pointer hover:shadow-md transition-shadow group overflow-hidden border-border/50" onClick={() => addToCart(product.node)}>
+                      <div className="aspect-[3/4] overflow-hidden">
+                        <img src={product.node.images.edges[0]?.node.url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
-                    ) : cart.map((item) => (
-                      <div key={item.id} className="flex gap-3 items-center">
-                        <img src={item.image} alt="" className="w-12 h-16 object-cover rounded border" />
+                      <CardContent className="p-3">
+                        <p className="font-sans text-xs font-medium truncate">{product.node.title}</p>
+                        <p className="font-serif text-sm text-primary">${parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full lg:w-[400px] flex flex-col gap-4">
+              <Card className="flex-1 flex flex-col border-primary/20 shadow-gold overflow-hidden">
+                <div className="bg-primary/5 p-4 border-b border-primary/10 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-5 w-5 text-primary" />
+                    <h2 className="font-serif text-lg">Current Sale</h2>
+                  </div>
+                  <span className="bg-primary text-primary-foreground text-[10px] font-sans px-2 py-0.5 rounded-full uppercase tracking-widest">{posCart.length} Items</span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {posCart.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-3 text-muted-foreground">
+                      <div className="p-4 bg-secondary/50 rounded-full">
+                        <ShoppingBag className="h-8 w-8 opacity-20" />
+                      </div>
+                      <p className="font-sans text-sm">Cart is empty.<br/>Select products to begin sale.</p>
+                    </div>
+                  ) : (
+                    posCart.map((item) => (
+                      <div key={item.id} className="flex items-center gap-3 bg-secondary/20 p-2 rounded-xl border border-border/50">
+                        <img src={item.image} alt="" className="w-10 h-14 object-cover rounded shadow-sm" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold truncate">{item.title}</p>
-                          <p className="text-[10px] text-muted-foreground">${item.price}</p>
+                          <p className="font-sans text-[11px] font-medium truncate">{item.title}</p>
+                          <p className="font-serif text-xs">${item.price}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.id, -1)}>
+                        <div className="flex items-center gap-2 bg-background rounded-lg border px-1">
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}>
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.id, 1)}>
+                          <span className="font-sans text-xs w-4 text-center">{item.quantity}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}>
                             <Plus className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeFromCart(item.id)}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
                         </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={(e) => { e.stopPropagation(); removeFromCart(item.id); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  )}
+                </div>
 
-                  <div className="border-t pt-4 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>${subtotal.toFixed(2)}</span>
+                <div className="p-6 bg-secondary/30 border-t space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-sans text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span>${cartTotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Tax (7.5%)</span>
-                      <span>${tax.toFixed(2)}</span>
+                    <div className="flex justify-between text-xs font-sans text-muted-foreground">
+                      <span>Tax (0%)</span>
+                      <span>$0.00</span>
                     </div>
-                    <div className="flex justify-between font-bold text-lg pt-2 border-t">
+                    <div className="flex justify-between font-serif text-xl border-t pt-2 mt-2">
                       <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span className="text-primary">${cartTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
                   <Button
-                    className="w-full mt-6 bg-primary py-6 text-[10px] uppercase tracking-[0.2em] font-bold"
-                    onClick={handleCompleteOrder}
-                    disabled={cart.length === 0}
+                    className="w-full h-14 bg-primary text-primary-foreground font-sans uppercase tracking-widest text-xs shadow-lg relative overflow-hidden group"
+                    disabled={posCart.length === 0 || isProcessing}
+                    onClick={completeSale}
                   >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Complete Transaction
+                    {isProcessing ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Processing...</span>
+                      </div>
+                    ) : showSuccess ? (
+                      <div className="flex items-center gap-2 animate-in zoom-in duration-300">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Success!</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        <span>Complete Transaction</span>
+                      </div>
+                    )}
                   </Button>
-                </CardContent>
+                </div>
               </Card>
-            </aside>
-          </div>
+
+              <Card className="p-4 border-border/50">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <span className="text-[11px] font-sans uppercase tracking-widest">Guest Customer</span>
+                  <Button variant="link" className="ml-auto text-[10px] uppercase tracking-widest h-auto p-0">Change</Button>
+                </div>
+              </Card>
+            </div>
+          </main>
         </div>
       </div>
       <Footer />

@@ -1,4 +1,3 @@
-
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -33,7 +32,6 @@ export default function AdminProducts() {
   const products = useMemo(() => {
     if (!initialProducts) return [];
 
-    // Apply overrides and filter out deleted products
     const overridenProducts = initialProducts.map(p => {
       const override = productOverrides[p.node.id];
       if (override) {
@@ -68,7 +66,6 @@ export default function AdminProducts() {
       return p;
     }).filter(p => !productOverrides[p.node.id]?.isDeleted);
 
-    // Add entirely new products (those in overrides but not in initialProducts)
     const existingIds = new Set(initialProducts.map(p => p.node.id));
     const newProducts = Object.values(productOverrides)
       .filter(o => !existingIds.has(o.id) && !o.isDeleted)
@@ -93,7 +90,6 @@ export default function AdminProducts() {
 
     const allProducts = [...overridenProducts, ...newProducts];
 
-    // Apply search filter
     if (!searchQuery) return allProducts;
 
     const q = searchQuery.toLowerCase();
@@ -113,7 +109,7 @@ export default function AdminProducts() {
     setTimeout(() => {
       setEditingProduct({
         ...editingProduct,
-        description: `Experience ultimate Brazilian luxury with the ${editingProduct.title}. Handcrafted from our signature double-lined Italian fabric, this piece features a sophisticated silhouette designed to accentuate your natural curves while providing premium comfort and support.`
+        description: `Experience ultimate Brazilian luxury with the ${editingProduct?.title || 'product'}. Handcrafted from our signature double-lined Italian fabric, this piece features a sophisticated silhouette designed to accentuate your natural curves while providing premium comfort and support.`
       });
       setIsAiGenerating(false);
       toast.success("Magic AI description generated!");
@@ -159,22 +155,10 @@ export default function AdminProducts() {
         <div className="flex flex-col xl:flex-row gap-8 lg:gap-12">
           <AdminSidebar />
 
-          {/* Main Content */}
           <main className="flex-1 space-y-8 bg-card p-8 rounded-2xl border border-border/50 shadow-sm">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h1 className="font-serif text-3xl">Products</h1>
               <Button className="bg-primary" onClick={startAdding}>
-        <div className="flex flex-col gap-4">
-          <AdminSidebar />
-
-          {/* Main Content */}
-          <main className="w-full space-y-8 bg-card p-8 rounded-2xl border border-border/50 shadow-sm">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="space-y-1">
-                <h1 className="font-serif text-4xl tracking-tight">Product Management</h1>
-                <p className="text-muted-foreground text-sm">Organize and optimize your luxury swimwear collection</p>
-              </div>
-              <Button className="bg-primary px-8">
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Product
               </Button>
@@ -191,75 +175,74 @@ export default function AdminProducts() {
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Image</TableHead>
-                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Product Name</TableHead>
-                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Category</TableHead>
-                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Price</TableHead>
-                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">Status</TableHead>
-                  <TableHead className="font-sans text-[10px] uppercase tracking-widest">360° View</TableHead>
-                  <TableHead className="text-right font-sans text-[10px] uppercase tracking-widest">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading && products.length === 0 ? (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                    </TableCell>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Image</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Product Name</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Category</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Price</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Status</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">360° View</TableHead>
+                    <TableHead className="text-right font-sans text-[10px] uppercase tracking-widest">Actions</TableHead>
                   </TableRow>
-                ) : products.map((product) => (
-                  <TableRow key={product.node.id}>
-                    <TableCell>
-                      <img src={product.node.images.edges[0]?.node.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
-                    </TableCell>
-                    <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
-                    <TableCell className="font-sans text-xs text-muted-foreground">
-                      {product.node.productType || 'Swimwear'}
-                    </TableCell>
-                    <TableCell className="font-sans text-sm font-medium">
-                      {product.node.priceRange.minVariantPrice.currencyCode} {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-sans tracking-widest uppercase font-medium bg-emerald-100 text-emerald-800 w-fit">
-                          In Stock
-                        </span>
-                        <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-tighter">
-                          {product.node.variants.edges[0]?.node.availableForSale ? 'Available Online' : 'Out of Stock'}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 font-sans text-[10px] uppercase tracking-widest">
-                        <Upload className="h-3 w-3 mr-2" />
-                        Sequence
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingProduct({
-                        id: product.node.id,
-                        title: product.node.title,
-                        price: product.node.priceRange.minVariantPrice.amount,
-                        inventory: productOverrides[product.node.id]?.inventory || 45,
-                        image: product.node.images.edges[0]?.node.url,
-                        description: product.node.description || ""
-                      })}>
-                        <Edit2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => handleDelete(product.node.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {isLoading && products.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                      </TableCell>
+                    </TableRow>
+                  ) : products.map((product) => (
+                    <TableRow key={product.node.id}>
+                      <TableCell>
+                        <img src={product.node.images.edges[0]?.node.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
+                      </TableCell>
+                      <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
+                      <TableCell className="font-sans text-xs text-muted-foreground">
+                        {product.node.productType || 'Swimwear'}
+                      </TableCell>
+                      <TableCell className="font-sans text-sm font-medium">
+                        {product.node.priceRange.minVariantPrice.currencyCode} {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-sans tracking-widest uppercase font-medium bg-emerald-100 text-emerald-800 w-fit">
+                            In Stock
+                          </span>
+                          <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-tighter">
+                            {product.node.variants.edges[0]?.node.availableForSale ? 'Available Online' : 'Out of Stock'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 font-sans text-[10px] uppercase tracking-widest">
+                          <Upload className="h-3 w-3 mr-2" />
+                          Sequence
+                        </Button>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingProduct({
+                          id: product.node.id,
+                          title: product.node.title,
+                          price: product.node.priceRange.minVariantPrice.amount,
+                          inventory: productOverrides[product.node.id]?.inventory || 45,
+                          image: product.node.images.edges[0]?.node.url,
+                          description: product.node.description || ""
+                        })}>
+                          <Edit2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => handleDelete(product.node.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
 
-            {/* Edit/Add Product Dialog */}
             <Dialog open={!!editingProduct} onOpenChange={(open) => {
               if (!open) {
                 setEditingProduct(null);
