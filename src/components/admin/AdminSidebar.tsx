@@ -1,6 +1,6 @@
 
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingBag, Settings, Store } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Settings, Store, Users, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function AdminSidebar() {
@@ -10,6 +10,8 @@ export function AdminSidebar() {
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/products', label: 'Products', icon: Package },
     { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+    { href: '/admin/customers', label: 'Customers', icon: Users },
+    { href: '/admin/pos', label: 'POS System', icon: CreditCard },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
   ];
 
