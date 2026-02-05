@@ -31,12 +31,12 @@ interface AuthStore {
  * SECURITY NOTE: The admin email is managed via environment variables.
  * In production, admin privileges should be managed via backend roles and verified with tokens.
  */
-export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
+export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'lydia@ninaarmend.co.site';
 
 const DEFAULT_ADMIN: AuthUser = {
   name: 'Lydia',
   email: ADMIN_EMAIL,
-  password: '3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b', // Hash of "Bossqueen26!"
+  password: '1028fa031c3f91f18519a2a997a00579efcdcf64b3b4a96ac65143e30811ca43', // Hash of "Bossqueen26!"
   avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
   points: 0,
   referralCode: 'NINA-LYD-2025',
@@ -58,7 +58,8 @@ export const useAuthStore = create<AuthStore>()(
          * and secure token-based authentication (JWT/OAuth).
          */
         const { users } = get();
-        const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+        const trimmedEmail = email.trim();
+        const foundUser = users.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase());
 
         if (foundUser) {
           const hashedInput = await hashPassword(password);
@@ -75,14 +76,15 @@ export const useAuthStore = create<AuthStore>()(
 
       signup: async (name, email, password) => {
         const { users } = get();
-        if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
+        const trimmedEmail = email.trim();
+        if (users.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase())) {
           return false;
         }
 
         const hashedPassword = await hashPassword(password);
         const newUser: AuthUser = {
           name,
-          email: email.toLowerCase(),
+          email: trimmedEmail.toLowerCase(),
           password: hashedPassword,
           avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
           points: 250, // Welcome points
@@ -99,7 +101,8 @@ export const useAuthStore = create<AuthStore>()(
 
       resetPassword: (email) => {
         const { users } = get();
-        const foundUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+        const trimmedEmail = email.trim();
+        const foundUser = users.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase());
 
         if (foundUser) {
           /**
@@ -114,11 +117,12 @@ export const useAuthStore = create<AuthStore>()(
 
       deleteAccount: (email) => {
         const { users, user } = get();
-        const updatedUsers = users.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+        const trimmedEmail = email.trim();
+        const updatedUsers = users.filter(u => u.email.toLowerCase() !== trimmedEmail.toLowerCase());
 
         if (updatedUsers.length < users.length) {
           // If the deleted user was the currently logged in user, log them out
-          if (user?.email.toLowerCase() === email.toLowerCase()) {
+          if (user?.email.toLowerCase() === trimmedEmail.toLowerCase()) {
             set({ user: null, isAuthenticated: false, users: updatedUsers });
           } else {
             set({ users: updatedUsers });
@@ -140,7 +144,7 @@ export const useAuthStore = create<AuthStore>()(
       }),
     }),
     {
-      name: 'nina-armend-auth-v4',
+      name: 'nina-armend-auth-v5',
       storage: createJSONStorage(() => localStorage),
     }
   )

@@ -54,4 +54,27 @@ describe("authStore", () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(useAuthStore.getState().user).toBeNull();
   });
+
+  it("should allow login with the default admin credentials", async () => {
+    const { login } = useAuthStore.getState();
+    const success = await login(ADMIN_EMAIL, "Bossqueen26!");
+    expect(success).toBe(true);
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().user?.email).toBe(ADMIN_EMAIL);
+  });
+
+  it("should trim email on login", async () => {
+    const { login } = useAuthStore.getState();
+    const success = await login(`  ${ADMIN_EMAIL}  `, "Bossqueen26!");
+    expect(success).toBe(true);
+    expect(useAuthStore.getState().user?.email).toBe(ADMIN_EMAIL);
+  });
+
+  it("should trim email on signup", async () => {
+    const { signup } = useAuthStore.getState();
+    const testEmail = " trim-test@example.com ";
+    const success = await signup("Trim Test", testEmail, "password123");
+    expect(success).toBe(true);
+    expect(useAuthStore.getState().user?.email).toBe("trim-test@example.com");
+  });
 });
