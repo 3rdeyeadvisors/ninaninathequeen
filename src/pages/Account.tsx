@@ -126,7 +126,7 @@ export default function Account() {
     return (
       <div className="min-h-screen bg-secondary/10">
         <Header />
-        <main className="pt-40 pb-20">
+        <main className="pt-32 md:pt-40 pb-20">
           <div className="container mx-auto px-4 max-w-md">
             <Tabs defaultValue="signin" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -287,7 +287,7 @@ export default function Account() {
   return (
     <div className="min-h-screen bg-secondary/10">
       <Header />
-      <main className="pt-40 pb-20">
+      <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8 max-w-5xl">
           <div className="flex flex-col md:flex-row gap-8 items-start">
             {/* Sidebar / Profile Summary */}

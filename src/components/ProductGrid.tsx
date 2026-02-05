@@ -101,7 +101,7 @@ export function ProductGrid({ query, limit = 12, title, subtitle }: ProductGridP
           </div>
         )}
         
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
           {products.map((product: ShopifyProduct, index: number) => (
             <ProductCard key={product.node.id} product={product} index={index} />
           ))}

@@ -52,17 +52,18 @@ export function Header() {
               size="icon" 
               className="md:hidden"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
 
             {/* Desktop navigation - left */}
-            <div className="hidden xl:flex items-center gap-8 pr-4">
+            <div className="hidden lg:flex items-center gap-6 pr-4">
               {navLinks.slice(0, 3).map((link) => (
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-xs font-sans tracking-widest text-foreground/80 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                  className="text-[10px] font-sans tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
                 >
                   {link.name}
                 </Link>
@@ -71,21 +72,21 @@ export function Header() {
           </div>
 
           {/* Logo - Perfect Center */}
-          <div className="flex justify-center z-10 mx-8">
+          <div className="flex justify-center z-10 mx-4 md:mx-8">
             <Link to="/" className="flex flex-col items-center">
               <Logo />
             </Link>
           </div>
 
           {/* Right section - Icons */}
-          <div className="flex items-center justify-end gap-2 md:gap-4 lg:gap-8">
+          <div className="flex items-center justify-end gap-2 md:gap-4 lg:gap-6">
             {/* Desktop navigation - right */}
-            <div className="hidden 2xl:flex items-center gap-8 pl-4">
-              {navLinks.slice(3, 5).map((link) => (
+            <div className="hidden xl:flex items-center gap-6 pl-4">
+              {navLinks.slice(3).map((link) => (
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-xs font-sans tracking-widest text-foreground/80 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                  className="text-[10px] font-sans tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
                 >
                   {link.name}
                 </Link>
@@ -94,35 +95,15 @@ export function Header() {
 
             {/* Icons */}
             <div className="flex items-center gap-1 md:gap-2">
-              <div className="relative flex items-center">
-                <AnimatePresence>
-                  {searchOpen && (
-                    <motion.form
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{ width: 200, opacity: 1 }}
-                      exit={{ width: 0, opacity: 0 }}
-                      onSubmit={handleSearch}
-                      className="absolute right-full mr-2"
-                    >
-                      <Input
-                        autoFocus
-                        placeholder="Search..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-9 rounded-full bg-background/50 backdrop-blur-sm border-primary/20"
-                      />
-                    </motion.form>
-                  )}
-                </AnimatePresence>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9"
-                  onClick={() => setSearchOpen(!searchOpen)}
-                >
-                  {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4 md:h-5 md:w-5" />}
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setSearchOpen(!searchOpen)}
+                aria-label="Toggle search"
+              >
+                {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4 md:h-5 md:w-5" />}
+              </Button>
 
               <Link to="/wishlist">
                 <Button variant="ghost" size="icon" className="h-9 w-9 hidden sm:flex relative">
@@ -153,6 +134,40 @@ export function Header() {
             </div>
           </div>
         </div>
+
+        {/* Search Bar - Slide Down */}
+        <AnimatePresence>
+          {searchOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden bg-background/95 backdrop-blur-md border-t border-border/30"
+            >
+              <div className="container mx-auto px-4 md:px-8 py-4">
+                <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    autoFocus
+                    placeholder="Search our collection..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-12 h-12 rounded-full bg-secondary/30 border-primary/10 focus:ring-primary font-sans text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-transparent"
+                    onClick={() => setSearchOpen(false)}
+                  >
+                    <X className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </form>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Mobile menu */}
         <AnimatePresence>
@@ -187,12 +202,27 @@ export function Header() {
                   </Link>
                 ))}
                 <div className="flex items-center gap-4 pt-4 border-t border-border/30">
-                  <Button variant="ghost" size="icon">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setSearchOpen(true);
+                    }}
+                    aria-label="Open search"
+                  >
                     <Search className="h-5 w-5" />
                   </Button>
-                  <Button variant="ghost" size="icon">
-                    <Heart className="h-5 w-5" />
-                  </Button>
+                  <Link to="/wishlist" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Heart className="h-5 w-5" />
+                      {wishlistItems.length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                          {wishlistItems.length}
+                        </span>
+                      )}
+                    </Button>
+                  </Link>
                   <Link to="/account" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="ghost" size="icon">
                       <User className="h-5 w-5" />

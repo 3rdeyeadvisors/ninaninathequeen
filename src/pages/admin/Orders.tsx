@@ -3,8 +3,8 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingBag, Box, Clock, CheckCircle2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Clock, CheckCircle2 } from 'lucide-react';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 
 const orders = [
   { id: '#ORD-7829', customer: 'Alice Johnson', date: '2025-05-15', total: '$160.00', status: 'Delivered', tracking: 'NA-982341' },
@@ -18,22 +18,8 @@ export default function AdminOrders() {
     <div className="min-h-screen bg-secondary/20">
       <Header />
       <div className="pt-32 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
-        <div className="flex flex-col xl:flex-row gap-12 justify-center">
-          {/* Sidebar */}
-          <aside className="w-full xl:w-72 space-y-2 shrink-0">
-            <Link to="/admin" className="flex items-center gap-3 px-4 py-3 hover:bg-card rounded-lg transition-colors">
-              <Package className="h-5 w-5 text-muted-foreground" />
-              <span className="font-sans">Dashboard</span>
-            </Link>
-            <Link to="/admin/products" className="flex items-center gap-3 px-4 py-3 hover:bg-card rounded-lg transition-colors">
-              <Box className="h-5 w-5 text-muted-foreground" />
-              <span className="font-sans">Products</span>
-            </Link>
-            <Link to="/admin/orders" className="flex items-center gap-3 px-4 py-3 bg-primary text-primary-foreground rounded-lg shadow-sm">
-              <ShoppingBag className="h-5 w-5" />
-              <span className="font-sans font-medium">Orders</span>
-            </Link>
-          </aside>
+        <div className="flex flex-col xl:flex-row gap-8 lg:gap-12">
+          <AdminSidebar />
 
           {/* Main Content */}
           <main className="flex-1 space-y-8 bg-card p-8 rounded-2xl border border-border/50 shadow-sm">
