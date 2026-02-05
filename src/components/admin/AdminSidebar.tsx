@@ -12,45 +12,48 @@ export function AdminSidebar() {
     { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
     { href: '/admin/customers', label: 'Customers', icon: Users },
     { href: '/admin/pos', label: 'Point of Sale', icon: CreditCard },
+    { href: '/admin/pos', label: 'POS System', icon: CreditCard },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <aside className="w-full xl:w-72 space-y-2 shrink-0">
-      <div className="px-4 py-2 mb-2">
-        <p className="text-[10px] font-sans tracking-[0.3em] uppercase text-muted-foreground/60">Admin Portal</p>
+    <nav className="w-full flex flex-wrap items-center gap-2 mb-8 p-1.5 bg-background/50 backdrop-blur-sm rounded-2xl border border-primary/10 shadow-sm">
+      <div className="hidden lg:block px-4 py-2 mr-2 border-r border-border/30">
+        <p className="text-[9px] font-sans tracking-[0.3em] uppercase text-primary font-bold">Admin Portal</p>
       </div>
 
-      {links.map((link) => {
-        const Icon = link.icon;
-        const isActive = location.pathname === link.href;
+      <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+        {links.map((link) => {
+          const Icon = link.icon;
+          const isActive = location.pathname === link.href;
 
-        return (
-          <Link
-            key={link.href}
-            to={link.href}
-            className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 font-sans text-sm",
-              isActive
-                ? "bg-primary text-primary-foreground shadow-md font-medium"
-                : "text-muted-foreground hover:bg-card hover:text-foreground"
-            )}
-          >
-            <Icon className={cn("h-5 w-5", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
-            <span>{link.label}</span>
-          </Link>
-        );
-      })}
+          return (
+            <Link
+              key={link.href}
+              to={link.href}
+              className={cn(
+                "flex items-center gap-2 px-3 sm:px-5 py-2.5 rounded-xl transition-all duration-300 font-sans text-[10px] uppercase tracking-[0.15em]",
+                isActive
+                  ? "bg-primary text-primary-foreground shadow-lg font-bold"
+                  : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
+              )}
+            >
+              <Icon className={cn("h-3.5 w-3.5", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+              <span>{link.label}</span>
+            </Link>
+          );
+        })}
+      </div>
 
-      <div className="pt-4 mt-4 border-t border-border/30">
+      <div className="ml-auto pr-2 hidden md:block">
         <Link
           to="/"
-          className="flex items-center gap-3 px-4 py-3 text-muted-foreground hover:bg-card hover:text-primary rounded-lg transition-all font-sans text-sm"
+          className="flex items-center gap-2 px-4 py-2 text-muted-foreground hover:text-primary transition-all font-sans text-[9px] uppercase tracking-widest group"
         >
-          <Store className="h-5 w-5" />
-          <span>View Store</span>
+          <Store className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
+          <span>Back to Store</span>
         </Link>
       </div>
-    </aside>
+    </nav>
   );
 }

@@ -6,7 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, AreaChart, Area
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Users, DollarSign, Package, LayoutDashboard, Settings, Brain, Sparkles, MessageSquare, Upload, Loader2 } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, Package, LayoutDashboard, Settings, Brain, Sparkles, MessageSquare, Upload, Loader2, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
+import { useAuthStore } from '@/stores/authStore';
 
 const data = [
   { name: 'Mon', sales: 4000, traffic: 2400 },
@@ -27,6 +28,8 @@ const data = [
 
 export default function AdminDashboard() {
   const { orders, customers } = useAdminStore();
+  const { orders } = useAdminStore();
+  const { users } = useAuthStore();
   const [chatMessages, setChatMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
     { role: 'ai', text: "Hello Lydia! How can I help you optimize your store today?" }
   ]);
@@ -62,6 +65,11 @@ export default function AdminDashboard() {
 
     setMostViewed(sorted);
   }, []);
+
+  const totalRevenue = orders.reduce((acc, order) => {
+    const val = parseFloat(order.total.replace('$', '').replace(',', ''));
+    return acc + (isNaN(val) ? 0 : val);
+  }, 0);
 
   const handleSendMessage = () => {
     if (!chatInput.trim()) return;
@@ -126,18 +134,16 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-secondary/20">
       <Header />
-      <div className="pt-32 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
-        <div className="flex flex-col xl:flex-row gap-8 lg:gap-12">
+      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+        <div className="flex flex-col gap-4">
           <AdminSidebar />
 
           {/* Main Content */}
-          <main className="flex-1 space-y-8">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="font-serif text-3xl">Store Overview</h1>
-                <p className="text-muted-foreground text-sm">Welcome back, Lydia. Here's what's happening today.</p>
-              </div>
-              <div className="text-sm text-muted-foreground">Last updated: Just now</div>
+          <main className="w-full space-y-8">
+            <div className="flex flex-col items-center text-center space-y-2">
+              <h1 className="font-serif text-4xl tracking-tight">Store Overview</h1>
+              <p className="text-muted-foreground text-sm max-w-md">Welcome back, Lydia. Here's what's happening with Nina Armend today.</p>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-primary/60 font-medium pt-2">Last updated: Just now</div>
             </div>
 
             {/* Stats Grid */}
@@ -190,6 +196,62 @@ export default function AdminDashboard() {
                   </p>
                 </CardContent>
               </Card>
+              <Link to="/admin/orders" className="block hover:scale-[1.02] transition-transform">
+                <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5 h-full">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Total Revenue</CardTitle>
+                    <DollarSign className="h-4 w-4 text-primary" />
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                    <div className="text-3xl font-serif mb-1">${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <p className="text-xs text-emerald-500 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" /> +20.1% from last month
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to="/admin/orders" className="block hover:scale-[1.02] transition-transform">
+                <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5 h-full">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Orders</CardTitle>
+                    <ShoppingBag className="h-4 w-4 text-primary" />
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                    <div className="text-3xl font-serif mb-1">{orders.length}</div>
+                    <p className="text-xs text-emerald-500 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" /> +{Math.floor(orders.length * 1.5)}% from last month
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to="/admin/customers" className="block hover:scale-[1.02] transition-transform">
+                <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5 h-full">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Customers</CardTitle>
+                    <Users className="h-4 w-4 text-primary" />
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                    <div className="text-3xl font-serif mb-1">{users.length}</div>
+                    <p className="text-xs text-emerald-500 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" /> +19% from last month
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to="/admin/products" className="block hover:scale-[1.02] transition-transform">
+                <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5 h-full">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Inventory Status</CardTitle>
+                    <Package className="h-4 w-4 text-primary" />
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                    <div className="text-3xl font-serif mb-1">842 Items</div>
+                    <p className="text-xs text-amber-500 flex items-center mt-1">
+                      12 items low in stock
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
 
             {/* Data Integration Section */}
@@ -322,14 +384,25 @@ export default function AdminDashboard() {
                      <CardDescription>Common tasks for today</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-1 space-y-3">
-                     <Button className="w-full justify-start font-sans" variant="outline">
-                        <ShoppingBag className="h-4 w-4 mr-2" /> Process 12 New Orders
+                     <Button className="w-full justify-start font-sans h-12" variant="outline" asChild>
+                        <Link to="/admin/orders">
+                          <ShoppingBag className="h-4 w-4 mr-2" /> Process New Orders
+                        </Link>
                      </Button>
-                     <Button className="w-full justify-start font-sans" variant="outline">
-                        <Package className="h-4 w-4 mr-2" /> Restock Low Inventory
+                     <Button className="w-full justify-start font-sans h-12" variant="outline" asChild>
+                        <Link to="/admin/pos">
+                          <CreditCard className="h-4 w-4 mr-2" /> Open POS System
+                        </Link>
                      </Button>
-                     <Button className="w-full justify-start font-sans" variant="outline">
-                        <Users className="h-4 w-4 mr-2" /> Review Customer Inquiries
+                     <Button className="w-full justify-start font-sans h-12" variant="outline" asChild>
+                        <Link to="/admin/products">
+                          <Package className="h-4 w-4 mr-2" /> Restock Low Inventory
+                        </Link>
+                     </Button>
+                     <Button className="w-full justify-start font-sans h-12" variant="outline" asChild>
+                        <Link to="/admin/customers">
+                          <Users className="h-4 w-4 mr-2" /> Review Customer Audience
+                        </Link>
                      </Button>
                      <div className="pt-4 mt-4 border-t flex flex-col h-[300px]">
                         <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-4">AI Concierge</p>

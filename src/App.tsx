@@ -17,6 +17,8 @@ import AdminOrders from "./pages/admin/Orders";
 import AdminCustomers from "./pages/admin/Customers";
 import AdminPOS from "./pages/admin/POS";
 import AdminSettings from "./pages/admin/Settings";
+import AdminCustomers from "./pages/admin/Customers";
+import AdminPOS from "./pages/admin/POS";
 import SearchPage from "./pages/Search";
 import Wishlist from "./pages/Wishlist";
 import About from "./pages/About";
@@ -74,6 +76,16 @@ function AppContent() {
         <Route path="/admin/settings" element={
           <ProtectedRoute adminOnly>
             <AdminSettings />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/customers" element={
+          <ProtectedRoute adminOnly>
+            <AdminCustomers />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/pos" element={
+          <ProtectedRoute adminOnly>
+            <AdminPOS />
           </ProtectedRoute>
         } />
 

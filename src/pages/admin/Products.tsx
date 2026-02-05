@@ -164,6 +164,17 @@ export default function AdminProducts() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h1 className="font-serif text-3xl">Products</h1>
               <Button className="bg-primary" onClick={startAdding}>
+        <div className="flex flex-col gap-4">
+          <AdminSidebar />
+
+          {/* Main Content */}
+          <main className="w-full space-y-8 bg-card p-8 rounded-2xl border border-border/50 shadow-sm">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="space-y-1">
+                <h1 className="font-serif text-4xl tracking-tight">Product Management</h1>
+                <p className="text-muted-foreground text-sm">Organize and optimize your luxury swimwear collection</p>
+              </div>
+              <Button className="bg-primary px-8">
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Product
               </Button>
