@@ -97,8 +97,8 @@ const ProductPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-20 md:pt-24">
-        <div className="container mx-auto px-4 md:px-8 py-8 md:py-16">
+      <main className="pt-32 md:pt-40">
+        <div className="container mx-auto px-4 md:px-8 pb-16">
           {/* Breadcrumb */}
           <motion.div
             initial={{ opacity: 0 }}

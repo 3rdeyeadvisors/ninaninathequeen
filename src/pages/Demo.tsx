@@ -18,7 +18,7 @@ export default function Demo() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
-      <main className="pt-24 md:pt-32 pb-20">
+      <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">
           <div className="max-w-4xl mx-auto text-center mb-16 md:mb-24">
             <motion.div

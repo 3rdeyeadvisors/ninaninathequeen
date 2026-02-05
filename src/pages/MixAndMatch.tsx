@@ -64,7 +64,7 @@ export default function MixAndMatch() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-24 pb-12">
+      <main className="pt-32 md:pt-40 pb-12">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h1 className="font-serif text-4xl md:text-5xl mb-4">Mix & Match</h1>

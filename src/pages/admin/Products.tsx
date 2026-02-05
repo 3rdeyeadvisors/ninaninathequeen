@@ -4,9 +4,9 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, Plus, Search, Edit2, Trash2, Upload, Box, Loader2, Sparkles } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useProducts } from '@/hooks/useProducts';
+import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles } from 'lucide-react';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { useProducts, type ShopifyProduct } from '@/hooks/useProducts';
 import { toast } from 'sonner';
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -31,7 +31,7 @@ interface EditableProduct {
 
 export default function AdminProducts() {
   const { data: initialProducts, isLoading } = useProducts(50);
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [editingProduct, setEditingProduct] = useState<EditableProduct | null>(null);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +46,7 @@ export default function AdminProducts() {
         setProducts(initialProducts);
       }
     }
-  }, [initialProducts]);
+  }, [initialProducts, products.length]);
 
   const handleDelete = (id: string) => {
     toast.error("Delete functionality is restricted in demo mode");
@@ -121,22 +121,8 @@ export default function AdminProducts() {
     <div className="min-h-screen bg-secondary/20">
       <Header />
       <div className="pt-32 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
-        <div className="flex flex-col xl:flex-row gap-12 justify-center">
-          {/* Sidebar */}
-          <aside className="w-full xl:w-72 space-y-2 shrink-0">
-            <Link to="/admin" className="flex items-center gap-3 px-4 py-3 hover:bg-card rounded-lg transition-colors">
-              <Package className="h-5 w-5 text-muted-foreground" />
-              <span className="font-sans">Dashboard</span>
-            </Link>
-            <Link to="/admin/products" className="flex items-center gap-3 px-4 py-3 bg-primary text-primary-foreground rounded-lg shadow-sm">
-              <Plus className="h-5 w-5" />
-              <span className="font-sans font-medium">Products</span>
-            </Link>
-            <Link to="/admin/orders" className="flex items-center gap-3 px-4 py-3 hover:bg-card rounded-lg transition-colors">
-              <Box className="h-5 w-5 text-muted-foreground" />
-              <span className="font-sans">Orders</span>
-            </Link>
-          </aside>
+        <div className="flex flex-col xl:flex-row gap-8 lg:gap-12">
+          <AdminSidebar />
 
           {/* Main Content */}
           <main className="flex-1 space-y-8 bg-card p-8 rounded-2xl border border-border/50 shadow-sm">

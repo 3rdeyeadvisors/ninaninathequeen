@@ -16,7 +16,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-24 pb-20">
+      <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">
           <div className="flex flex-col items-center mb-16 text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
