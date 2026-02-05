@@ -37,6 +37,7 @@ export default function Wishlist() {
                     price: parseFloat(item.price),
                     images: [item.image],
                     category: 'Top',
+                    productType: 'Bikini',
                     colors: []
                   })}
                   index={index}
