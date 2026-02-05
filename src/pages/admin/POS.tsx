@@ -20,7 +20,7 @@ interface PosItem {
 
 export default function AdminPOS() {
   const { data: initialProducts } = useProducts(100);
-  const { productOverrides, addOrder } = useAdminStore();
+  const { productOverrides, addOrder, settings } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [posCart, setPosCart] = useState<PosItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -90,7 +90,9 @@ export default function AdminPOS() {
     }));
   };
 
-  const cartTotal = posCart.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
+  const subtotal = posCart.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
+  const taxAmount = subtotal * (settings.taxRate / 100);
+  const cartTotal = subtotal + taxAmount;
 
   const completeSale = () => {
     if (posCart.length === 0) return;
@@ -222,11 +224,11 @@ export default function AdminPOS() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-sans text-muted-foreground">
                       <span>Subtotal</span>
-                      <span>${cartTotal.toFixed(2)}</span>
+                      <span>${subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xs font-sans text-muted-foreground">
-                      <span>Tax (0%)</span>
-                      <span>$0.00</span>
+                      <span>Tax ({settings.taxRate}%)</span>
+                      <span>${taxAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-serif text-xl border-t pt-2 mt-2">
                       <span>Total</span>

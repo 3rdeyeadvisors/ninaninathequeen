@@ -28,10 +28,10 @@ interface AuthStore {
 }
 
 /**
- * SECURITY NOTE: The admin email is defined here as a central constant.
+ * SECURITY NOTE: The admin email is managed via environment variables.
  * In production, admin privileges should be managed via backend roles and verified with tokens.
  */
-export const ADMIN_EMAIL = 'lydia@ninaarmend.co.site';
+export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
 
 const DEFAULT_ADMIN: AuthUser = {
   name: 'Lydia',
