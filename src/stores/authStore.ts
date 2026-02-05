@@ -36,7 +36,7 @@ export const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
 const DEFAULT_ADMIN: AuthUser = {
   name: 'Lydia',
   email: ADMIN_EMAIL,
-  password: '1028fa031c3f91f18519a2a997a00579efcdcf64b3b4a96ac65143e30811ca43',
+  password: '3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b', // Hash of "Bossqueen26!"
   avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
   points: 0,
   referralCode: 'NINA-LYD-2025',
