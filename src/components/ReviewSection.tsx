@@ -55,7 +55,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
 
   const handleAdminReply = (reviewId: string) => {
     if (!adminReply.trim()) return;
-    addAdminComment(reviewId, adminReply, user!.name, user!.role || 'Owner',);
+    addAdminComment(reviewId, adminReply, user!.name, user!.role || 'Owner');
     setAdminReply('');
     setReplyingTo(null);
     toast.success("Reply posted.");

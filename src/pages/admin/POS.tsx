@@ -129,10 +129,10 @@ export default function AdminPOS() {
     <div className="min-h-screen bg-secondary/20">
       <Header />
       <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
-        <div className="flex flex-col xl:flex-row gap-8 lg:gap-12">
+        <div className="flex flex-col gap-8 lg:gap-12">
           <AdminSidebar />
 
-          <main className="flex-1 flex flex-col lg:flex-row gap-8 h-[calc(100vh-280px)] min-h-[600px]">
+          <main className="flex-1 flex flex-col lg:flex-row gap-8 lg:h-[calc(100vh-280px)] lg:min-h-[600px]">
             <div className="flex-1 flex flex-col space-y-4">
               <div className="flex items-center gap-4 bg-card border rounded-xl px-4 py-3 shadow-sm">
                 <Search className="h-5 w-5 text-muted-foreground" />
@@ -147,14 +147,22 @@ export default function AdminPOS() {
               <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-primary/10">
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                   {products.map((product) => (
-                    <Card key={product.node.id} className="cursor-pointer hover:shadow-gold transition-all duration-300 group overflow-hidden border-border/50 hover:-translate-y-1" onClick={() => addToCart(product.node)}>
-                      <div className="aspect-[3/4] overflow-hidden relative">
+                    <Card key={product.node.id} className="cursor-pointer hover:shadow-gold transition-all duration-300 group overflow-hidden border-border/50 hover:-translate-y-1 bg-background flex flex-col" onClick={() => addToCart(product.node)}>
+                      <div className="aspect-[3/4] overflow-hidden relative bg-secondary/10">
                         <img
-                          src={product.node.images.edges[0]?.node.url || 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?q=80&w=400'}
+                          src={product.node.images.edges[0]?.node.url || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400'}
                           alt={product.node.title}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?q=80&w=400';
+                          }}
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="bg-primary text-primary-foreground p-1.5 rounded-full shadow-lg">
+                            <Plus className="h-4 w-4" />
+                          </div>
+                        </div>
                       </div>
                       <CardContent className="p-3 bg-background">
                         <p className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{product.node.productType}</p>

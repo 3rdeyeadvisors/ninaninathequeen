@@ -41,6 +41,9 @@ export interface AdminSettings {
   currency: string;
   taxRate: number;
   lowStockThreshold: number;
+  posProvider: 'none' | 'stripe' | 'square' | 'clover';
+  stripeApiKey: string;
+  squareApiKey: string;
 }
 
 interface AdminStore {
@@ -95,7 +98,10 @@ const INITIAL_SETTINGS: AdminSettings = {
   storeName: 'NINA ARMEND',
   currency: 'USD',
   taxRate: 7.5,
-  lowStockThreshold: 10
+  lowStockThreshold: 10,
+  posProvider: 'none',
+  stripeApiKey: '',
+  squareApiKey: ''
 };
 
 export const useAdminStore = create<AdminStore>()(

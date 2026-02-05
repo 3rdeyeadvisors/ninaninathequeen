@@ -12,7 +12,6 @@ export function AdminSidebar() {
     { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
     { href: '/admin/customers', label: 'Customers', icon: Users },
     { href: '/admin/pos', label: 'Point of Sale', icon: CreditCard },
-    { href: '/admin/pos', label: 'POS System', icon: CreditCard },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
   ];
 
