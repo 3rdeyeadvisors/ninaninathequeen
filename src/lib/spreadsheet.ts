@@ -15,24 +15,27 @@ export function parseSpreadsheet(data: ArrayBuffer): any[] {
     Object.keys(row).forEach((key) => {
       let normalizedKey = key.toLowerCase().trim();
 
-      // Map common variations to standard keys
-      if (['stock', 'qty', 'quantity'].includes(normalizedKey)) {
-        normalizedKey = 'inventory';
-      }
-      if (['item id', 'itemid', 'sku', 'product_id', 'productid'].includes(normalizedKey)) {
+      // Map common variations to standard keys (your exact column names)
+      if (['item id', 'itemid', 'sku', 'product_id', 'productid', 'id'].includes(normalizedKey)) {
         normalizedKey = 'id';
       }
-      if (['item name', 'itemname', 'product_name', 'productname', 'name'].includes(normalizedKey)) {
+      if (['item name', 'itemname', 'product_name', 'productname', 'name', 'title'].includes(normalizedKey)) {
         normalizedKey = 'title';
       }
-      if (['type', 'product type', 'producttype'].includes(normalizedKey)) {
+      if (['type', 'product type', 'producttype', 'category'].includes(normalizedKey)) {
         normalizedKey = 'producttype';
+      }
+      if (['price per unit', 'unit price', 'price', 'cost'].includes(normalizedKey)) {
+        normalizedKey = 'price';
+      }
+      if (['stock', 'qty', 'quantity', 'inventory'].includes(normalizedKey)) {
+        normalizedKey = 'inventory';
       }
       if (['collection', 'collections'].includes(normalizedKey)) {
         normalizedKey = 'collection';
       }
-      if (['price per unit', 'unit price', 'cost'].includes(normalizedKey)) {
-        normalizedKey = 'cost';
+      if (['status', 'product status'].includes(normalizedKey)) {
+        normalizedKey = 'status';
       }
 
       normalizedRow[normalizedKey] = row[key];

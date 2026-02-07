@@ -42,6 +42,7 @@ export interface ProductOverride {
   sizes?: string[];
   collection?: string;
   category?: string; // 'Top' | 'Bottom' | 'One-Piece' | 'Other'
+  status?: 'Active' | 'Inactive' | 'Draft';
 }
 
 export interface AdminSettings {

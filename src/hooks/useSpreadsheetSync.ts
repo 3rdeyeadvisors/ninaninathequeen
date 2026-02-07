@@ -17,15 +17,6 @@ const normalizeTitle = (title: string): string => {
     .trim();
 };
 
-// Auto-detect category from product name
-const detectCategory = (title: string): string => {
-  const t = title.toLowerCase();
-  if (t.includes('one-piece') || t.includes('one piece')) return 'One-Piece';
-  if (t.includes('bottom')) return 'Bottom';
-  if (t.includes('top')) return 'Top';
-  return 'Other';
-};
-
 export function useSpreadsheetSync() {
   const { data: allProducts } = useProducts(200);
   const { updateProductOverride } = useAdminStore();
@@ -93,6 +84,7 @@ export function useSpreadsheetSync() {
           price: string;
           productType: string;
           collection: string;
+          status: string;
           sizeInventory: Record<string, number>;
           image?: string;
           description?: string;
@@ -120,8 +112,9 @@ export function useSpreadsheetSync() {
               baseTitle,
               id: row.id ? String(row.id) : `sync-${Object.keys(productGroups).length}`,
               price: row.price ? String(row.price).replace(/[^0-9.]/g, '') : '0.00',
-              productType: row.producttype || row.type || 'Bikini',
+              productType: row.producttype || 'Bikini',
               collection: row.collection || '',
+              status: row.status || 'Active',
               sizeInventory: {},
               image: row.image,
               description: row.description
@@ -180,8 +173,8 @@ export function useSpreadsheetSync() {
             }
           }
 
-          // Auto-detect category from product name
-          const category = detectCategory(product.baseTitle);
+          // Use Type column directly as category (no auto-detection needed)
+          const category = product.productType || 'Other';
 
           updateProductOverride(id, {
             title: product.baseTitle,
@@ -194,7 +187,8 @@ export function useSpreadsheetSync() {
               `Luxury ${product.productType.toLowerCase()} from the ${product.collection || 'Nina Armend'} collection.`,
             productType: product.productType,
             collection: product.collection,
-            category: category
+            category: category,
+            status: product.status as 'Active' | 'Inactive' | 'Draft'
           });
           updatedCount++;
         });
@@ -213,7 +207,13 @@ export function useSpreadsheetSync() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "id,title,price,inventory,sizes,size_inventory,image,description,category\ngid://shopify/Product/1,Copacabana Top,85.00,50,XS|S|M|L|XL|2XL,XS:10|S:10|M:10|L:10|XL:5|2XL:5,copacabana-top.jpg,Luxury triangle bikini top with gold hardware.,Bikinis\ngid://shopify/Product/2,Copacabana Bottom,75.00,45,XS|S|M|L|XL|2XL,XS:8|S:8|M:8|L:8|XL:7|2XL:6,copacabana-bottom.jpg,Matching tie-side bikini bottoms.,Bikinis\n";
+    const csvContent = `Item ID,Item Name,Type,Price Per Unit,Stock,Collection,Status
+LB-001,White Top (XS),Top,85.00,10,La Bella,Active
+LB-002,White Top (S),Top,85.00,15,La Bella,Active
+LB-003,White Bottom (XS),Bottom,75.00,8,La Bella,Active
+EM-001,Black One-Piece (M),One-Piece,120.00,5,El Mar,Active
+EM-002,Black One-Piece Plus,One-Piece,130.00,3,El Mar,Active
+`;
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
