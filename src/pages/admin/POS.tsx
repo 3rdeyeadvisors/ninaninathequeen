@@ -303,7 +303,21 @@ export default function AdminPOS() {
           </DialogHeader>
           <div className="grid grid-cols-3 gap-2 py-4">
             {selectingProduct?.options.find(o => o.name === 'Size')?.values.map(size => {
-              const stock = productOverrides[selectingProduct.id]?.sizeInventory?.[size] ?? 0;
+              // If product has an override with sizeInventory, use it.
+              // Otherwise, if it has a total inventory override, distribute it (simple fallback).
+              // Otherwise, fallback to a default stock of 15 for demo purposes.
+              const override = productOverrides[selectingProduct.id];
+              let stock = 15; // Default for mock products
+
+              if (override) {
+                if (override.sizeInventory && override.sizeInventory[size] !== undefined) {
+                  stock = override.sizeInventory[size];
+                } else if (override.inventory !== undefined) {
+                  const sizes = selectingProduct.options.find(o => o.name === 'Size')?.values || [];
+                  stock = Math.floor(override.inventory / (sizes.length || 1));
+                }
+              }
+
               return (
                 <Button
                   key={size}

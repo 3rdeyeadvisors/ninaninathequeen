@@ -16,8 +16,11 @@ export const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRoutePr
     return <Navigate to="/account" state={{ from: location }} replace />;
   }
 
-  if (adminOnly && user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-    // Redirect to home if trying to access admin page without admin email
+  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
+                  ['admin', 'manager', 'founder & owner'].includes(user?.role?.toLowerCase() || '');
+
+  if (adminOnly && !isAdmin) {
+    // Redirect to home if trying to access admin page without admin privileges
     return <Navigate to="/" replace />;
   }
 

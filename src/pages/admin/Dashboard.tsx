@@ -53,12 +53,26 @@ export default function AdminDashboard() {
     const productInfo = JSON.parse(localStorage.getItem('tracked_products') || '{}');
 
     const sorted = Object.entries(views)
-      .map(([id, count]) => ({
-        id,
-        views: count as number,
-        title: productInfo[id]?.title || 'Unknown Product',
-        image: productInfo[id]?.image || ''
-      }))
+      .map(([id, count]) => {
+        const info = productInfo[id];
+        let title = info?.title;
+        let image = info?.image;
+
+        if (!title || !image) {
+          const product = allProducts?.find(p => p.node.id === id);
+          if (product) {
+            title = title || product.node.title;
+            image = image || product.node.images.edges[0]?.node.url;
+          }
+        }
+
+        return {
+          id,
+          views: count as number,
+          title: title || 'Unknown Product',
+          image: image || 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?q=80&w=200'
+        };
+      })
       .sort((a, b) => b.views - a.views)
       .slice(0, 4);
 
@@ -163,11 +177,13 @@ export default function AdminDashboard() {
               }
 
               updateProductOverride(id, {
-                title: row.title ? String(row.title) : undefined,
-                price: row.price ? String(row.price) : undefined,
-                inventory: row.inventory !== undefined ? parseInt(row.inventory) : undefined,
+                title: row.title ? String(row.title) : (existingProduct?.node.title || "New Product"),
+                price: row.price ? String(row.price) : (existingProduct?.node.priceRange.minVariantPrice.amount || "0.00"),
+                inventory: row.inventory !== undefined ? parseInt(row.inventory) : (existingProduct ? undefined : 0),
                 sizes: sizes,
                 sizeInventory: sizeInventory,
+                image: existingProduct?.node.images.edges[0]?.node.url || "https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=800",
+                description: existingProduct?.node.description || "New luxury swimwear piece synced via inventory spreadsheet."
               });
               updatedCount++;
             }
