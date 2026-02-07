@@ -127,15 +127,60 @@ export function useProducts(first: number = 20, query?: string) {
     // Wait for store hydration
     if (!_hasHydrated) return [];
 
-    // Start with products from overrides (spreadsheet uploads)
-    const overrideProducts: Product[] = Object.values(productOverrides)
-      .filter(o => !o.isDeleted && o.title)
+    // Start with mock products as base
+    const mockProducts: Product[] = MOCK_PRODUCTS.map(mapMockToProduct);
+    
+    // Get IDs of mock products
+    const mockIds = new Set(mockProducts.map(p => p.node.id));
+    
+    // Get new products from overrides (not mock products)
+    const newOverrideProducts: Product[] = Object.values(productOverrides)
+      .filter(o => !o.isDeleted && o.title && !mockIds.has(o.id))
       .map(overrideToProduct);
+    
+    // Merge: Apply overrides to mock products + add new products
+    const mergedMockProducts = mockProducts
+      .map(p => {
+        const override = productOverrides[p.node.id];
+        if (override?.isDeleted) return null; // Skip deleted
+        if (override) {
+          // Merge override with mock product
+          const sizes = override.sizes || p.node.options[0]?.values || [...PRODUCT_SIZES];
+          return {
+            node: {
+              ...p.node,
+              title: override.title || p.node.title,
+              description: override.description || p.node.description,
+              productType: override.productType || p.node.productType,
+              priceRange: {
+                minVariantPrice: {
+                  amount: override.price || p.node.priceRange.minVariantPrice.amount,
+                  currencyCode: 'USD',
+                },
+              },
+              images: override.image ? {
+                edges: [{ node: { url: override.image, altText: override.title || p.node.title } }]
+              } : p.node.images,
+              variants: {
+                edges: sizes.map(size => ({
+                  node: {
+                    id: `${p.node.id}-${size.toLowerCase()}`,
+                    title: size,
+                    price: { amount: override.price || p.node.priceRange.minVariantPrice.amount, currencyCode: 'USD' },
+                    availableForSale: true,
+                    selectedOptions: [{ name: 'Size', value: size }],
+                  },
+                })),
+              },
+              options: [{ name: 'Size', values: sizes }],
+            },
+          };
+        }
+        return p;
+      })
+      .filter((p): p is Product => p !== null);
 
-    // If no override products, use mock products as fallback
-    let allProducts = overrideProducts.length > 0 
-      ? overrideProducts 
-      : MOCK_PRODUCTS.map(mapMockToProduct);
+    let allProducts = [...mergedMockProducts, ...newOverrideProducts];
 
     // Apply search filter
     if (query) {
