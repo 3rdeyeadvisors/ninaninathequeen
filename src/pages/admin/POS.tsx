@@ -126,8 +126,8 @@ export default function AdminPOS() {
         total: cartTotal.toFixed(2),
         shippingCost: '0.00',
         itemCost: (subtotal * 0.3).toFixed(2), // Mock 30% COGS
-        status: 'Delivered',
-        trackingNumber: 'Hand-delivered',
+        status: 'Pending',
+        trackingNumber: 'In-Store Pickup',
         items: posCart.map(item => ({
           title: item.title,
           quantity: item.quantity,

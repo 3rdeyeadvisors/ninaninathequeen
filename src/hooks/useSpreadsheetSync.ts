@@ -5,6 +5,27 @@ import { parseSpreadsheet } from '@/lib/spreadsheet';
 import { useProducts } from '@/hooks/useProducts';
 import { PRODUCT_SIZES } from '@/lib/constants';
 
+// Upload limits
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_ROWS = 500;
+
+// Normalize title to handle inconsistencies like "One Piece" vs "One-Piece"
+const normalizeTitle = (title: string): string => {
+  return title
+    .replace(/one piece/gi, 'One-Piece')  // Standardize "One Piece" → "One-Piece"
+    .replace(/\s+/g, ' ')                   // Collapse multiple spaces
+    .trim();
+};
+
+// Auto-detect category from product name
+const detectCategory = (title: string): string => {
+  const t = title.toLowerCase();
+  if (t.includes('one-piece') || t.includes('one piece')) return 'One-Piece';
+  if (t.includes('bottom')) return 'Bottom';
+  if (t.includes('top')) return 'Top';
+  return 'Other';
+};
+
 export function useSpreadsheetSync() {
   const { data: allProducts } = useProducts(200);
   const { updateProductOverride } = useAdminStore();
@@ -30,6 +51,13 @@ export function useSpreadsheetSync() {
       return;
     }
 
+    // Validate file size
+    if (spreadsheetFile.size > MAX_FILE_SIZE) {
+      toast.error(`File too large. Maximum ${MAX_FILE_SIZE / (1024 * 1024)}MB allowed.`);
+      setIsUploading(false);
+      return;
+    }
+
     toast.info(`Analyzing ${spreadsheetFile.name}...`);
 
     // Process images into a map of filenames to data URLs
@@ -51,6 +79,13 @@ export function useSpreadsheetSync() {
         const data = event.target?.result as ArrayBuffer;
         const rows = parseSpreadsheet(data);
         
+        // Validate row count
+        if (rows.length > MAX_ROWS) {
+          toast.error(`Too many rows (${rows.length}). Maximum ${MAX_ROWS} allowed.`);
+          setIsUploading(false);
+          return;
+        }
+
         // Group rows by base product name (extract size from title like "White Top (XS)")
         const productGroups: Record<string, {
           baseTitle: string;
@@ -67,13 +102,18 @@ export function useSpreadsheetSync() {
           const title = row.title ? String(row.title) : '';
           if (!title) return;
 
+          // Normalize title to handle inconsistencies
+          const normalizedTitle = normalizeTitle(title);
+
           // Extract size from title like "White Top (XS)" or "One-Piece (2XL)"
-          const sizeMatch = title.match(/\(([^)]+)\)$/);
+          const sizeMatch = normalizedTitle.match(/\(([^)]+)\)$/);
           const size = sizeMatch ? sizeMatch[1].toUpperCase() : null;
-          const baseTitle = sizeMatch ? title.replace(/\s*\([^)]+\)$/, '').trim() : title;
+          const baseTitle = sizeMatch 
+            ? normalizedTitle.replace(/\s*\([^)]+\)$/, '').trim() 
+            : normalizedTitle;
           
-          // Create a unique key for grouping (baseTitle + collection)
-          const groupKey = `${baseTitle}-${row.collection || 'default'}`;
+          // Group by normalized base title only (not collection) to prevent incorrect merging
+          const groupKey = baseTitle;
           
           if (!productGroups[groupKey]) {
             productGroups[groupKey] = {
@@ -93,6 +133,12 @@ export function useSpreadsheetSync() {
             const stock = row.inventory !== undefined ? parseInt(row.inventory) || 0 : 0;
             productGroups[groupKey].sizeInventory[size] = 
               (productGroups[groupKey].sizeInventory[size] || 0) + stock;
+          } else {
+            // No size in title - treat as a product without size variants (e.g., "Black One-Piece Plus")
+            // Store total inventory under a special key
+            const stock = row.inventory !== undefined ? parseInt(row.inventory) || 0 : 0;
+            productGroups[groupKey].sizeInventory['ONE_SIZE'] = 
+              (productGroups[groupKey].sizeInventory['ONE_SIZE'] || 0) + stock;
           }
         });
 
@@ -111,9 +157,14 @@ export function useSpreadsheetSync() {
             : (product.id.startsWith('gid://') ? product.id : `gid://shopify/Product/${product.id}`);
 
           // Get sizes from inventory or use defaults
-          const sizes = Object.keys(product.sizeInventory).length > 0
-            ? Object.keys(product.sizeInventory)
-            : [...PRODUCT_SIZES];
+          // Filter out ONE_SIZE if we have other sizes
+          const inventorySizes = Object.keys(product.sizeInventory);
+          const hasRealSizes = inventorySizes.some(s => s !== 'ONE_SIZE');
+          const sizes = hasRealSizes
+            ? inventorySizes.filter(s => s !== 'ONE_SIZE')
+            : inventorySizes.length > 0
+              ? inventorySizes
+              : [...PRODUCT_SIZES];
 
           // Calculate total inventory
           const totalInventory = Object.values(product.sizeInventory).reduce((sum, qty) => sum + qty, 0);
@@ -129,6 +180,9 @@ export function useSpreadsheetSync() {
             }
           }
 
+          // Auto-detect category from product name
+          const category = detectCategory(product.baseTitle);
+
           updateProductOverride(id, {
             title: product.baseTitle,
             price: product.price,
@@ -139,7 +193,8 @@ export function useSpreadsheetSync() {
             description: product.description || existingProduct?.node.description || 
               `Luxury ${product.productType.toLowerCase()} from the ${product.collection || 'Nina Armend'} collection.`,
             productType: product.productType,
-            collection: product.collection
+            collection: product.collection,
+            category: category
           });
           updatedCount++;
         });
