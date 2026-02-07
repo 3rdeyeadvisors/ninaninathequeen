@@ -10,6 +10,7 @@ export interface User {
   points?: number;
   referralCode?: string;
   role?: string;
+  preferredSize?: string;
 }
 
 interface AuthUser extends User {

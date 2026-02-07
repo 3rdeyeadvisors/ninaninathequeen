@@ -17,6 +17,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -44,11 +51,13 @@ import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { playSound } from '@/lib/sounds';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PRODUCT_SIZES } from '@/lib/constants';
 
 export default function Account() {
   const { user, isAuthenticated, login, signup, logout, updateProfile, resetPassword, deleteAccount } = useAuthStore();
   const { items: wishlistItems, removeItem: removeFromWishlist } = useWishlistStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [preferredSize, setPreferredSize] = useState(user?.preferredSize || '');
 
   const points = user?.points || 0;
   const getTier = (pts: number) => {
@@ -79,7 +88,7 @@ export default function Account() {
     const formData = new FormData(e.target as HTMLFormElement);
     const name = formData.get('name') as string;
 
-    updateProfile({ name });
+    updateProfile({ name, preferredSize });
     playSound('success');
     toast.success("Profile updated successfully!");
   };
@@ -427,9 +436,24 @@ export default function Account() {
                             <Input name="email" defaultValue={user?.email} readOnly className="bg-secondary/50 cursor-not-allowed" />
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Shipping Address</label>
-                          <Input defaultValue="Rua Dias Ferreira, 123, Leblon" />
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Default Size</label>
+                            <Select value={preferredSize} onValueChange={setPreferredSize}>
+                              <SelectTrigger className="bg-background">
+                                <SelectValue placeholder="Select size" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PRODUCT_SIZES.map(size => (
+                                  <SelectItem key={size} value={size}>{size}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Shipping Address</label>
+                            <Input defaultValue="Rua Dias Ferreira, 123, Leblon" />
+                          </div>
                         </div>
                         <Button type="submit" className="bg-primary hover:bg-primary/90">Save Changes</Button>
                       </form>

@@ -9,13 +9,18 @@ import { ChevronLeft, ChevronRight, ShoppingBag, RotateCcw } from 'lucide-react'
 import { useCartStore } from '@/stores/cartStore';
 import { mapMockToShopify } from '@/lib/shopify';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/authStore';
+import { PRODUCT_SIZES } from '@/lib/constants';
 
 export default function MixAndMatch() {
+  const { user } = useAuthStore();
   const tops = MOCK_PRODUCTS.filter(p => p.category === 'Top');
   const bottoms = MOCK_PRODUCTS.filter(p => p.category === 'Bottom');
 
   const [topIndex, setTopIndex] = useState(0);
   const [bottomIndex, setBottomIndex] = useState(0);
+  const [topSize, setTopSize] = useState(user?.preferredSize || 'M');
+  const [bottomSize, setBottomSize] = useState(user?.preferredSize || 'M');
   const addItem = useCartStore(state => state.addItem);
 
   const currentTop = tops[topIndex];
@@ -38,19 +43,19 @@ export default function MixAndMatch() {
       Promise.all([
         addItem({
           product: mapMockToShopify(currentTop),
-          variantId: 'gid://shopify/ProductVariant/' + currentTop.id + '-default',
-          variantTitle: 'Default Title',
+          variantId: `gid://shopify/ProductVariant/${currentTop.id}-${topSize.toLowerCase()}`,
+          variantTitle: topSize,
           price: { amount: currentTop.price.toString(), currencyCode: 'USD' },
           quantity: 1,
-          selectedOptions: [{ name: 'Title', value: 'Default Title' }]
+          selectedOptions: [{ name: 'Size', value: topSize }]
         }),
         addItem({
           product: mapMockToShopify(currentBottom),
-          variantId: 'gid://shopify/ProductVariant/' + currentBottom.id + '-default',
-          variantTitle: 'Default Title',
+          variantId: `gid://shopify/ProductVariant/${currentBottom.id}-${bottomSize.toLowerCase()}`,
+          variantTitle: bottomSize,
           price: { amount: currentBottom.price.toString(), currencyCode: 'USD' },
           quantity: 1,
-          selectedOptions: [{ name: 'Title', value: 'Default Title' }]
+          selectedOptions: [{ name: 'Size', value: bottomSize }]
         })
       ]),
       {
@@ -98,7 +103,22 @@ export default function MixAndMatch() {
                 </div>
               </div>
               <div className="mt-4 text-center">
-                <h3 className="font-serif text-xl">{currentTop.title}</h3>
+                <h3 className="font-serif text-xl mb-3">{currentTop.title}</h3>
+                <div className="flex justify-center gap-1 mb-3">
+                  {PRODUCT_SIZES.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setTopSize(size)}
+                      className={`w-10 h-10 text-[10px] border rounded-full transition-colors ${
+                        topSize === size
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
                 <p className="text-sm text-primary font-sans">${currentTop.price.toFixed(2)}</p>
               </div>
             </div>
@@ -127,7 +147,22 @@ export default function MixAndMatch() {
                 </div>
               </div>
               <div className="mt-4 text-center">
-                <h3 className="font-serif text-xl">{currentBottom.title}</h3>
+                <h3 className="font-serif text-xl mb-3">{currentBottom.title}</h3>
+                <div className="flex justify-center gap-1 mb-3">
+                  {PRODUCT_SIZES.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setBottomSize(size)}
+                      className={`w-10 h-10 text-[10px] border rounded-full transition-colors ${
+                        bottomSize === size
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
                 <p className="text-sm text-primary font-sans">${currentBottom.price.toFixed(2)}</p>
               </div>
             </div>

@@ -255,19 +255,17 @@ export const mapMockToShopify = (product: MockProduct): ShopifyProduct => ({
       })),
     },
     variants: {
-      edges: [
-        {
-          node: {
-            id: `gid://shopify/ProductVariant/${product.id}-default`,
-            title: "Default Title",
-            price: { amount: product.price.toString(), currencyCode: "USD" },
-            availableForSale: true,
-            selectedOptions: [{ name: "Title", value: "Default Title" }],
-          },
+      edges: product.sizes.map(size => ({
+        node: {
+          id: `gid://shopify/ProductVariant/${product.id}-${size.toLowerCase()}`,
+          title: size,
+          price: { amount: product.price.toString(), currencyCode: "USD" },
+          availableForSale: true,
+          selectedOptions: [{ name: "Size", value: size }],
         },
-      ],
+      })),
     },
-    options: [{ name: "Title", values: ["Default Title"] }],
+    options: [{ name: "Size", values: product.sizes }],
   },
 });
 

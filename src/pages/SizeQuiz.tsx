@@ -8,6 +8,9 @@ import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { useAuthStore } from '@/stores/authStore';
+import { toast } from 'sonner';
+import { PRODUCT_SIZES } from '@/lib/constants';
 
 const steps = [
   {
@@ -34,6 +37,7 @@ const steps = [
 ];
 
 export default function SizeQuiz() {
+  const { updateProfile, isAuthenticated } = useAuthStore();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [height, setHeight] = useState([165]); // cm
@@ -55,14 +59,27 @@ export default function SizeQuiz() {
   const calculateResult = () => {
     // Simple logic for demonstration
     let size = "M";
-    if (weight[0] < 55) size = "S";
-    if (weight[0] > 75) size = "L";
-    if (weight[0] > 90) size = "XL";
+    if (weight[0] < 45) size = "XS";
+    else if (weight[0] < 55) size = "S";
+    else if (weight[0] > 105) size = "2XL";
+    else if (weight[0] > 90) size = "XL";
+    else if (weight[0] > 75) size = "L";
 
-    if (answers.fitPreference === 'tight' && size === "M") size = "S";
-    if (answers.fitPreference === 'loose' && size === "M") size = "L";
+    if (answers.fitPreference === 'tight') {
+      const idx = PRODUCT_SIZES.indexOf(size as any);
+      if (idx > 0) size = PRODUCT_SIZES[idx - 1];
+    } else if (answers.fitPreference === 'loose') {
+      const idx = PRODUCT_SIZES.indexOf(size as any);
+      if (idx < PRODUCT_SIZES.length - 1) size = PRODUCT_SIZES[idx + 1];
+    }
 
     setResult(size);
+    if (isAuthenticated) {
+      updateProfile({ preferredSize: size });
+      toast.success(`Size ${size} has been saved to your profile!`, {
+        position: 'top-center'
+      });
+    }
   };
 
   return (

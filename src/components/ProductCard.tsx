@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ShoppingBag, Loader2, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { useAuthStore } from '@/stores/authStore';
 
 interface ProductCardProps {
   product: ShopifyProduct;
@@ -18,6 +19,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const addItem = useCartStore(state => state.addItem);
   const isLoading = useCartStore(state => state.isLoading);
   const { toggleItem, isInWishlist } = useWishlistStore();
+  const { user } = useAuthStore();
   const [isHovered, setIsHovered] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -30,16 +32,26 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!firstVariant) return;
+    let selectedVariant = firstVariant;
+    if (user?.preferredSize) {
+      const preferredVariant = product.node.variants.edges.find(v =>
+        v.node.selectedOptions.some(so => so.name === 'Size' && so.value === user.preferredSize)
+      );
+      if (preferredVariant) {
+        selectedVariant = preferredVariant.node;
+      }
+    }
+
+    if (!selectedVariant) return;
 
     setIsAdding(true);
     await addItem({
       product,
-      variantId: firstVariant.id,
-      variantTitle: firstVariant.title,
-      price: firstVariant.price,
+      variantId: selectedVariant.id,
+      variantTitle: selectedVariant.title,
+      price: selectedVariant.price,
       quantity: 1,
-      selectedOptions: firstVariant.selectedOptions || []
+      selectedOptions: selectedVariant.selectedOptions || []
     });
     setIsAdding(false);
     

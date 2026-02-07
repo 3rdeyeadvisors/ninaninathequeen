@@ -19,6 +19,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
+import { PRODUCT_SIZES } from '@/lib/constants';
 
 export default function AdminProducts() {
   const { data: initialProducts, isLoading } = useProducts(100);
@@ -35,6 +36,7 @@ export default function AdminProducts() {
     const overridenProducts = initialProducts.map(p => {
       const override = productOverrides[p.node.id];
       if (override) {
+        const sizes = override.sizes || (p.node.options.find(o => o.name === 'Size')?.values) || PRODUCT_SIZES;
         return {
           ...p,
           node: {
@@ -59,7 +61,19 @@ export default function AdminProducts() {
                 },
                 ...p.node.images.edges.slice(1)
               ]
-            }
+            },
+            variants: {
+              edges: sizes.map(size => ({
+                node: {
+                  id: `gid://shopify/ProductVariant/${p.node.id}-${size.toLowerCase()}`,
+                  title: size,
+                  price: { amount: override.price, currencyCode: "USD" },
+                  availableForSale: true,
+                  selectedOptions: [{ name: "Size", value: size }],
+                }
+              }))
+            },
+            options: [{ name: "Size", values: sizes }]
           }
         };
       }
@@ -69,24 +83,35 @@ export default function AdminProducts() {
     const existingIds = new Set(initialProducts.map(p => p.node.id));
     const newProducts = Object.values(productOverrides)
       .filter(o => !existingIds.has(o.id) && !o.isDeleted)
-      .map(o => ({
-        node: {
-          id: o.id,
-          title: o.title,
-          description: o.description,
-          handle: o.title.toLowerCase().replace(/ /g, '-'),
-          priceRange: {
-            minVariantPrice: { amount: o.price, currencyCode: 'USD' }
-          },
-          images: {
-            edges: [{ node: { url: o.image, altText: o.title } }]
-          },
-          variants: {
-            edges: [{ node: { availableForSale: true } }]
-          },
-          options: []
-        }
-      })) as ShopifyProduct[];
+      .map(o => {
+        const sizes = o.sizes || PRODUCT_SIZES;
+        return {
+          node: {
+            id: o.id,
+            title: o.title,
+            description: o.description,
+            handle: o.title.toLowerCase().replace(/ /g, '-'),
+            priceRange: {
+              minVariantPrice: { amount: o.price, currencyCode: 'USD' }
+            },
+            images: {
+              edges: [{ node: { url: o.image, altText: o.title } }]
+            },
+            variants: {
+              edges: sizes.map(size => ({
+                node: {
+                  id: `gid://shopify/ProductVariant/${o.id}-${size.toLowerCase()}`,
+                  title: size,
+                  price: { amount: o.price, currencyCode: "USD" },
+                  availableForSale: true,
+                  selectedOptions: [{ name: "Size", value: size }],
+                }
+              }))
+            },
+            options: [{ name: "Size", values: sizes }]
+          }
+        };
+      }) as ShopifyProduct[];
 
     const allProducts = [...overridenProducts, ...newProducts];
 
@@ -180,7 +205,7 @@ export default function AdminProducts() {
                   <TableRow>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Image</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Product Name</TableHead>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Category</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Sizes</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Price</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Status</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">360° View</TableHead>
@@ -200,8 +225,12 @@ export default function AdminProducts() {
                         <img src={product.node.images.edges[0]?.node.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
                       </TableCell>
                       <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
-                      <TableCell className="font-sans text-xs text-muted-foreground">
-                        {product.node.productType || 'Swimwear'}
+                      <TableCell className="font-sans text-[10px] text-muted-foreground">
+                        <div className="flex flex-wrap gap-1 max-w-[150px]">
+                          {(product.node.options.find(o => o.name === 'Size')?.values || []).map(s => (
+                            <span key={s} className="px-1 bg-secondary rounded">{s}</span>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell className="font-sans text-sm font-medium">
                         {product.node.priceRange.minVariantPrice.currencyCode} {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
@@ -229,7 +258,8 @@ export default function AdminProducts() {
                           price: product.node.priceRange.minVariantPrice.amount,
                           inventory: productOverrides[product.node.id]?.inventory || 45,
                           image: product.node.images.edges[0]?.node.url,
-                          description: product.node.description || ""
+                          description: product.node.description || "",
+                          sizes: product.node.options.find(o => o.name === 'Size')?.values || []
                         })}>
                           <Edit2 className="h-4 w-4 text-muted-foreground" />
                         </Button>
@@ -265,6 +295,30 @@ export default function AdminProducts() {
                       onChange={(e) => setEditingProduct({...editingProduct, title: e.target.value})}
                       className="col-span-3 font-sans text-sm"
                     />
+                  </div>
+                  <div className="grid grid-cols-4 items-start gap-4">
+                    <Label className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Sizes</Label>
+                    <div className="col-span-3 flex flex-wrap gap-2">
+                      {PRODUCT_SIZES.map(size => (
+                        <button
+                          key={size}
+                          onClick={() => {
+                            const currentSizes = editingProduct?.sizes || [];
+                            const newSizes = currentSizes.includes(size)
+                              ? currentSizes.filter(s => s !== size)
+                              : [...currentSizes, size];
+                            setEditingProduct({ ...editingProduct, sizes: newSizes });
+                          }}
+                          className={`px-2 py-1 text-[10px] font-sans border rounded transition-colors ${
+                            editingProduct?.sizes?.includes(size)
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right font-sans text-[10px] uppercase tracking-widest">Image</Label>

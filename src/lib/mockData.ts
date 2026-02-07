@@ -1,3 +1,5 @@
+import { PRODUCT_SIZES } from './constants';
+
 export interface MockProduct {
   id: string;
   title: string;
@@ -7,6 +9,7 @@ export interface MockProduct {
   productType: string;
   images: string[];
   colors: string[];
+  sizes: string[];
 }
 
 export const MOCK_PRODUCTS: MockProduct[] = [
@@ -21,7 +24,8 @@ export const MOCK_PRODUCTS: MockProduct[] = [
       'https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=800',
       'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&q=80&w=800'
     ],
-    colors: ['Gold', 'Sand', 'Noir']
+    colors: ['Gold', 'Sand', 'Noir'],
+    sizes: [...PRODUCT_SIZES]
   },
   {
     id: 'm2',
@@ -34,7 +38,8 @@ export const MOCK_PRODUCTS: MockProduct[] = [
       'https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=800',
       'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800'
     ],
-    colors: ['Gold', 'Sand', 'Noir']
+    colors: ['Gold', 'Sand', 'Noir'],
+    sizes: [...PRODUCT_SIZES]
   },
   {
     id: 'm3',
@@ -46,7 +51,8 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     images: [
       'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800'
     ],
-    colors: ['Emerald', 'Noir']
+    colors: ['Emerald', 'Noir'],
+    sizes: [...PRODUCT_SIZES]
   },
   {
     id: 'm4',
@@ -58,7 +64,8 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     images: [
       'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&q=80&w=800'
     ],
-    colors: ['Emerald', 'Noir']
+    colors: ['Emerald', 'Noir'],
+    sizes: [...PRODUCT_SIZES]
   },
   {
     id: 'm5',
@@ -70,7 +77,8 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     images: [
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=800'
     ],
-    colors: ['Pearl', 'Midnight']
+    colors: ['Pearl', 'Midnight'],
+    sizes: [...PRODUCT_SIZES]
   },
   {
     id: 'm6',
@@ -82,7 +90,8 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     images: [
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=800'
     ],
-    colors: ['Pearl', 'Midnight']
+    colors: ['Pearl', 'Midnight'],
+    sizes: [...PRODUCT_SIZES]
   },
   {
     id: 'm7',
@@ -94,6 +103,7 @@ export const MOCK_PRODUCTS: MockProduct[] = [
     images: [
       'https://images.unsplash.com/photo-1533107862482-0e6974b06ec4?auto=format&fit=crop&q=80&w=800'
     ],
-    colors: ['Sunset Noir', 'Electric Blue']
+    colors: ['Sunset Noir', 'Electric Blue'],
+    sizes: [...PRODUCT_SIZES]
   }
 ];

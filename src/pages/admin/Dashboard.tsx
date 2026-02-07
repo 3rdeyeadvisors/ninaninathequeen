@@ -143,10 +143,12 @@ export default function AdminDashboard() {
 
           if (row.id || row.handle || row.title) {
             const id = row.id || `sync-${i}`;
+            const sizes = row.sizes ? row.sizes.split('|').map(s => s.trim().toUpperCase()) : undefined;
             updateProductOverride(id, {
               title: row.title,
               price: row.price,
               inventory: parseInt(row.inventory) || 0,
+              sizes: sizes,
             });
             updatedCount++;
           }
@@ -166,7 +168,7 @@ export default function AdminDashboard() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "id,title,price,inventory\ngid://shopify/Product/1,Copacabana Top,85.00,50\ngid://shopify/Product/2,Copacabana Bottom,75.00,45\n";
+    const csvContent = "id,title,price,inventory,sizes\ngid://shopify/Product/1,Copacabana Top,85.00,50,XS|S|M|L|XL|2XL\ngid://shopify/Product/2,Copacabana Bottom,75.00,45,XS|S|M|L|XL|2XL\n";
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');

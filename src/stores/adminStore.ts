@@ -36,6 +36,7 @@ export interface ProductOverride {
   image: string;
   description: string;
   isDeleted?: boolean;
+  sizes?: string[];
 }
 
 export interface AdminSettings {

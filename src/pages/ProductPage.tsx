@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, Heart, Minus, Plus, Loader2, ChevronLeft, Truck, Shield, RotateCcw, Box } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/authStore';
 
 const ProductPage = () => {
   const { handle } = useParams<{ handle: string }>();
@@ -35,8 +36,22 @@ const ProductPage = () => {
   const addItem = useCartStore(state => state.addItem);
   const isCartLoading = useCartStore(state => state.isLoading);
   const { toggleItem, isInWishlist } = useWishlistStore();
+  const { user } = useAuthStore();
   
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+
+  // Auto-select preferred size
+  useEffect(() => {
+    if (product && user?.preferredSize) {
+      const preferredIndex = product.variants.edges.findIndex(v =>
+        v.node.selectedOptions.some(so => so.name === 'Size' && so.value === user.preferredSize)
+      );
+      if (preferredIndex !== -1) {
+        setSelectedVariantIndex(preferredIndex);
+      }
+    }
+  }, [product, user?.preferredSize]);
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [is360View, setIs360View] = useState(false);
   const [quantity, setQuantity] = useState(1);
