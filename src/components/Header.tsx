@@ -79,88 +79,75 @@ export function Header() {
         </Button>
 
         {/* Desktop Navigation - Flex Container */}
-        <div className="hidden lg:flex items-center justify-between h-full w-full">
-
-          {/* Left Side: Icons + Nav Links */}
-          <div className="flex items-center basis-0 grow justify-start">
-            {/* Left Icons */}
-            <div className="flex items-center gap-0.5 xl:gap-1 2xl:gap-2 shrink-0 mr-4 xl:mr-6 2xl:mr-10">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 xl:h-10 xl:w-10 transition-colors"
-                onClick={() => setSearchOpen(!searchOpen)}
-                aria-label="Toggle search"
+        <div className="hidden lg:flex items-center h-full w-full">
+          {/* Left Navigation - 3 links */}
+          <div className="flex items-center gap-4 xl:gap-6 2xl:gap-10 w-[280px] xl:w-[320px] 2xl:w-[400px] justify-start">
+            {navLinks.slice(0, 3).map((link) => (
+              <Link
+                key={link.name}
+                to={link.href}
+                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.1em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
               >
-                {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
-              </Button>
-
-              <Link to="/wishlist">
-                <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 relative transition-colors">
-                  <Heart className="h-5 w-5 text-foreground" />
-                  {wishlistItems.length > 0 && (
-                    <span className="absolute top-1 right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold shadow-sm ring-1 ring-background">
-                      {wishlistItems.length}
-                    </span>
-                  )}
-                </Button>
+                {link.name}
               </Link>
-
-              <Link to="/account">
-                <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 transition-colors">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
-            </div>
-
-            {/* Left Nav Links */}
-            <div className="flex items-center gap-3 xl:gap-6 2xl:gap-10">
-              {navLinks.slice(0, 3).map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.href}
-                  className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.1em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </div>
+            ))}
           </div>
 
-          {/* Logo Center Placeholder - Keeps the gap for the absolute logo */}
-          <div className="w-[140px] xl:w-[240px] 2xl:w-[380px] shrink-0" />
+          {/* Center - Flexible space for logo */}
+          <div className="flex-1" />
 
-          {/* Right Side: Nav Links + Cart + Admin */}
-          <div className="flex items-center basis-0 grow justify-end">
-            {/* Right Nav Links */}
-            <div className="flex items-center gap-3 xl:gap-6 2xl:gap-8">
-              {navLinks.slice(3).map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.href}
-                  className="text-[9px] 2xl:text-[10px] font-sans tracking-[0.15em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </div>
+          {/* Right Navigation - 3 links */}
+          <div className="flex items-center gap-4 xl:gap-6 2xl:gap-10 w-[280px] xl:w-[320px] 2xl:w-[400px] justify-end">
+            {navLinks.slice(3).map((link) => (
+              <Link
+                key={link.name}
+                to={link.href}
+                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.1em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+              >
+                {link.name}
+              </Link>
+            ))}
+          </div>
 
-            {/* Right Icons: Cart + Admin */}
-            <div className="flex items-center gap-0.5 xl:gap-1 2xl:gap-2 shrink-0 ml-4 xl:ml-6 2xl:ml-10">
-              <div className="pr-1">
-                <CartDrawer />
-              </div>
+          {/* Icons Group - Fixed position after right nav */}
+          <div className="flex items-center gap-1 xl:gap-2 ml-4 xl:ml-6 2xl:ml-8 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 xl:h-10 xl:w-10 transition-colors"
+              onClick={() => setSearchOpen(!searchOpen)}
+              aria-label="Toggle search"
+            >
+              {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+            </Button>
 
-              {isAdmin && (
-                <Link to="/admin">
-                  <Button variant="outline" size="sm" className="flex gap-2 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[9px] 2xl:text-[10px] uppercase tracking-widest shadow-sm px-2 2xl:px-4 h-9">
-                    <LayoutDashboard className="h-4 w-4" />
-                    <span className="hidden 2xl:inline">Admin Dashboard</span>
-                    <span className="hidden min-[1440px]:inline 2xl:hidden">Admin</span>
-                  </Button>
-                </Link>
-              )}
-            </div>
+            <Link to="/wishlist">
+              <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 relative transition-colors">
+                <Heart className="h-5 w-5 text-foreground" />
+                {wishlistItems.length > 0 && (
+                  <span className="absolute top-1 right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold shadow-sm ring-1 ring-background">
+                    {wishlistItems.length}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
+            <Link to="/account">
+              <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 transition-colors">
+                <User className="h-5 w-5" />
+              </Button>
+            </Link>
+
+            <CartDrawer />
+
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" size="sm" className="flex gap-2 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[9px] 2xl:text-[10px] uppercase tracking-widest shadow-sm px-2 2xl:px-4 h-9 ml-2">
+                  <LayoutDashboard className="h-4 w-4" />
+                  <span className="hidden 2xl:inline">Admin</span>
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 
