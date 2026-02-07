@@ -81,49 +81,10 @@ export function Header() {
         {/* Desktop Navigation - Flex Container */}
         <div className="hidden lg:flex items-center justify-between h-full w-full">
 
-          {/* Left Navigation Group */}
-          <div className="flex items-center gap-3 xl:gap-6 2xl:gap-10 basis-0 grow justify-start overflow-hidden">
-            {navLinks.slice(0, 3).map((link) => (
-              <Link
-                key={link.name}
-                to={link.href}
-                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.1em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
-              >
-                {link.name}
-              </Link>
-            ))}
-          </div>
-
-          {/* Logo Center Placeholder - Keeps the gap for the absolute logo */}
-          <div className="w-[140px] xl:w-[240px] 2xl:w-[380px] shrink-0" />
-
-          {/* Right Navigation + Icons Group */}
-          <div className="flex items-center justify-end gap-2 xl:gap-4 2xl:gap-8 basis-0 grow overflow-hidden">
-            {/* Right Nav Links */}
-            <div className="flex items-center gap-3 xl:gap-6 2xl:gap-8 mr-1 xl:mr-4">
-              {navLinks.slice(3).map((link) => (
-                <Link
-                  key={link.name}
-                  to={link.href}
-                  className="text-[9px] 2xl:text-[10px] font-sans tracking-[0.15em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
-                >
-                  {link.name}
-                </Link>
-              ))}
-            </div>
-
-            {/* Icons + Admin Dashboard Button */}
-            <div className="flex items-center gap-0.5 xl:gap-1 2xl:gap-2 shrink-0">
-              {isAdmin && (
-                <Link to="/admin">
-                  <Button variant="outline" size="sm" className="flex gap-2 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[9px] 2xl:text-[10px] uppercase tracking-widest shadow-sm px-2 2xl:px-4 h-9">
-                    <LayoutDashboard className="h-4 w-4" />
-                    <span className="hidden 2xl:inline">Admin Dashboard</span>
-                    <span className="hidden min-[1440px]:inline 2xl:hidden">Admin</span>
-                  </Button>
-                </Link>
-              )}
-
+          {/* Left Side: Icons + Nav Links */}
+          <div className="flex items-center basis-0 grow justify-start">
+            {/* Left Icons */}
+            <div className="flex items-center gap-0.5 xl:gap-1 2xl:gap-2 shrink-0 mr-4 xl:mr-6 2xl:mr-10">
               <Button
                 variant="ghost"
                 size="icon"
@@ -135,7 +96,7 @@ export function Header() {
               </Button>
 
               <Link to="/wishlist">
-                <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 hidden sm:flex relative transition-colors">
+                <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 relative transition-colors">
                   <Heart className="h-5 w-5 text-foreground" />
                   {wishlistItems.length > 0 && (
                     <span className="absolute top-1 right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold shadow-sm ring-1 ring-background">
@@ -146,14 +107,59 @@ export function Header() {
               </Link>
 
               <Link to="/account">
-                <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 hidden sm:flex transition-colors">
+                <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 transition-colors">
                   <User className="h-5 w-5" />
                 </Button>
               </Link>
+            </div>
 
-              <div className="pl-1">
+            {/* Left Nav Links */}
+            <div className="flex items-center gap-3 xl:gap-6 2xl:gap-10">
+              {navLinks.slice(0, 3).map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.href}
+                  className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.1em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Logo Center Placeholder - Keeps the gap for the absolute logo */}
+          <div className="w-[140px] xl:w-[240px] 2xl:w-[380px] shrink-0" />
+
+          {/* Right Side: Nav Links + Cart + Admin */}
+          <div className="flex items-center basis-0 grow justify-end">
+            {/* Right Nav Links */}
+            <div className="flex items-center gap-3 xl:gap-6 2xl:gap-8">
+              {navLinks.slice(3).map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.href}
+                  className="text-[9px] 2xl:text-[10px] font-sans tracking-[0.15em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </div>
+
+            {/* Right Icons: Cart + Admin */}
+            <div className="flex items-center gap-0.5 xl:gap-1 2xl:gap-2 shrink-0 ml-4 xl:ml-6 2xl:ml-10">
+              <div className="pr-1">
                 <CartDrawer />
               </div>
+
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button variant="outline" size="sm" className="flex gap-2 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[9px] 2xl:text-[10px] uppercase tracking-widest shadow-sm px-2 2xl:px-4 h-9">
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span className="hidden 2xl:inline">Admin Dashboard</span>
+                    <span className="hidden min-[1440px]:inline 2xl:hidden">Admin</span>
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
