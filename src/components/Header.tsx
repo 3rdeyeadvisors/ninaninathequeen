@@ -82,7 +82,7 @@ export function Header() {
         <div className="hidden lg:flex items-center justify-between h-full w-full">
 
           {/* Left Navigation Group */}
-          <div className="flex items-center gap-3 xl:gap-6 2xl:gap-10 flex-1 justify-start overflow-hidden">
+          <div className="flex items-center gap-3 xl:gap-6 2xl:gap-10 basis-0 grow justify-start overflow-hidden">
             {navLinks.slice(0, 3).map((link) => (
               <Link
                 key={link.name}
@@ -98,7 +98,7 @@ export function Header() {
           <div className="w-[140px] xl:w-[240px] 2xl:w-[380px] shrink-0" />
 
           {/* Right Navigation + Icons Group */}
-          <div className="flex items-center justify-end gap-2 xl:gap-4 2xl:gap-8 flex-1 overflow-hidden">
+          <div className="flex items-center justify-end gap-2 xl:gap-4 2xl:gap-8 basis-0 grow overflow-hidden">
             {/* Right Nav Links */}
             <div className="flex items-center gap-3 xl:gap-6 2xl:gap-8 mr-1 xl:mr-4">
               {navLinks.slice(3).map((link) => (

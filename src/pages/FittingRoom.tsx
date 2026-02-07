@@ -37,7 +37,7 @@ export default function FittingRoom() {
 
   const handleSaveLook = () => {
     setIsSaving(true);
-    playSound('camera');
+    playSound('click');
 
     setTimeout(() => {
       setIsSaving(false);
