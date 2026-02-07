@@ -1,128 +1,114 @@
 
-# Fix Build Error, Spreadsheet Sync & Favicon Issues
+# Fix Inconsistent Admin Dashboard Statistics
 
-## Overview
-This plan addresses three issues: a build error in the Wishlist page, the spreadsheet upload not properly parsing your inventory file, and missing favicon images.
+## Problem Identified
+
+Every time you log in, your admin dashboard statistics (orders, customers, revenue) appear different. This is happening because of how the data store handles persistence:
+
+1. **Store Initialization Race Condition** - When the app loads, the store briefly shows default sample data before the saved data loads from browser storage
+2. **No Loading State** - The dashboard renders immediately with initial values before the stored data is ready
+3. **Potential Storage Conflicts** - If localStorage gets cleared or the store version changes, data resets to defaults
+
+## Solution Overview
+
+Add proper persistence handling with:
+- A loading state to wait for data to be restored from storage
+- Ensure the dashboard only renders statistics after data is fully loaded
+- Add a "hydration" check to prevent showing stale/default data
 
 ---
 
-## Issue 1: Build Error in Wishlist.tsx
+## Technical Implementation
 
-**Problem:** The Wishlist page creates a mock product object missing the required `sizes` property.
+### 1. Add Hydration State to Admin Store
 
-**Solution:** Add the `sizes` property to the object passed to `mapMockToShopify`.
+**File:** `src/stores/adminStore.ts`
 
-**File:** `src/pages/Wishlist.tsx` (lines 33-42)
+Add a `_hasHydrated` flag that tracks when the persisted data has been loaded:
 
-Change from:
 ```typescript
-product={mapMockToShopify({
-  id: item.id.replace('gid://shopify/Product/', ''),
-  title: item.title,
-  handle: item.handle,
-  price: parseFloat(item.price),
-  images: [item.image],
-  category: 'Top',
-  productType: 'Bikini',
-  colors: []
-})}
+interface AdminStore {
+  // ... existing fields
+  _hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
+}
+
+export const useAdminStore = create<AdminStore>()(
+  persist(
+    (set) => ({
+      // ... existing state
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
+    }),
+    {
+      name: 'nina-armend-admin-v2',
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    }
+  )
+);
 ```
 
-Change to:
-```typescript
-product={mapMockToShopify({
-  id: item.id.replace('gid://shopify/Product/', ''),
-  title: item.title,
-  handle: item.handle,
-  price: parseFloat(item.price),
-  images: [item.image],
-  category: 'Top',
-  productType: 'Bikini',
-  colors: [],
-  sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL']
-})}
-```
+### 2. Add Loading State to Dashboard
 
----
+**File:** `src/pages/admin/Dashboard.tsx`
 
-## Issue 2: Spreadsheet Sync Not Parsing Your Inventory File
-
-**Problem:** Your Excel file has these columns:
-- `Item ID` → needs to map to `id`
-- `Item name` → needs to map to `title`  
-- `Price` → already maps to `price`
-- `Stock` → already maps to `inventory` (this works)
-- `Type` → needs to map to `productType`
-- `Collection` → can be used for collections/categories
-
-**Solution:** Update the spreadsheet parser to recognize these additional column name variations.
-
-**File:** `src/lib/spreadsheet.ts`
-
-Expand the column name mappings to handle variations from your inventory file.
-
----
-
-## Issue 3: Favicon Not Showing
-
-**Problem:** The `index.html` references these favicon files that don't exist:
-- `/assets/favicon-32x32.png`
-- `/assets/favicon-16x16.png`
-- `/assets/apple-touch-icon.png`
-
-**Solution:** You mentioned you uploaded favicons previously. To fix this:
-1. Please upload the favicon images again (I'll copy them to `public/assets/`)
-2. Or provide a URL to your favicon image and I'll update the references
-
----
-
-## Technical Details
-
-### Spreadsheet Parser Updates (`src/lib/spreadsheet.ts`)
-
-Add mappings for your inventory file's column names:
+Wait for the store to hydrate before rendering statistics:
 
 ```typescript
-// Map common variations to standard keys
-if (['stock', 'qty', 'quantity'].includes(normalizedKey)) {
-  normalizedKey = 'inventory';
-}
-if (['item id', 'itemid', 'sku', 'product_id', 'productid'].includes(normalizedKey)) {
-  normalizedKey = 'id';
-}
-if (['item name', 'itemname', 'product_name', 'productname', 'name'].includes(normalizedKey)) {
-  normalizedKey = 'title';
-}
-if (['type', 'product type', 'producttype', 'category'].includes(normalizedKey)) {
-  normalizedKey = 'producttype';
-}
-if (['collection', 'collections'].includes(normalizedKey)) {
-  normalizedKey = 'collection';
+const { orders, customers, _hasHydrated } = useAdminStore();
+
+// Show loading skeleton while data is being restored
+if (!_hasHydrated) {
+  return (
+    <div className="min-h-screen bg-secondary/20">
+      <Header />
+      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+        <div className="flex flex-col items-center gap-4">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-6 w-64" />
+          <div className="grid grid-cols-5 gap-4 w-full mt-8">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
 }
 ```
 
-### Spreadsheet Sync Hook Updates (`src/hooks/useSpreadsheetSync.ts`)
+### 3. Apply Same Pattern to Other Admin Pages
 
-Parse size from the `Item name` field (e.g., "White Top (XS)" → extract "XS" as the size).
+Apply the hydration check to:
+- `src/pages/admin/Orders.tsx`
+- `src/pages/admin/Customers.tsx`
+- `src/pages/admin/Products.tsx`
 
-Group items by base product name to aggregate inventory by size.
-
----
-
-## What This Enables
-
-After these changes, when you upload your inventory Excel file:
-
-1. Products will be created/updated based on the `Item ID` and `Item name`
-2. Stock levels from the `Stock` column will populate inventory
-3. Prices from the `Price` column will be used
-4. The `Collection` column will be used for product categorization
-5. Sizes will be extracted from item names like "White Top (XS)"
+This ensures all admin pages wait for data before rendering.
 
 ---
 
-## Next Steps After Approval
+## What This Fixes
 
-1. I'll fix the build error first
-2. Update the spreadsheet parser
-3. For the favicon: please upload your favicon images or provide a URL
+| Before | After |
+|--------|-------|
+| Statistics flash different values on each login | Statistics are consistent every time |
+| Data appears before storage loads | Shows loading skeleton until data is ready |
+| Possible data loss on refresh | Data reliably persists across sessions |
+
+---
+
+## Files to Modify
+
+1. `src/stores/adminStore.ts` - Add hydration tracking
+2. `src/pages/admin/Dashboard.tsx` - Add loading state
+3. `src/pages/admin/Orders.tsx` - Add loading state
+4. `src/pages/admin/Customers.tsx` - Add loading state
+5. `src/pages/admin/Products.tsx` - Add loading state
+
+This will ensure your statistics are always consistent and ready for launch.
