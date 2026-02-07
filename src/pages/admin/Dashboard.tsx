@@ -13,6 +13,7 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
+import { parseSpreadsheet } from '@/lib/spreadsheet';
 
 const data = [
   { name: 'Mon', sales: 4000, traffic: 2400 },
@@ -109,72 +110,51 @@ export default function AdminDashboard() {
 
       const reader = new FileReader();
       reader.onload = (event) => {
-        const text = event.target?.result as string;
-        const lines = text.split('\n');
-        const headers = lines[0].toLowerCase().split(',');
+        try {
+          const data = event.target?.result as ArrayBuffer;
+          const rows = parseSpreadsheet(data);
+          let updatedCount = 0;
 
-        let updatedCount = 0;
+          rows.forEach((row, index) => {
+            if (row.id || row.handle || row.title) {
+              const id = String(row.id || `sync-${index}`);
+              const sizes = row.sizes ? String(row.sizes).split('|').map((s: string) => s.trim().toUpperCase()) : undefined;
 
-        // Robust CSV Parser (handles quotes)
-        const parseCSVRow = (line: string) => {
-          const result = [];
-          let current = '';
-          let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') inQuotes = !inQuotes;
-            else if (char === ',' && !inQuotes) {
-              result.push(current.trim());
-              current = '';
-            } else current += char;
-          }
-          result.push(current.trim());
-          return result;
-        };
+              let sizeInventory: Record<string, number> | undefined = undefined;
+              if (row.size_inventory) {
+                sizeInventory = {};
+                String(row.size_inventory).split('|').forEach((part: string) => {
+                  const [s, q] = part.split(':');
+                  if (s && q) sizeInventory![s.trim().toUpperCase()] = parseInt(q.trim()) || 0;
+                });
+              }
 
-        for (let i = 1; i < lines.length; i++) {
-          const values = parseCSVRow(lines[i]);
-          if (values.length < headers.length) continue;
-
-          const row: Record<string, string> = {};
-          headers.forEach((header, index) => {
-            row[header.trim()] = values[index];
+              updateProductOverride(id, {
+                title: row.title ? String(row.title) : undefined,
+                price: row.price ? String(row.price) : undefined,
+                inventory: row.inventory ? parseInt(row.inventory) : 0,
+                sizes: sizes,
+                sizeInventory: sizeInventory,
+              });
+              updatedCount++;
+            }
           });
 
-          if (row.id || row.handle || row.title) {
-            const id = row.id || `sync-${i}`;
-            const sizes = row.sizes ? row.sizes.split('|').map(s => s.trim().toUpperCase()) : undefined;
-
-            let sizeInventory: Record<string, number> | undefined = undefined;
-            if (row.size_inventory) {
-              sizeInventory = {};
-              row.size_inventory.split('|').forEach(part => {
-                const [s, q] = part.split(':');
-                if (s && q) sizeInventory![s.trim().toUpperCase()] = parseInt(q.trim()) || 0;
-              });
-            }
-
-            updateProductOverride(id, {
-              title: row.title,
-              price: row.price,
-              inventory: parseInt(row.inventory) || 0,
-              sizes: sizes,
-              sizeInventory: sizeInventory,
-            });
-            updatedCount++;
-          }
-        }
-
-        setTimeout(() => {
+          setTimeout(() => {
+            setIsUploading(false);
+            toast.success(`Sync complete! ${updatedCount} products updated.`);
+            setChatMessages(prev => [...prev, {
+              role: 'ai',
+              text: `I've finished analyzing ${file.name}. I've successfully synced inventory and pricing for ${updatedCount} items from your spreadsheet.`
+            }]);
+          }, 1500);
+        } catch (error) {
+          console.error('Spreadsheet parsing failed:', error);
           setIsUploading(false);
-          toast.success(`Sync complete! ${updatedCount} products updated.`);
-          setChatMessages(prev => [...prev, {
-            role: 'ai',
-            text: `I've finished analyzing ${file.name}. I've successfully synced inventory and pricing for ${updatedCount} items from your spreadsheet.`
-          }]);
-        }, 1500);
+          toast.error("Failed to parse spreadsheet. Please ensure it's a valid CSV or Excel file.");
+        }
       };
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     }
   };
 
@@ -295,7 +275,7 @@ export default function AdminDashboard() {
                       type="file"
                       ref={fileInputRef}
                       className="hidden"
-                      accept=".csv"
+                      accept=".csv, .xlsx, .xls"
                       onChange={handleFileUpload}
                     />
                     <Button
@@ -306,7 +286,7 @@ export default function AdminDashboard() {
                       disabled={isUploading}
                     >
                       {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Upload className="h-3 w-3 mr-2" />}
-                      {isUploading ? 'Analyzing...' : 'Sync CSV'}
+                      {isUploading ? 'Analyzing...' : 'Sync Spreadsheet'}
                     </Button>
                     <Button
                       variant="ghost"
