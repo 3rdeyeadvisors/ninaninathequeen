@@ -144,11 +144,22 @@ export default function AdminDashboard() {
           if (row.id || row.handle || row.title) {
             const id = row.id || `sync-${i}`;
             const sizes = row.sizes ? row.sizes.split('|').map(s => s.trim().toUpperCase()) : undefined;
+
+            let sizeInventory: Record<string, number> | undefined = undefined;
+            if (row.size_inventory) {
+              sizeInventory = {};
+              row.size_inventory.split('|').forEach(part => {
+                const [s, q] = part.split(':');
+                if (s && q) sizeInventory![s.trim().toUpperCase()] = parseInt(q.trim()) || 0;
+              });
+            }
+
             updateProductOverride(id, {
               title: row.title,
               price: row.price,
               inventory: parseInt(row.inventory) || 0,
               sizes: sizes,
+              sizeInventory: sizeInventory,
             });
             updatedCount++;
           }
@@ -168,7 +179,7 @@ export default function AdminDashboard() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "id,title,price,inventory,sizes\ngid://shopify/Product/1,Copacabana Top,85.00,50,XS|S|M|L|XL|2XL\ngid://shopify/Product/2,Copacabana Bottom,75.00,45,XS|S|M|L|XL|2XL\n";
+    const csvContent = "id,title,price,inventory,sizes,size_inventory\ngid://shopify/Product/1,Copacabana Top,85.00,50,XS|S|M|L|XL|2XL,XS:10|S:10|M:10|L:10|XL:5|2XL:5\ngid://shopify/Product/2,Copacabana Bottom,75.00,45,XS|S|M|L|XL|2XL,XS:8|S:8|M:8|L:8|XL:7|2XL:6\n";
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');

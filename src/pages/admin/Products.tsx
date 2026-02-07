@@ -163,13 +163,18 @@ export default function AdminProducts() {
 
   const startAdding = () => {
     setIsAddingProduct(true);
+    const initialSizeInventory: Record<string, number> = {};
+    PRODUCT_SIZES.forEach(s => initialSizeInventory[s] = 0);
+
     setEditingProduct({
       id: `new-${Date.now()}`,
       title: "",
       price: "0.00",
       inventory: 0,
+      sizeInventory: initialSizeInventory,
       image: "https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=800",
-      description: ""
+      description: "",
+      sizes: [...PRODUCT_SIZES]
     });
   };
 
@@ -227,9 +232,14 @@ export default function AdminProducts() {
                       <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
                       <TableCell className="font-sans text-[10px] text-muted-foreground">
                         <div className="flex flex-wrap gap-1 max-w-[150px]">
-                          {(product.node.options.find(o => o.name === 'Size')?.values || []).map(s => (
-                            <span key={s} className="px-1 bg-secondary rounded">{s}</span>
-                          ))}
+                          {(product.node.options.find(o => o.name === 'Size')?.values || []).map(s => {
+                            const sizeStock = productOverrides[product.node.id]?.sizeInventory?.[s] ?? 0;
+                            return (
+                              <span key={s} className={`px-1 rounded ${sizeStock > 0 ? 'bg-secondary' : 'bg-destructive/10 text-destructive'}`}>
+                                {s} ({sizeStock})
+                              </span>
+                            );
+                          })}
                         </div>
                       </TableCell>
                       <TableCell className="font-sans text-sm font-medium">
@@ -252,15 +262,32 @@ export default function AdminProducts() {
                         </Button>
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingProduct({
-                          id: product.node.id,
-                          title: product.node.title,
-                          price: product.node.priceRange.minVariantPrice.amount,
-                          inventory: productOverrides[product.node.id]?.inventory || 45,
-                          image: product.node.images.edges[0]?.node.url,
-                          description: product.node.description || "",
-                          sizes: product.node.options.find(o => o.name === 'Size')?.values || []
-                        })}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                          const sizes = product.node.options.find(o => o.name === 'Size')?.values || [];
+                          const override = productOverrides[product.node.id];
+                          let sizeInventory = override?.sizeInventory;
+
+                          // Initialize sizeInventory if missing
+                          if (!sizeInventory) {
+                            const totalInventory = override?.inventory || 45;
+                            const perSize = Math.floor(totalInventory / (sizes.length || 1));
+                            sizeInventory = {};
+                            sizes.forEach((s, idx) => {
+                              sizeInventory![s] = idx === sizes.length - 1 ? totalInventory - (perSize * (sizes.length - 1)) : perSize;
+                            });
+                          }
+
+                          setEditingProduct({
+                            id: product.node.id,
+                            title: product.node.title,
+                            price: product.node.priceRange.minVariantPrice.amount,
+                            inventory: override?.inventory || 45,
+                            sizeInventory: sizeInventory,
+                            image: product.node.images.edges[0]?.node.url,
+                            description: product.node.description || "",
+                            sizes: sizes
+                          });
+                        }}>
                           <Edit2 className="h-4 w-4 text-muted-foreground" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => handleDelete(product.node.id)}>
@@ -304,10 +331,26 @@ export default function AdminProducts() {
                           key={size}
                           onClick={() => {
                             const currentSizes = editingProduct?.sizes || [];
-                            const newSizes = currentSizes.includes(size)
+                            const isSelected = currentSizes.includes(size);
+                            const newSizes = isSelected
                               ? currentSizes.filter(s => s !== size)
                               : [...currentSizes, size];
-                            setEditingProduct({ ...editingProduct, sizes: newSizes });
+
+                            const newSizeInventory = { ...(editingProduct?.sizeInventory || {}) };
+                            if (isSelected) {
+                              delete newSizeInventory[size];
+                            } else {
+                              newSizeInventory[size] = 0;
+                            }
+
+                            const newTotal = Object.values(newSizeInventory).reduce((acc, v) => acc + (v as number), 0);
+
+                            setEditingProduct({
+                              ...editingProduct,
+                              sizes: newSizes,
+                              sizeInventory: newSizeInventory,
+                              inventory: newTotal
+                            });
                           }}
                           className={`px-2 py-1 text-[10px] font-sans border rounded transition-colors ${
                             editingProduct?.sizes?.includes(size)
@@ -355,14 +398,45 @@ export default function AdminProducts() {
                       className="col-span-3 font-sans text-sm"
                     />
                   </div>
+                  {editingProduct?.sizes && editingProduct.sizes.length > 0 && (
+                    <div className="grid grid-cols-4 items-start gap-4 py-4 border-y border-border/50">
+                      <Label className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Size Inventory</Label>
+                      <div className="col-span-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                        {editingProduct.sizes.map(size => (
+                          <div key={size} className="flex items-center justify-between gap-2 bg-secondary/20 p-1.5 rounded-lg border border-border/50">
+                            <span className="text-[10px] font-bold w-8">{size}</span>
+                            <Input
+                              type="number"
+                              value={editingProduct.sizeInventory?.[size] ?? 0}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                const newSizeInventory = {
+                                  ...(editingProduct.sizeInventory || {}),
+                                  [size]: val
+                                };
+                                const newTotal = Object.values(newSizeInventory).reduce((acc, v) => acc + v, 0);
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  sizeInventory: newSizeInventory,
+                                  inventory: newTotal
+                                });
+                              }}
+                              className="h-7 text-[10px] w-16 px-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="inventory" className="text-right font-sans text-[10px] uppercase tracking-widest">Stock</Label>
+                    <Label htmlFor="inventory" className="text-right font-sans text-[10px] uppercase tracking-widest">Total Stock</Label>
                     <Input
                       id="inventory"
                       type="number"
                       value={editingProduct?.inventory || 0}
-                      onChange={(e) => setEditingProduct({...editingProduct, inventory: parseInt(e.target.value)})}
-                      className="col-span-3 font-sans text-sm"
+                      readOnly
+                      className="col-span-3 font-sans text-sm bg-secondary/50"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-start gap-4 pt-4 border-t">

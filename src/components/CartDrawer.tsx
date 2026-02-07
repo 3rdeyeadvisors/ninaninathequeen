@@ -42,7 +42,8 @@ export const CartDrawer = () => {
           title: item.product.node.title,
           quantity: item.quantity,
           price: item.price.amount,
-          image: item.product.node.images.edges[0]?.node.url || ''
+          image: item.product.node.images.edges[0]?.node.url || '',
+          size: item.variantTitle
         }))
       });
 

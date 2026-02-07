@@ -16,6 +16,7 @@ export interface AdminOrder {
     quantity: number;
     price: string;
     image: string;
+    size?: string;
   }>;
 }
 
@@ -33,6 +34,7 @@ export interface ProductOverride {
   title: string;
   price: string;
   inventory: number;
+  sizeInventory?: Record<string, number>;
   image: string;
   description: string;
   isDeleted?: boolean;
@@ -57,6 +59,7 @@ interface AdminStore {
   addOrder: (order: AdminOrder) => void;
   updateOrder: (orderId: string, updates: Partial<AdminOrder>) => void;
   updateProductOverride: (id: string, override: Partial<ProductOverride>) => void;
+  decrementInventory: (productId: string, size: string, quantity: number) => void;
   deleteProduct: (id: string) => void;
   addCustomer: (customer: AdminCustomer) => void;
   deleteCustomer: (id: string) => void;
@@ -75,8 +78,8 @@ const INITIAL_ORDERS: AdminOrder[] = [
     status: 'Delivered',
     trackingNumber: 'NA-982341',
     items: [
-      { title: 'Copacabana Triangle Top', quantity: 1, price: '85.00', image: 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=200' },
-      { title: 'Copacabana Tie Bottom', quantity: 1, price: '75.00', image: 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=200' }
+      { title: 'Copacabana Triangle Top', quantity: 1, price: '85.00', image: 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=200', size: 'M' },
+      { title: 'Copacabana Tie Bottom', quantity: 1, price: '75.00', image: 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=200', size: 'S' }
     ]
   },
   {
@@ -90,7 +93,7 @@ const INITIAL_ORDERS: AdminOrder[] = [
     status: 'Processing',
     trackingNumber: 'Pending',
     items: [
-      { title: 'Ipanema Bandeau Top', quantity: 1, price: '85.00', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=200' }
+      { title: 'Ipanema Bandeau Top', quantity: 1, price: '85.00', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=200', size: 'L' }
     ]
   }
 ];
@@ -130,12 +133,48 @@ export const useAdminStore = create<AdminStore>()(
         )
       })),
 
-      updateProductOverride: (id, override) => set((state) => ({
-        productOverrides: {
-          ...state.productOverrides,
-          [id]: { ...state.productOverrides[id], ...override, id } as ProductOverride
+      updateProductOverride: (id: string, override) => set((state) => {
+        const current = state.productOverrides[id] || {};
+        const newOverride = { ...current, ...override, id } as ProductOverride;
+
+        // Ensure inventory (total) is synced with sizeInventory if it was updated
+        if (override.sizeInventory) {
+          newOverride.inventory = Object.values(override.sizeInventory).reduce((acc, val) => acc + val, 0);
         }
-      })),
+
+        return {
+          productOverrides: {
+            ...state.productOverrides,
+            [id]: newOverride
+          }
+        };
+      }),
+
+      decrementInventory: (productId, size, quantity) => set((state) => {
+        const product = state.productOverrides[productId];
+        if (!product || !product.sizeInventory) return state;
+
+        const currentSizeStock = product.sizeInventory[size] || 0;
+        const newSizeStock = Math.max(0, currentSizeStock - quantity);
+
+        const newSizeInventory = {
+          ...product.sizeInventory,
+          [size]: newSizeStock
+        };
+
+        const newTotalInventory = Object.values(newSizeInventory).reduce((acc, val) => acc + val, 0);
+
+        return {
+          productOverrides: {
+            ...state.productOverrides,
+            [productId]: {
+              ...product,
+              sizeInventory: newSizeInventory,
+              inventory: newTotalInventory
+            }
+          }
+        };
+      }),
 
       deleteProduct: (id) => set((state) => ({
         productOverrides: {

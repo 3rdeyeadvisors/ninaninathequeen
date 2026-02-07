@@ -9,6 +9,12 @@ import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { playSound } from '@/lib/sounds';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface PosItem {
   id: string;
@@ -16,15 +22,17 @@ interface PosItem {
   price: string;
   image: string;
   quantity: number;
+  size: string;
 }
 
 export default function AdminPOS() {
   const { data: initialProducts } = useProducts(100);
-  const { productOverrides, addOrder, settings } = useAdminStore();
+  const { productOverrides, addOrder, settings, decrementInventory } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [posCart, setPosCart] = useState<PosItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [selectingProduct, setSelectingProduct] = useState<ShopifyProduct['node'] | null>(null);
 
   const products = useMemo(() => {
     if (!initialProducts) return [];
@@ -57,10 +65,14 @@ export default function AdminPOS() {
   }, [initialProducts, productOverrides, searchQuery]);
 
   const addToCart = (product: ShopifyProduct['node']) => {
-    const existing = posCart.find(item => item.id === product.id);
+    setSelectingProduct(product);
+  };
+
+  const confirmAddToCart = (product: ShopifyProduct['node'], size: string) => {
+    const existing = posCart.find(item => item.id === product.id && item.size === size);
     if (existing) {
       setPosCart(posCart.map(item =>
-        item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        (item.id === product.id && item.size === size) ? { ...item, quantity: item.quantity + 1 } : item
       ));
     } else {
       setPosCart([...posCart, {
@@ -68,21 +80,22 @@ export default function AdminPOS() {
         title: product.title,
         price: product.priceRange.minVariantPrice.amount,
         image: product.images.edges[0]?.node.url || 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?q=80&w=200',
-        quantity: 1
+        quantity: 1,
+        size: size
       }]);
     }
     playSound('click');
   };
 
-  const removeFromCart = (id: string) => {
-    setPosCart(posCart.filter(item => item.id !== id));
+  const removeFromCart = (id: string, size: string) => {
+    setPosCart(posCart.filter(item => !(item.id === id && item.size === size)));
     playSound('remove');
   };
 
-  const updateQuantity = (id: string, delta: number) => {
+  const updateQuantity = (id: string, size: string, delta: number) => {
     playSound('click');
     setPosCart(posCart.map(item => {
-      if (item.id === id) {
+      if (item.id === id && item.size === size) {
         const newQty = Math.max(1, item.quantity + delta);
         return { ...item, quantity: newQty };
       }
@@ -100,6 +113,11 @@ export default function AdminPOS() {
     setIsProcessing(true);
 
     setTimeout(() => {
+      // Decrement inventory for each item
+      posCart.forEach(item => {
+        decrementInventory(item.id, item.size, item.quantity);
+      });
+
       const newOrder: AdminOrder = {
         id: `#POS-${Math.floor(Math.random() * 9000) + 1000}`,
         customerName: 'In-Store Customer',
@@ -114,7 +132,8 @@ export default function AdminPOS() {
           title: item.title,
           quantity: item.quantity,
           price: item.price,
-          image: item.image
+          image: item.image,
+          size: item.size
         }))
       };
 
@@ -199,22 +218,23 @@ export default function AdminPOS() {
                     </div>
                   ) : (
                     posCart.map((item) => (
-                      <div key={item.id} className="flex items-center gap-3 bg-secondary/20 p-2 rounded-xl border border-border/50">
+                      <div key={`${item.id}-${item.size}`} className="flex items-center gap-3 bg-secondary/20 p-2 rounded-xl border border-border/50">
                         <img src={item.image} alt="" className="w-10 h-14 object-cover rounded shadow-sm" />
                         <div className="flex-1 min-w-0">
                           <p className="font-sans text-[11px] font-medium truncate">{item.title}</p>
+                          <p className="font-sans text-[9px] uppercase tracking-wider text-muted-foreground">Size: {item.size}</p>
                           <p className="font-serif text-xs">${item.price}</p>
                         </div>
                         <div className="flex items-center gap-2 bg-background rounded-lg border px-1">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, -1); }}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, item.size, -1); }}>
                             <Minus className="h-3 w-3" />
                           </Button>
                           <span className="font-sans text-xs w-4 text-center">{item.quantity}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, 1); }}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, item.size, 1); }}>
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={(e) => { e.stopPropagation(); removeFromCart(item.id); }}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive/60 hover:text-destructive" onClick={(e) => { e.stopPropagation(); removeFromCart(item.id, item.size); }}>
                           <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
@@ -275,6 +295,36 @@ export default function AdminPOS() {
         </div>
       </div>
       <Footer />
+
+      <Dialog open={!!selectingProduct} onOpenChange={(open) => !open && setSelectingProduct(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl">Select Size</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-2 py-4">
+            {selectingProduct?.options.find(o => o.name === 'Size')?.values.map(size => {
+              const stock = productOverrides[selectingProduct.id]?.sizeInventory?.[size] ?? 0;
+              return (
+                <Button
+                  key={size}
+                  variant="outline"
+                  disabled={stock <= 0}
+                  className={`h-12 font-sans text-xs ${stock <= 0 ? 'opacity-50' : ''}`}
+                  onClick={() => {
+                    confirmAddToCart(selectingProduct, size);
+                    setSelectingProduct(null);
+                  }}
+                >
+                  <div className="flex flex-col items-center">
+                    <span>{size}</span>
+                    <span className="text-[9px] text-muted-foreground">{stock} in stock</span>
+                  </div>
+                </Button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
