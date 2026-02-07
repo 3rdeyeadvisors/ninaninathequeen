@@ -1,32 +1,67 @@
 
-# Set Admin Password to "Bossqueen26!"
+# Fix Build Error & Improve Header Spacing
 
-## Overview
-Update the default admin account password hash so the admin user (lydia@ninaarmend.co.site) can log in with the password "Bossqueen26!".
+## Issues to Address
 
-## What Will Change
+### 1. Build Error (Critical)
+**File:** `src/pages/FittingRoom.tsx`, line 40
 
-**File: `src/stores/authStore.ts`**
+The code calls `playSound('camera')` but the valid sound types are only `'click' | 'error' | 'remove' | 'success'`. This causes the TypeScript error.
 
-Update line 39 to use the SHA-256 hash of "Bossqueen26!":
+**Fix:** Change `playSound('camera')` to `playSound('click')` or `playSound('success')` on line 40.
 
-```typescript
-const DEFAULT_ADMIN: AuthUser = {
-  name: 'Lydia',
-  email: ADMIN_EMAIL,
-  password: '3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b', // Hash of "Bossqueen26!"
-  // ... rest unchanged
-};
+---
+
+### 2. Header Spacing Inconsistency
+**Problem:** When logged in as admin, an "Admin Dashboard" button appears on the right side of the header, making the layout asymmetrical. The logo is absolutely positioned in the center, but the visual weight of the left vs right sides becomes unbalanced.
+
+**Current Layout:**
+- Left side: 3 nav links (`Shop All`, `Mix & Match`, `Fitting Room`)
+- Center: Logo (absolutely positioned, always centered)
+- Right side: 3 nav links + icons + **Admin Dashboard button** (when logged in)
+
+**Solution:** Make the left and right flex containers equal width regardless of their content, ensuring the logo placeholder stays consistent.
+
+**Changes to `src/components/Header.tsx`:**
+
+1. **Left navigation group (line 85):** Remove `flex-1` and use a fixed minimum width that matches the right side structure
+   
+2. **Right navigation group (line 101):** Match the same fixed minimum width approach
+
+3. **Update both sides to use `basis-0 grow` pattern** - This ensures both sides take equal space regardless of content, keeping the center logo placeholder stable.
+
+**Updated structure:**
+```
+|-- Left (basis-0 grow) --|-- Logo Placeholder (fixed width) --|-- Right (basis-0 grow) --|
 ```
 
-## Important Note
+With `basis-0 grow` on both sides, they will always be equal width, and the Admin Dashboard button won't shift the visual balance.
 
-After this change, you may need to **clear your browser's localStorage** for the new password to take effect, since the auth store persists user data. You can do this by:
-1. Opening browser DevTools (F12)
-2. Going to Application > Local Storage
-3. Deleting the `nina-armend-auth-v4` entry
-4. Refreshing the page
+---
 
-Then you can log in with:
-- **Email:** lydia@ninaarmend.co.site
-- **Password:** Bossqueen26!
+## Technical Implementation
+
+### File: `src/pages/FittingRoom.tsx`
+**Line 40:** Change `playSound('camera')` → `playSound('click')`
+
+### File: `src/components/Header.tsx`
+
+**Line 85:** Update left navigation container
+```typescript
+// Before:
+<div className="flex items-center gap-3 xl:gap-6 2xl:gap-10 flex-1 justify-start overflow-hidden">
+
+// After:
+<div className="flex items-center gap-3 xl:gap-6 2xl:gap-10 basis-0 grow justify-start overflow-hidden">
+```
+
+**Line 101:** Update right navigation container
+```typescript
+// Before:
+<div className="flex items-center justify-end gap-2 xl:gap-4 2xl:gap-8 flex-1 overflow-hidden">
+
+// After:
+<div className="flex items-center justify-end gap-2 xl:gap-4 2xl:gap-8 basis-0 grow overflow-hidden">
+```
+
+This `basis-0 grow` pattern is a standard CSS Flexbox technique that forces both sides to take equal remaining space, regardless of how much content is inside each. The Admin Dashboard button will be accommodated within the right side without pushing the center logo placeholder.
