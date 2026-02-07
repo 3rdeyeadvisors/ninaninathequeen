@@ -41,6 +41,7 @@ export interface ProductOverride {
   isDeleted?: boolean;
   sizes?: string[];
   collection?: string;
+  category?: string; // 'Top' | 'Bottom' | 'One-Piece' | 'Other'
 }
 
 export interface AdminSettings {

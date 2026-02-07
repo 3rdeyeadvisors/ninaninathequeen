@@ -29,9 +29,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { PRODUCT_SIZES } from '@/lib/constants';
 import { Skeleton } from '@/components/ui/skeleton';
+
+const CATEGORIES = ['All', 'Top', 'Bottom', 'One-Piece', 'Other'] as const;
 
 export default function AdminProducts() {
   const { data: initialProducts, isLoading } = useProducts(100);
@@ -42,19 +45,56 @@ export default function AdminProducts() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Count products by category
+  const countByCategory = useMemo(() => {
+    const counts: Record<string, number> = { All: 0, Top: 0, Bottom: 0, 'One-Piece': 0, Other: 0 };
+    if (!initialProducts) return counts;
+    
+    initialProducts.forEach(p => {
+      const override = productOverrides[p.node.id];
+      if (override?.isDeleted) return;
+      
+      counts.All++;
+      const category = override?.category || 'Other';
+      if (counts[category] !== undefined) {
+        counts[category]++;
+      } else {
+        counts.Other++;
+      }
+    });
+    
+    return counts;
+  }, [initialProducts, productOverrides]);
 
   const products = useMemo(() => {
     if (!initialProducts) return [];
 
-    if (!searchQuery) return initialProducts;
+    let filtered = initialProducts;
 
-    const q = searchQuery.toLowerCase();
-    return initialProducts.filter(p =>
-      p.node.title.toLowerCase().includes(q) ||
-      (p.node.description || '').toLowerCase().includes(q)
-    );
-  }, [initialProducts, searchQuery]);
+    // Filter by category
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(p => {
+        const override = productOverrides[p.node.id];
+        return override?.category === selectedCategory;
+      });
+    }
+
+    // Filter by search query
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.node.title.toLowerCase().includes(q) ||
+        (p.node.description || '').toLowerCase().includes(q)
+      );
+    }
+
+    return filtered;
+  }, [initialProducts, searchQuery, selectedCategory, productOverrides]);
 
   // Show loading skeleton while data is being restored from storage
   if (!_hasHydrated) {
@@ -92,6 +132,31 @@ export default function AdminProducts() {
       toast.success("Product deleted successfully");
       setProductToDelete(null);
     }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.size === products.length && products.length > 0) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(products.map(p => p.node.id)));
+    }
+  };
+
+  const toggleProductSelection = (id: string) => {
+    const newSet = new Set(selectedProducts);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedProducts(newSet);
+  };
+
+  const bulkDelete = () => {
+    selectedProducts.forEach(id => deleteProduct(id));
+    toast.success(`${selectedProducts.size} products deleted`);
+    setSelectedProducts(new Set());
+    setShowBulkDeleteConfirm(false);
   };
 
   const handleAiDescription = () => {
@@ -186,6 +251,50 @@ export default function AdminProducts() {
               </div>
             </div>
 
+            {/* Category Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-2">
+              {CATEGORIES.map(cat => (
+                <Button
+                  key={cat}
+                  variant={selectedCategory === cat ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setSelectedProducts(new Set()); // Clear selection when changing category
+                  }}
+                  className="font-sans text-[10px] uppercase tracking-widest"
+                >
+                  {cat} ({countByCategory[cat]})
+                </Button>
+              ))}
+            </div>
+
+            {/* Bulk Actions Bar */}
+            {selectedProducts.size > 0 && (
+              <div className="flex items-center gap-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <span className="font-sans text-sm">
+                  {selectedProducts.size} product{selectedProducts.size > 1 ? 's' : ''} selected
+                </span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowBulkDeleteConfirm(true)}
+                  className="font-sans text-[10px] uppercase tracking-widest"
+                >
+                  <Trash2 className="h-3 w-3 mr-2" />
+                  Delete Selected
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedProducts(new Set())}
+                  className="font-sans text-[10px] uppercase tracking-widest"
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            )}
+
             <div className="flex items-center gap-4 bg-background border rounded-lg px-3 py-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
@@ -200,94 +309,126 @@ export default function AdminProducts() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={selectedProducts.size === products.length && products.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Image</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Product Name</TableHead>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Sizes</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Category</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Sizes & Stock</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Price</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Status</TableHead>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">360° View</TableHead>
                     <TableHead className="text-right font-sans text-[10px] uppercase tracking-widest">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading && products.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={8} className="h-24 text-center">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                       </TableCell>
                     </TableRow>
-                  ) : products.map((product) => (
-                    <TableRow key={product.node.id}>
-                      <TableCell>
-                        <img src={product.node.images.edges[0]?.node.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
-                      </TableCell>
-                      <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
-                      <TableCell className="font-sans text-[10px] text-muted-foreground">
-                        <div className="flex flex-wrap gap-1 max-w-[150px]">
-                          {(product.node.options.find(o => o.name === 'Size')?.values || []).map(s => {
-                            const sizeStock = productOverrides[product.node.id]?.sizeInventory?.[s] ?? 0;
-                            return (
-                              <span key={s} className={`px-1 rounded ${sizeStock > 0 ? 'bg-secondary' : 'bg-destructive/10 text-destructive'}`}>
-                                {s} ({sizeStock})
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-sans text-sm font-medium">
-                        {product.node.priceRange.minVariantPrice.currencyCode} {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-sans tracking-widest uppercase font-medium bg-emerald-100 text-emerald-800 w-fit">
-                            In Stock
+                  ) : products.map((product) => {
+                    const override = productOverrides[product.node.id];
+                    const sizes = product.node.options.find(o => o.name === 'Size')?.values || override?.sizes || [];
+                    const sizeInventory = override?.sizeInventory || {};
+                    const totalStock = override?.inventory ?? Object.values(sizeInventory).reduce((a, b) => a + b, 0);
+                    
+                    return (
+                      <TableRow key={product.node.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedProducts.has(product.node.id)}
+                            onCheckedChange={() => toggleProductSelection(product.node.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <img src={product.node.images.edges[0]?.node.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
+                        </TableCell>
+                        <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
+                        <TableCell>
+                          <span className="px-2 py-1 rounded-full text-[10px] font-sans uppercase tracking-widest bg-secondary text-secondary-foreground">
+                            {override?.category || 'Other'}
                           </span>
-                          <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-tighter">
-                            {product.node.variants.edges[0]?.node.availableForSale ? 'Available Online' : 'Out of Stock'}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 font-sans text-[10px] uppercase tracking-widest">
-                          <Upload className="h-3 w-3 mr-2" />
-                          Sequence
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                          const sizes = product.node.options.find(o => o.name === 'Size')?.values || [];
-                          const override = productOverrides[product.node.id];
-                          let sizeInventory = override?.sizeInventory;
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+                            {sizes.map(s => {
+                              const stock = sizeInventory[s] ?? 0;
+                              const colorClass = stock === 0 
+                                ? 'bg-red-100 text-red-700 border-red-200' 
+                                : stock <= 5 
+                                  ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                  : 'bg-emerald-100 text-emerald-700 border-emerald-200';
+                              
+                              return (
+                                <span 
+                                  key={s} 
+                                  className={`px-2 py-1 rounded-md border text-xs font-semibold ${colorClass}`}
+                                >
+                                  {s}: {stock}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-sans text-sm font-medium">
+                          {product.node.priceRange.minVariantPrice.currencyCode} {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-sans tracking-widest uppercase font-medium w-fit ${
+                              totalStock > 0 
+                                ? 'bg-emerald-100 text-emerald-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {totalStock > 0 ? 'In Stock' : 'Out of Stock'}
+                            </span>
+                            <span className="text-[10px] font-sans text-muted-foreground uppercase tracking-tighter">
+                              {totalStock} total units
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                            const sizes = product.node.options.find(o => o.name === 'Size')?.values || [];
+                            const override = productOverrides[product.node.id];
+                            let sizeInventory = override?.sizeInventory;
 
-                          // Initialize sizeInventory if missing
-                          if (!sizeInventory) {
-                            const totalInventory = override?.inventory || 45;
-                            const perSize = Math.floor(totalInventory / (sizes.length || 1));
-                            sizeInventory = {};
-                            sizes.forEach((s, idx) => {
-                              sizeInventory![s] = idx === sizes.length - 1 ? totalInventory - (perSize * (sizes.length - 1)) : perSize;
+                            // Initialize sizeInventory if missing
+                            if (!sizeInventory) {
+                              const totalInventory = override?.inventory || 45;
+                              const perSize = Math.floor(totalInventory / (sizes.length || 1));
+                              sizeInventory = {};
+                              sizes.forEach((s, idx) => {
+                                sizeInventory![s] = idx === sizes.length - 1 ? totalInventory - (perSize * (sizes.length - 1)) : perSize;
+                              });
+                            }
+
+                            setEditingProduct({
+                              id: product.node.id,
+                              title: product.node.title,
+                              price: product.node.priceRange.minVariantPrice.amount,
+                              inventory: override?.inventory || 45,
+                              sizeInventory: sizeInventory,
+                              image: product.node.images.edges[0]?.node.url,
+                              description: product.node.description || "",
+                              sizes: sizes,
+                              category: override?.category
                             });
-                          }
-
-                          setEditingProduct({
-                            id: product.node.id,
-                            title: product.node.title,
-                            price: product.node.priceRange.minVariantPrice.amount,
-                            inventory: override?.inventory || 45,
-                            sizeInventory: sizeInventory,
-                            image: product.node.images.edges[0]?.node.url,
-                            description: product.node.description || "",
-                            sizes: sizes
-                          });
-                        }}>
-                          <Edit2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => setProductToDelete(product.node.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          }}>
+                            <Edit2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => setProductToDelete(product.node.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -472,6 +613,23 @@ export default function AdminProducts() {
                   <AlertDialogCancel className="font-sans text-[10px] uppercase tracking-widest">Cancel</AlertDialogCancel>
                   <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90 font-sans text-[10px] uppercase tracking-widest text-white">
                     Delete Product
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-serif">Delete {selectedProducts.size} products?</AlertDialogTitle>
+                  <AlertDialogDescription className="font-sans">
+                    This action cannot be undone. This will permanently delete {selectedProducts.size} product{selectedProducts.size > 1 ? 's' : ''} from your store inventory.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="font-sans text-[10px] uppercase tracking-widest">Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={bulkDelete} className="bg-destructive hover:bg-destructive/90 font-sans text-[10px] uppercase tracking-widest text-white">
+                    Delete {selectedProducts.size} Products
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
