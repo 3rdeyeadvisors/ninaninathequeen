@@ -4,10 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ShoppingBag, Minus, Plus, Trash2, ExternalLink, Loader2, Truck, CheckCircle2 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
+import { useAdminStore } from "@/stores/adminStore";
+import { useAuthStore } from "@/stores/authStore";
 
 export const CartDrawer = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { items, isLoading, isSyncing, updateQuantity, removeItem, getCheckoutUrl, syncCart } = useCartStore();
+  const addAdminOrder = useAdminStore(state => state.addOrder);
+  const { user } = useAuthStore();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
 
@@ -23,6 +27,25 @@ export const CartDrawer = () => {
   const handleCheckout = () => {
     const checkoutUrl = getCheckoutUrl();
     if (checkoutUrl) {
+      // Simulate POS/Admin Sync: Add order to admin dashboard
+      addAdminOrder({
+        id: `#ORD-${Math.floor(Math.random() * 9000) + 1000}`,
+        customerName: user?.name || 'Guest Customer',
+        customerEmail: user?.email || 'guest@example.com',
+        date: new Date().toISOString().split('T')[0],
+        total: totalPrice.toFixed(2),
+        status: 'Pending',
+        trackingNumber: 'Pending',
+        shippingCost: '0.00',
+        itemCost: (totalPrice * 0.3).toFixed(2), // Mock 30% COGS
+        items: items.map(item => ({
+          title: item.product.node.title,
+          quantity: item.quantity,
+          price: item.price.amount,
+          image: item.product.node.images.edges[0]?.node.url || ''
+        }))
+      });
+
       window.open(checkoutUrl, '_blank');
       setIsOpen(false);
     }

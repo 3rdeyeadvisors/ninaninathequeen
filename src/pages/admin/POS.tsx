@@ -106,6 +106,8 @@ export default function AdminPOS() {
         customerEmail: 'pos@ninaarmend.co.site',
         date: new Date().toISOString().split('T')[0],
         total: cartTotal.toFixed(2),
+        shippingCost: '0.00',
+        itemCost: (subtotal * 0.3).toFixed(2), // Mock 30% COGS
         status: 'Delivered',
         trackingNumber: 'Hand-delivered',
         items: posCart.map(item => ({

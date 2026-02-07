@@ -7,6 +7,8 @@ export interface AdminOrder {
   customerEmail: string;
   date: string;
   total: string;
+  shippingCost?: string;
+  itemCost?: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
   trackingNumber: string;
   items: Array<{
@@ -52,7 +54,7 @@ interface AdminStore {
   productOverrides: Record<string, ProductOverride>;
   settings: AdminSettings;
   addOrder: (order: AdminOrder) => void;
-  updateOrderStatus: (orderId: string, status: AdminOrder['status'], trackingNumber?: string) => void;
+  updateOrder: (orderId: string, updates: Partial<AdminOrder>) => void;
   updateProductOverride: (id: string, override: Partial<ProductOverride>) => void;
   deleteProduct: (id: string) => void;
   addCustomer: (customer: AdminCustomer) => void;
@@ -67,6 +69,8 @@ const INITIAL_ORDERS: AdminOrder[] = [
     customerEmail: 'alice@example.com',
     date: '2025-05-15',
     total: '160.00',
+    shippingCost: '12.50',
+    itemCost: '45.00',
     status: 'Delivered',
     trackingNumber: 'NA-982341',
     items: [
@@ -80,6 +84,8 @@ const INITIAL_ORDERS: AdminOrder[] = [
     customerEmail: 'bob@example.com',
     date: '2025-05-16',
     total: '85.00',
+    shippingCost: '0.00',
+    itemCost: '25.00',
     status: 'Processing',
     trackingNumber: 'Pending',
     items: [
@@ -117,9 +123,9 @@ export const useAdminStore = create<AdminStore>()(
         orders: [order, ...state.orders]
       })),
 
-      updateOrderStatus: (orderId, status, trackingNumber) => set((state) => ({
+      updateOrder: (orderId, updates) => set((state) => ({
         orders: state.orders.map(o =>
-          o.id === orderId ? { ...o, status, trackingNumber: trackingNumber ?? o.trackingNumber } : o
+          o.id === orderId ? { ...o, ...updates } : o
         )
       })),
 

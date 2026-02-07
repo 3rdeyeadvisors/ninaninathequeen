@@ -388,7 +388,7 @@ export default function Account() {
             {/* Main Content Area */}
             <div className="flex-1 w-full">
               <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="bg-background border w-full justify-start h-12 mb-6 overflow-x-auto no-scrollbar">
+                <TabsList className="bg-background border w-full justify-center h-12 mb-6 overflow-x-auto no-scrollbar">
                   <TabsTrigger value="profile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" onClick={() => playSound('click')}>
                     <User className="h-4 w-4 mr-2" /> Profile
                   </TabsTrigger>
