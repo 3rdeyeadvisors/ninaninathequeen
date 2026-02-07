@@ -18,6 +18,7 @@ export function mergeProductsWithOverrides(
           ...p.node,
           title: override.title || p.node.title,
           description: override.description || p.node.description,
+          productType: override.productType || p.node.productType,
           priceRange: {
             ...p.node.priceRange,
             minVariantPrice: {
@@ -65,6 +66,7 @@ export function mergeProductsWithOverrides(
           id: o.id,
           title: o.title,
           description: o.description || "",
+          productType: o.productType || "",
           handle: o.title.toLowerCase().replace(/ /g, '-'),
           priceRange: {
             minVariantPrice: { amount: o.price, currencyCode: 'USD' }
@@ -106,6 +108,7 @@ export function mergeProductWithOverride(
     ...product,
     title: override.title || product.title,
     description: override.description || product.description,
+    productType: override.productType || product.productType,
     priceRange: {
       ...product.priceRange,
       minVariantPrice: {

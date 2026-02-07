@@ -3,9 +3,10 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type ShopifyProduct } from '@/hooks/useProducts';
+import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
 import { toast } from 'sonner';
 import { useState, useMemo, useRef } from 'react';
 import {
@@ -34,6 +35,7 @@ import { PRODUCT_SIZES } from '@/lib/constants';
 export default function AdminProducts() {
   const { data: initialProducts, isLoading } = useProducts(100);
   const { productOverrides, updateProductOverride, deleteProduct } = useAdminStore();
+  const { isUploading, handleFileUpload, downloadTemplate, fileInputRef: syncInputRef } = useSpreadsheetSync();
   const [editingProduct, setEditingProduct] = useState<Partial<ProductOverride> | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -120,10 +122,37 @@ export default function AdminProducts() {
           <main className="flex-1 space-y-8 bg-card p-4 sm:p-8 rounded-2xl border border-border/50 shadow-sm">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h1 className="font-serif text-3xl">Products</h1>
-              <Button className="bg-primary" onClick={startAdding}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Product
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="file"
+                  ref={syncInputRef}
+                  className="hidden"
+                  multiple
+                  accept=".csv, .xlsx, .xls, image/*"
+                  onChange={handleFileUpload}
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => syncInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="font-sans text-[10px] uppercase tracking-widest"
+                >
+                  {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Upload className="h-3 w-3 mr-2" />}
+                  Sync Spreadsheet
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={downloadTemplate}
+                  className="font-sans text-[10px] uppercase tracking-widest text-primary"
+                >
+                  <Download className="h-3 w-3 mr-2" />
+                  Template
+                </Button>
+                <Button className="bg-primary" onClick={startAdding}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Product
+                </Button>
+              </div>
             </div>
 
             <div className="flex items-center gap-4 bg-background border rounded-lg px-3 py-2">

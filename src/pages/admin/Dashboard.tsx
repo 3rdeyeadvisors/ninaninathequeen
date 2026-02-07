@@ -13,9 +13,8 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
-import { parseSpreadsheet } from '@/lib/spreadsheet';
 import { useProducts } from '@/hooks/useProducts';
-import { PRODUCT_SIZES } from '@/lib/constants';
+import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
 
 const data = [
   { name: 'Mon', sales: 4000, traffic: 2400 },
@@ -29,16 +28,15 @@ const data = [
 
 export default function AdminDashboard() {
   const { data: allProducts } = useProducts(200);
-  const { orders, customers, updateProductOverride } = useAdminStore();
+  const { orders, customers } = useAdminStore();
+  const { isUploading, handleFileUpload, downloadTemplate, fileInputRef } = useSpreadsheetSync();
   const [chatMessages, setChatMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
     { role: 'ai', text: "Hello! How can I help you optimize your store today?" }
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [mostViewed, setMostViewed] = useState<{id: string, title: string, views: number, image: string}[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -119,106 +117,6 @@ export default function AdminDashboard() {
     }, 1500);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIsUploading(true);
-      toast.info(`Analyzing ${file.name}...`);
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = event.target?.result as ArrayBuffer;
-          const rows = parseSpreadsheet(data);
-          let updatedCount = 0;
-
-          rows.forEach((row, index) => {
-            const rawId = row.id ? String(row.id) : '';
-            const handle = row.handle ? String(row.handle) : '';
-            const title = row.title ? String(row.title) : '';
-
-            if (rawId || handle || title) {
-              // 1. Find existing product for matching
-              let existingProduct = allProducts?.find(p =>
-                p.node.id === rawId ||
-                p.node.id === `gid://shopify/Product/${rawId}` ||
-                (handle && p.node.handle === handle) ||
-                (title && p.node.title.toLowerCase() === title.toLowerCase())
-              );
-
-              const id = existingProduct
-                ? existingProduct.node.id
-                : (rawId
-                    ? (rawId.startsWith('gid://') ? rawId : `gid://shopify/Product/${rawId}`)
-                    : `sync-${index}`);
-
-              // 2. Determine sizes
-              const sizes = row.sizes
-                ? String(row.sizes).split('|').map((s: string) => s.trim().toUpperCase())
-                : (existingProduct?.node.options.find(o => o.name === 'Size')?.values);
-
-              // 3. Handle size inventory
-              let sizeInventory: Record<string, number> | undefined = undefined;
-              if (row.size_inventory) {
-                sizeInventory = {};
-                String(row.size_inventory).split('|').forEach((part: string) => {
-                  const [s, q] = part.split(':');
-                  if (s && q) sizeInventory![s.trim().toUpperCase()] = parseInt(q.trim()) || 0;
-                });
-              } else if (row.inventory !== undefined) {
-                // Auto-distribute total inventory if size_inventory is missing
-                const total = parseInt(row.inventory) || 0;
-                const targetSizes = sizes || [...PRODUCT_SIZES];
-                sizeInventory = {};
-                const perSize = Math.floor(total / (targetSizes.length || 1));
-                targetSizes.forEach((s, idx) => {
-                  sizeInventory![s] = idx === targetSizes.length - 1 ? total - (perSize * (targetSizes.length - 1)) : perSize;
-                });
-              }
-
-              updateProductOverride(id, {
-                title: row.title ? String(row.title) : (existingProduct?.node.title || "New Product"),
-                price: row.price ? String(row.price) : (existingProduct?.node.priceRange.minVariantPrice.amount || "0.00"),
-                inventory: row.inventory !== undefined ? parseInt(row.inventory) : (existingProduct ? undefined : 0),
-                sizes: sizes,
-                sizeInventory: sizeInventory,
-                image: existingProduct?.node.images.edges[0]?.node.url || "https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=800",
-                description: existingProduct?.node.description || "New luxury swimwear piece synced via inventory spreadsheet."
-              });
-              updatedCount++;
-            }
-          });
-
-          setTimeout(() => {
-            setIsUploading(false);
-            toast.success(`Sync complete! ${updatedCount} products updated.`);
-            setChatMessages(prev => [...prev, {
-              role: 'ai',
-              text: `I've finished analyzing ${file.name}. I've successfully synced inventory and pricing for ${updatedCount} items from your spreadsheet.`
-            }]);
-          }, 1500);
-        } catch (error) {
-          console.error('Spreadsheet parsing failed:', error);
-          setIsUploading(false);
-          toast.error("Failed to parse spreadsheet. Please ensure it's a valid CSV or Excel file.");
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
-  };
-
-  const downloadTemplate = () => {
-    const csvContent = "id,title,price,inventory,sizes,size_inventory\ngid://shopify/Product/1,Copacabana Top,85.00,50,XS|S|M|L|XL|2XL,XS:10|S:10|M:10|L:10|XL:5|2XL:5\ngid://shopify/Product/2,Copacabana Bottom,75.00,45,XS|S|M|L|XL|2XL,XS:8|S:8|M:8|L:8|XL:7|2XL:6\n";
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'nina_armend_inventory_template.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast.success("Template downloaded!");
-  };
 
   return (
     <div className="min-h-screen bg-secondary/20">
@@ -324,7 +222,8 @@ export default function AdminDashboard() {
                       type="file"
                       ref={fileInputRef}
                       className="hidden"
-                      accept=".csv, .xlsx, .xls"
+                      multiple
+                      accept=".csv, .xlsx, .xls, image/*"
                       onChange={handleFileUpload}
                     />
                     <Button

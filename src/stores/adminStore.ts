@@ -37,6 +37,7 @@ export interface ProductOverride {
   sizeInventory?: Record<string, number>;
   image: string;
   description: string;
+  productType?: string;
   isDeleted?: boolean;
   sizes?: string[];
 }
