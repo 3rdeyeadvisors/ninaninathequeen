@@ -105,7 +105,7 @@ export function Header() {
           {/* Right section - Icons */}
           <div className="flex-1 flex items-center justify-end gap-2 md:gap-4">
             {/* Desktop navigation - right */}
-            <div className="hidden 2xl:flex items-center gap-4">
+            <div className="hidden lg:flex items-center gap-4 xl:gap-6">
               {navLinks.slice(3).map((link) => (
                 <Link
                   key={link.name}
@@ -164,10 +164,10 @@ export function Header() {
         <AnimatePresence>
           {searchOpen && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden bg-background/95 backdrop-blur-md border-t border-border/30"
+              initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+              animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+              exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+              className="bg-background/95 backdrop-blur-md border-t border-border/30"
             >
               <div className="container mx-auto px-4 md:px-8 py-4">
                 <div className="relative max-w-2xl mx-auto">

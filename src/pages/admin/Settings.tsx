@@ -141,7 +141,7 @@ export default function AdminSettings() {
                               className="font-mono text-xs"
                             />
                             <p className="text-[10px] text-muted-foreground">
-                              Requires 'Terminal' and 'Orders' permissions. <a href="#" className="text-primary underline inline-flex items-center gap-1">View Documentation <ExternalLink className="h-2 w-2" /></a>
+                              Requires 'Terminal' and 'Orders' permissions. <a href="https://stripe.com/docs/terminal" target="_blank" rel="noopener noreferrer" className="text-primary underline inline-flex items-center gap-1">View Documentation <ExternalLink className="h-2 w-2" /></a>
                             </p>
                           </div>
                         </div>

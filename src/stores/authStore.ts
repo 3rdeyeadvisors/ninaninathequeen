@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { hashPassword } from '@/lib/security';
+import { useAdminStore } from './adminStore';
 
 export interface User {
   name: string;
@@ -94,6 +95,16 @@ export const useAuthStore = create<AuthStore>()(
         };
 
         set({ users: [...users, newUser] });
+
+        // Add to Admin Customer Audience
+        useAdminStore.getState().addCustomer({
+          id: `cust-${Date.now()}`,
+          name: newUser.name,
+          email: newUser.email,
+          totalSpent: '0.00',
+          orderCount: 0,
+          joinDate: new Date().toISOString().split('T')[0]
+        });
 
         // Log in the user automatically after signup
         const { password: _, ...userWithoutPassword } = newUser;

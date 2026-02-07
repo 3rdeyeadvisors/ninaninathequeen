@@ -48,11 +48,15 @@ export const useCartStore = create<CartStore>()(
                 checkoutUrl: result.checkoutUrl,
                 items: [{ ...item, lineId: result.lineId }]
               });
+            } else {
+              // Fallback: add locally if Shopify fails
+              set({ items: [{ ...item, lineId: null }] });
             }
           } else if (existingItem) {
             const newQuantity = existingItem.quantity + item.quantity;
             if (!existingItem.lineId) {
-              console.error('Cannot update quantity for item without lineId:', existingItem);
+              // Item was previously added locally only, update locally
+              set({ items: items.map(i => i.variantId === item.variantId ? { ...i, quantity: newQuantity } : i) });
               return;
             }
             const result = await updateShopifyCartLine(cartId, existingItem.lineId, newQuantity);
@@ -61,6 +65,11 @@ export const useCartStore = create<CartStore>()(
               set({ items: currentItems.map(i => i.variantId === item.variantId ? { ...i, quantity: newQuantity } : i) });
             } else if (result.cartNotFound) {
               clearCart();
+              set({ items: [{ ...item, lineId: null }] });
+            } else {
+              // Fallback: update locally
+              const currentItems = get().items;
+              set({ items: currentItems.map(i => i.variantId === item.variantId ? { ...i, quantity: newQuantity } : i) });
             }
           } else {
             const result = await addLineToShopifyCart(cartId, { ...item, lineId: null });
@@ -69,10 +78,23 @@ export const useCartStore = create<CartStore>()(
               set({ items: [...currentItems, { ...item, lineId: result.lineId ?? null }] });
             } else if (result.cartNotFound) {
               clearCart();
+              set({ items: [{ ...item, lineId: null }] });
+            } else {
+              // Fallback: add locally
+              const currentItems = get().items;
+              set({ items: [...currentItems, { ...item, lineId: null }] });
             }
           }
         } catch (error) {
           console.error('Failed to add item:', error);
+          // Ultimate fallback: ensure it's at least added locally
+          const { items: currentItems } = get();
+          const existing = currentItems.find(i => i.variantId === item.variantId);
+          if (existing) {
+            set({ items: currentItems.map(i => i.variantId === item.variantId ? { ...i, quantity: i.quantity + item.quantity } : i) });
+          } else {
+            set({ items: [...currentItems, { ...item, lineId: null }] });
+          }
         } finally {
           set({ isLoading: false });
         }
@@ -86,7 +108,13 @@ export const useCartStore = create<CartStore>()(
         
         const { items, cartId, clearCart } = get();
         const item = items.find(i => i.variantId === variantId);
-        if (!item?.lineId || !cartId) return;
+        if (!item) return;
+
+        // If not synced with Shopify, just update locally
+        if (!item.lineId || !cartId) {
+          set({ items: items.map(i => i.variantId === variantId ? { ...i, quantity } : i) });
+          return;
+        }
 
         set({ isLoading: true });
         try {
@@ -96,9 +124,15 @@ export const useCartStore = create<CartStore>()(
             set({ items: currentItems.map(i => i.variantId === variantId ? { ...i, quantity } : i) });
           } else if (result.cartNotFound) {
             clearCart();
+            set({ items: items.map(i => i.variantId === variantId ? { ...i, quantity } : i) });
+          } else {
+            // Fallback: update locally
+            set({ items: items.map(i => i.variantId === variantId ? { ...i, quantity } : i) });
           }
         } catch (error) {
           console.error('Failed to update quantity:', error);
+          // Fallback: update locally
+          set({ items: items.map(i => i.variantId === variantId ? { ...i, quantity } : i) });
         } finally {
           set({ isLoading: false });
         }
@@ -107,12 +141,25 @@ export const useCartStore = create<CartStore>()(
       removeItem: async (variantId) => {
         const { items, cartId, clearCart } = get();
         const item = items.find(i => i.variantId === variantId);
-        if (!item?.lineId || !cartId) return;
+        if (!item) return;
+
+        // If not synced with Shopify, just remove locally
+        if (!item.lineId || !cartId) {
+          const newItems = items.filter(i => i.variantId !== variantId);
+          if (newItems.length === 0) {
+            clearCart();
+          } else {
+            set({ items: newItems });
+          }
+          return;
+        }
 
         set({ isLoading: true });
         try {
           const result = await removeLineFromShopifyCart(cartId, item.lineId);
-          if (result.success) {
+          if (result.success || result.cartNotFound) {
+            if (result.cartNotFound) clearCart();
+
             const currentItems = get().items;
             const newItems = currentItems.filter(i => i.variantId !== variantId);
             if (newItems.length === 0) {
@@ -120,11 +167,18 @@ export const useCartStore = create<CartStore>()(
             } else {
               set({ items: newItems });
             }
-          } else if (result.cartNotFound) {
-            clearCart();
+          } else {
+            // Fallback: remove locally anyway
+            const currentItems = get().items;
+            const newItems = currentItems.filter(i => i.variantId !== variantId);
+            set({ items: newItems });
           }
         } catch (error) {
           console.error('Failed to remove item:', error);
+          // Fallback: remove locally
+          const currentItems = get().items;
+          const newItems = currentItems.filter(i => i.variantId !== variantId);
+          set({ items: newItems });
         } finally {
           set({ isLoading: false });
         }

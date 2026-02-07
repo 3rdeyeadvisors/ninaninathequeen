@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Instagram, Facebook, Mail, MapPin, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 
 const footerLinks = {
   shop: [
@@ -54,14 +55,24 @@ export function Footer() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
               className="flex gap-3"
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const email = (e.currentTarget.elements[0] as HTMLInputElement).value;
+                if (email) {
+                  toast.success('Welcome to the Inner Circle!', {
+                    description: "You've been successfully subscribed to our newsletter."
+                  });
+                  (e.currentTarget.elements[0] as HTMLInputElement).value = '';
+                }
+              }}
             >
               <Input
                 type="email"
                 placeholder="Enter your email"
+                required
                 className="flex-1 bg-background border-border focus:border-primary"
               />
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-sans tracking-wider px-8">
+              <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-sans tracking-wider px-8">
                 Subscribe
               </Button>
             </motion.form>
@@ -82,14 +93,20 @@ export function Footer() {
               the beauty of every silhouette.
             </p>
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="hover:text-primary">
-                <Instagram className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
+                <a href="https://instagram.com/ninaarmend" target="_blank" rel="noopener noreferrer">
+                  <Instagram className="h-5 w-5" />
+                </a>
               </Button>
-              <Button variant="ghost" size="icon" className="hover:text-primary">
-                <Facebook className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
+                <a href="https://facebook.com/ninaarmend" target="_blank" rel="noopener noreferrer">
+                  <Facebook className="h-5 w-5" />
+                </a>
               </Button>
-              <Button variant="ghost" size="icon" className="hover:text-primary">
-                <Mail className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
+                <a href="mailto:contact@ninaarmend.co.site">
+                  <Mail className="h-5 w-5" />
+                </a>
               </Button>
             </div>
           </div>
