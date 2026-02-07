@@ -26,18 +26,22 @@ import {
 import { toast } from 'sonner';
 
 export default function AdminOrders() {
-  const { orders, updateOrderStatus } = useAdminStore();
+  const { orders, updateOrder } = useAdminStore();
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isViewing, setIsViewing] = useState(false);
 
   const [editStatus, setEditStatus] = useState<AdminOrder['status']>('Pending');
   const [editTracking, setEditTracking] = useState('');
+  const [editShippingCost, setEditShippingCost] = useState('');
+  const [editItemCost, setEditItemCost] = useState('');
 
   const handleEdit = (order: AdminOrder) => {
     setSelectedOrder(order);
     setEditStatus(order.status);
     setEditTracking(order.trackingNumber);
+    setEditShippingCost(order.shippingCost || '0.00');
+    setEditItemCost(order.itemCost || '0.00');
     setIsEditing(true);
   };
 
@@ -48,7 +52,12 @@ export default function AdminOrders() {
 
   const saveOrderChanges = () => {
     if (selectedOrder) {
-      updateOrderStatus(selectedOrder.id, editStatus, editTracking);
+      updateOrder(selectedOrder.id, {
+        status: editStatus,
+        trackingNumber: editTracking,
+        shippingCost: editShippingCost,
+        itemCost: editItemCost
+      });
       toast.success(`Order ${selectedOrder.id} updated successfully`);
       setIsEditing(false);
     }
@@ -153,6 +162,21 @@ export default function AdminOrders() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-3 gap-4 border-b pb-6">
+                      <div>
+                        <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Revenue</h4>
+                        <p className="font-sans text-sm font-medium">${parseFloat(selectedOrder.total).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Shipping Cost</h4>
+                        <p className="font-sans text-sm font-medium text-destructive">-${parseFloat(selectedOrder.shippingCost || '0').toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Item Cost (COGS)</h4>
+                        <p className="font-sans text-sm font-medium text-destructive">-${parseFloat(selectedOrder.itemCost || '0').toFixed(2)}</p>
+                      </div>
+                    </div>
+
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground">Order Items</h4>
                       <div className="space-y-3">
@@ -216,6 +240,30 @@ export default function AdminOrders() {
                       placeholder="e.g. NA-123456"
                       className="font-sans text-sm"
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="shippingCost" className="font-sans text-[10px] uppercase tracking-widest">Shipping Cost</Label>
+                      <Input
+                        id="shippingCost"
+                        type="number"
+                        step="0.01"
+                        value={editShippingCost}
+                        onChange={(e) => setEditShippingCost(e.target.value)}
+                        className="font-sans text-sm"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="itemCost" className="font-sans text-[10px] uppercase tracking-widest">Item Cost (COGS)</Label>
+                      <Input
+                        id="itemCost"
+                        type="number"
+                        step="0.01"
+                        value={editItemCost}
+                        onChange={(e) => setEditItemCost(e.target.value)}
+                        className="font-sans text-sm"
+                      />
+                    </div>
                   </div>
                 </div>
 

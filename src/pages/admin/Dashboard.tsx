@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, AreaChart, Area
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Users, DollarSign, Package, Brain, Sparkles, MessageSquare, Upload, Loader2 } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, Package, Brain, Sparkles, MessageSquare, Upload, Loader2, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,7 @@ const data = [
 ];
 
 export default function AdminDashboard() {
-  const { orders, customers } = useAdminStore();
+  const { orders, customers, updateProductOverride } = useAdminStore();
   const [chatMessages, setChatMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
     { role: 'ai', text: "Hello! How can I help you optimize your store today?" }
   ]);
@@ -65,6 +65,15 @@ export default function AdminDashboard() {
     return orders.reduce((acc, order) => acc + parseFloat(order.total), 0);
   }, [orders]);
 
+  const totalNetProfit = useMemo(() => {
+    return orders.reduce((acc, order) => {
+      const revenue = parseFloat(order.total);
+      const shipping = parseFloat(order.shippingCost || '0');
+      const cost = parseFloat(order.itemCost || '0');
+      return acc + (revenue - shipping - cost);
+    }, 0);
+  }, [orders]);
+
   const handleSendMessage = () => {
     if (!chatInput.trim()) return;
 
@@ -96,17 +105,77 @@ export default function AdminDashboard() {
     const file = e.target.files?.[0];
     if (file) {
       setIsUploading(true);
-      toast.info(`Uploading ${file.name}...`);
+      toast.info(`Analyzing ${file.name}...`);
 
-      setTimeout(() => {
-        setIsUploading(false);
-        toast.success("Spreadsheet analyzed! Inventory synced and optimizations suggested.");
-        setChatMessages(prev => [...prev, {
-          role: 'ai',
-          text: `I've finished analyzing ${file.name}. I found 4 potential stock-outs for next month and updated the inventory for 24 items.`
-        }]);
-      }, 3000);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const lines = text.split('\n');
+        const headers = lines[0].toLowerCase().split(',');
+
+        let updatedCount = 0;
+
+        // Robust CSV Parser (handles quotes)
+        const parseCSVRow = (line: string) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') inQuotes = !inQuotes;
+            else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else current += char;
+          }
+          result.push(current.trim());
+          return result;
+        };
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = parseCSVRow(lines[i]);
+          if (values.length < headers.length) continue;
+
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header.trim()] = values[index];
+          });
+
+          if (row.id || row.handle || row.title) {
+            const id = row.id || `sync-${i}`;
+            updateProductOverride(id, {
+              title: row.title,
+              price: row.price,
+              inventory: parseInt(row.inventory) || 0,
+            });
+            updatedCount++;
+          }
+        }
+
+        setTimeout(() => {
+          setIsUploading(false);
+          toast.success(`Sync complete! ${updatedCount} products updated.`);
+          setChatMessages(prev => [...prev, {
+            role: 'ai',
+            text: `I've finished analyzing ${file.name}. I've successfully synced inventory and pricing for ${updatedCount} items from your spreadsheet.`
+          }]);
+        }, 1500);
+      };
+      reader.readAsText(file);
     }
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = "id,title,price,inventory\ngid://shopify/Product/1,Copacabana Top,85.00,50\ngid://shopify/Product/2,Copacabana Bottom,75.00,45\n";
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nina_armend_inventory_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success("Template downloaded!");
   };
 
   return (
@@ -124,7 +193,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <Link to="/admin/orders" className="block hover:scale-[1.02] transition-transform">
                 <Card className="shadow-lg border-primary/10 bg-gradient-to-br from-background to-primary/5 h-full">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -132,9 +201,23 @@ export default function AdminDashboard() {
                     <DollarSign className="h-4 w-4 text-primary" />
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                    <div className="text-3xl font-serif mb-1">${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    <p className="text-xs text-emerald-500 flex items-center mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1" /> +20.1% from last month
+                    <div className="text-2xl font-serif mb-1">${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <p className="text-[10px] text-emerald-500 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" /> +20.1% vs prev
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to="/admin/orders" className="block hover:scale-[1.02] transition-transform">
+                <Card className="shadow-lg border-primary/20 bg-gradient-to-br from-primary/5 to-background h-full">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-xs font-sans tracking-widest uppercase text-primary">Net Profit</CardTitle>
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center text-center py-6">
+                    <div className="text-2xl font-serif mb-1 text-primary">${totalNetProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <p className="text-[10px] text-emerald-500 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" /> Healthy Margins
                     </p>
                   </CardContent>
                 </Card>
@@ -146,9 +229,9 @@ export default function AdminDashboard() {
                     <ShoppingBag className="h-4 w-4 text-primary" />
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                    <div className="text-3xl font-serif mb-1">{orders.length}</div>
-                    <p className="text-xs text-emerald-500 flex items-center mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1" /> +12% from last month
+                    <div className="text-2xl font-serif mb-1">{orders.length}</div>
+                    <p className="text-[10px] text-emerald-500 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" /> +12% vs prev
                     </p>
                   </CardContent>
                 </Card>
@@ -160,9 +243,9 @@ export default function AdminDashboard() {
                     <Users className="h-4 w-4 text-primary" />
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                    <div className="text-3xl font-serif mb-1">{customers.length}</div>
-                    <p className="text-xs text-emerald-500 flex items-center mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1" /> +19% from last month
+                    <div className="text-2xl font-serif mb-1">{customers.length}</div>
+                    <p className="text-[10px] text-emerald-500 flex items-center mt-1">
+                      <TrendingUp className="h-3 w-3 mr-1" /> +19% vs prev
                     </p>
                   </CardContent>
                 </Card>
@@ -199,7 +282,7 @@ export default function AdminDashboard() {
                       type="file"
                       ref={fileInputRef}
                       className="hidden"
-                      accept=".csv,.xlsx,.xls"
+                      accept=".csv"
                       onChange={handleFileUpload}
                     />
                     <Button
@@ -210,16 +293,16 @@ export default function AdminDashboard() {
                       disabled={isUploading}
                     >
                       {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Upload className="h-3 w-3 mr-2" />}
-                      Select
+                      {isUploading ? 'Analyzing...' : 'Sync CSV'}
                     </Button>
                     <Button
+                      variant="ghost"
                       size="sm"
-                      className="bg-primary font-sans text-[10px] uppercase tracking-widest h-9"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
+                      className="text-primary font-sans text-[10px] uppercase tracking-widest h-9"
+                      onClick={downloadTemplate}
                     >
-                      <Brain className="h-3 w-3 mr-2" />
-                      AI Analyze
+                      <Download className="h-3 w-3 mr-2" />
+                      Template
                     </Button>
                   </div>
                 </CardContent>

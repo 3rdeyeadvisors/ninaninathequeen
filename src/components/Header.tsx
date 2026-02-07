@@ -68,25 +68,25 @@ export function Header() {
       <AnnouncementBar />
       <nav className="container mx-auto px-4 md:px-8">
         <div className="flex items-center justify-between h-16 md:h-24 gap-4">
-          {/* Left section - Mobile menu / Desktop nav */}
-          <div className="flex-1 flex items-center justify-start gap-4 md:gap-8">
+          {/* Left section - Balanced spacing */}
+          <div className="flex-1 flex items-center justify-between">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden shrink-0"
+              className="lg:hidden shrink-0"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
 
-            {/* Desktop navigation - left */}
-            <div className="hidden lg:flex items-center gap-4 xl:gap-6 pr-2 xl:pr-4">
+            {/* Desktop navigation - left (aligned to logo) */}
+            <div className="hidden lg:flex flex-1 justify-end items-center gap-6 xl:gap-10 pr-8 xl:pr-12">
               {navLinks.slice(0, 3).map((link) => (
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-[10px] font-sans tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                  className="text-[10px] font-sans tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
                 >
                   {link.name}
                 </Link>
@@ -94,30 +94,30 @@ export function Header() {
             </div>
           </div>
 
-          {/* Logo - Perfect Center */}
-          <div className="flex-none flex justify-center z-10 px-4">
+          {/* Logo - Absolute Center for perfection */}
+          <div className="flex-none flex justify-center z-10 px-4 scale-90 md:scale-100">
             <Link to="/" className="flex flex-col items-center">
               <Logo />
             </Link>
           </div>
 
-          {/* Right section - Icons */}
-          <div className="flex-1 flex items-center justify-end gap-2 md:gap-4">
-            {/* Desktop navigation - right */}
-            <div className="hidden lg:flex items-center gap-4 xl:gap-6">
+          {/* Right section - Balanced spacing */}
+          <div className="flex-1 flex items-center justify-between">
+            {/* Desktop navigation - right (aligned to logo) */}
+            <div className="hidden lg:flex flex-1 justify-start items-center gap-6 xl:gap-10 pl-8 xl:pl-12">
               {navLinks.slice(3).map((link) => (
                 <Link
                   key={link.name}
                   to={link.href}
-                  className="text-[10px] font-sans tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                  className="text-[10px] font-sans tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
                 >
                   {link.name}
                 </Link>
               ))}
             </div>
 
-            {/* Icons */}
-            <div className="flex items-center gap-1 md:gap-2">
+            {/* Icons - End of right section */}
+            <div className="flex items-center gap-1 md:gap-2 ml-auto">
               {isAdmin && (
                 <Link to="/admin" className="hidden lg:block mr-2">
                   <Button variant="outline" size="sm" className="flex gap-2 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[10px] uppercase tracking-widest">
