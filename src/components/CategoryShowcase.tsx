@@ -17,11 +17,6 @@ const categories = [
     href: '/shop?category=cover-ups',
     description: 'Beach to bar ready',
   },
-  {
-    name: 'Accessories',
-    href: '/shop?category=accessories',
-    description: 'Complete the look',
-  },
 ];
 
 export function CategoryShowcase() {
@@ -48,7 +43,7 @@ export function CategoryShowcase() {
           </motion.h2>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
           {categories.map((category, index) => (
             <motion.div
               key={category.name}

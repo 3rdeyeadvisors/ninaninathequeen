@@ -68,7 +68,7 @@ export default function SizeQuiz() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-32 pb-20">
+      <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 max-w-2xl">
           {!result ? (
             <div className="bg-card border border-border/50 p-8 rounded-2xl shadow-xl">

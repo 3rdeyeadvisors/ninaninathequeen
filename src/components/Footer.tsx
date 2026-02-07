@@ -11,7 +11,6 @@ const footerLinks = {
     { name: 'Bikinis', href: '/shop?category=bikinis' },
     { name: 'One-Pieces', href: '/shop?category=one-pieces' },
     { name: 'Cover-ups', href: '/shop?category=cover-ups' },
-    { name: 'Accessories', href: '/shop?category=accessories' },
   ],
   help: [
     { name: 'Size Guide & Quiz', href: '/size-quiz' },
@@ -94,7 +93,7 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
-                <a href="https://instagram.com/ninaarmend" target="_blank" rel="noopener noreferrer">
+                <a href="https://instagram.com/nina_armend" target="_blank" rel="noopener noreferrer">
                   <Instagram className="h-5 w-5" />
                 </a>
               </Button>

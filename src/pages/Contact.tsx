@@ -16,7 +16,7 @@ export default function Contact() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-32 pb-20">
+      <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">
           <div className="max-w-5xl mx-auto">
             <h1 className="font-serif text-4xl md:text-5xl mb-12 text-center">Contact Us</h1>

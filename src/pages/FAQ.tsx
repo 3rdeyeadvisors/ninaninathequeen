@@ -30,7 +30,7 @@ export default function FAQ() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="pt-32 pb-20">
+      <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8 max-w-3xl">
           <h1 className="font-serif text-4xl mb-12 text-center">Frequently Asked Questions</h1>
 

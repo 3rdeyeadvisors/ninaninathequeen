@@ -19,7 +19,6 @@ const navLinks = [
   { name: 'Bikinis', href: '/shop?category=bikinis' },
   { name: 'One-Pieces', href: '/shop?category=one-pieces' },
   { name: 'Cover-ups', href: '/shop?category=cover-ups' },
-  { name: 'Accessories', href: '/shop?category=accessories' },
 ];
 
 export function Header() {
@@ -119,6 +118,16 @@ export function Header() {
 
             {/* Icons */}
             <div className="flex items-center gap-1 md:gap-2">
+              {isAdmin && (
+                <Link to="/admin" className="hidden lg:block mr-2">
+                  <Button variant="outline" size="sm" className="flex gap-2 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[10px] uppercase tracking-widest">
+                    <LayoutDashboard className="h-3 w-3" />
+                    <span className="hidden xl:inline">Admin Dashboard</span>
+                    <span className="xl:hidden">Admin</span>
+                  </Button>
+                </Link>
+              )}
+
               <Button
                 variant="ghost"
                 size="icon"
@@ -144,16 +153,6 @@ export function Header() {
                   <User className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
               </Link>
-
-              {isAdmin && (
-                <Link to="/admin" className="hidden lg:block">
-                  <Button variant="outline" size="sm" className="flex gap-2 border-primary/20 text-primary hover:bg-primary/5 ml-1 xl:ml-2 font-sans text-[10px] uppercase tracking-widest">
-                    <LayoutDashboard className="h-3 w-3" />
-                    <span className="hidden xl:inline">Admin Dashboard</span>
-                    <span className="xl:hidden">Admin</span>
-                  </Button>
-                </Link>
-              )}
 
               <CartDrawer />
             </div>

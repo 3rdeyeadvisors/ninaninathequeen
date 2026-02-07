@@ -12,7 +12,6 @@ const Shop = () => {
     bikinis: 'Bikinis',
     'one-pieces': 'One-Pieces',
     'cover-ups': 'Cover-ups',
-    accessories: 'Accessories',
   };
 
   const title = category ? categoryTitles[category] || 'Shop' : 'Shop All';
