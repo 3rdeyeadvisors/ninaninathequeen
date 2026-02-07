@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
@@ -28,105 +38,27 @@ export default function AdminProducts() {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const products = useMemo(() => {
     if (!initialProducts) return [];
 
-    const overridenProducts = initialProducts.map(p => {
-      const override = productOverrides[p.node.id];
-      if (override) {
-        const sizes = override.sizes || (p.node.options.find(o => o.name === 'Size')?.values) || PRODUCT_SIZES;
-        return {
-          ...p,
-          node: {
-            ...p.node,
-            title: override.title,
-            description: override.description,
-            priceRange: {
-              ...p.node.priceRange,
-              minVariantPrice: {
-                ...p.node.priceRange.minVariantPrice,
-                amount: override.price
-              }
-            },
-            images: {
-              ...p.node.images,
-              edges: [
-                {
-                  node: {
-                    ...p.node.images.edges[0]?.node,
-                    url: override.image
-                  }
-                },
-                ...p.node.images.edges.slice(1)
-              ]
-            },
-            variants: {
-              edges: sizes.map(size => ({
-                node: {
-                  id: `gid://shopify/ProductVariant/${p.node.id}-${size.toLowerCase()}`,
-                  title: size,
-                  price: { amount: override.price, currencyCode: "USD" },
-                  availableForSale: true,
-                  selectedOptions: [{ name: "Size", value: size }],
-                }
-              }))
-            },
-            options: [{ name: "Size", values: sizes }]
-          }
-        };
-      }
-      return p;
-    }).filter(p => !productOverrides[p.node.id]?.isDeleted);
-
-    const existingIds = new Set(initialProducts.map(p => p.node.id));
-    const newProducts = Object.values(productOverrides)
-      .filter(o => !existingIds.has(o.id) && !o.isDeleted)
-      .map(o => {
-        const sizes = o.sizes || PRODUCT_SIZES;
-        return {
-          node: {
-            id: o.id,
-            title: o.title,
-            description: o.description,
-            handle: o.title.toLowerCase().replace(/ /g, '-'),
-            priceRange: {
-              minVariantPrice: { amount: o.price, currencyCode: 'USD' }
-            },
-            images: {
-              edges: [{ node: { url: o.image, altText: o.title } }]
-            },
-            variants: {
-              edges: sizes.map(size => ({
-                node: {
-                  id: `gid://shopify/ProductVariant/${o.id}-${size.toLowerCase()}`,
-                  title: size,
-                  price: { amount: o.price, currencyCode: "USD" },
-                  availableForSale: true,
-                  selectedOptions: [{ name: "Size", value: size }],
-                }
-              }))
-            },
-            options: [{ name: "Size", values: sizes }]
-          }
-        };
-      }) as ShopifyProduct[];
-
-    const allProducts = [...overridenProducts, ...newProducts];
-
-    if (!searchQuery) return allProducts;
+    if (!searchQuery) return initialProducts;
 
     const q = searchQuery.toLowerCase();
-    return allProducts.filter(p =>
+    return initialProducts.filter(p =>
       p.node.title.toLowerCase().includes(q) ||
-      p.node.description?.toLowerCase().includes(q)
+      (p.node.description || '').toLowerCase().includes(q)
     );
-  }, [initialProducts, productOverrides, searchQuery]);
+  }, [initialProducts, searchQuery]);
 
-  const handleDelete = (id: string) => {
-    deleteProduct(id);
-    toast.success("Product deleted successfully");
+  const confirmDelete = () => {
+    if (productToDelete) {
+      deleteProduct(productToDelete);
+      toast.success("Product deleted successfully");
+      setProductToDelete(null);
+    }
   };
 
   const handleAiDescription = () => {
@@ -290,7 +222,7 @@ export default function AdminProducts() {
                         }}>
                           <Edit2 className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => handleDelete(product.node.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => setProductToDelete(product.node.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -467,6 +399,23 @@ export default function AdminProducts() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-serif">Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription className="font-sans">
+                    This action cannot be undone. This will permanently delete the product from your store inventory.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="font-sans text-[10px] uppercase tracking-widest">Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90 font-sans text-[10px] uppercase tracking-widest text-white">
+                    Delete Product
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </main>
         </div>
       </div>
