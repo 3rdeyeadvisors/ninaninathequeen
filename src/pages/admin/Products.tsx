@@ -3,7 +3,7 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type ShopifyProduct } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
@@ -27,6 +27,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -159,6 +172,19 @@ export default function AdminProducts() {
     setShowBulkDeleteConfirm(false);
   };
 
+  const moveProductToCategory = (productId: string, category: string) => {
+    updateProductOverride(productId, { category });
+    toast.success(`Product moved to ${category}`);
+  };
+
+  const bulkMoveToCategory = (category: string) => {
+    selectedProducts.forEach(id => {
+      updateProductOverride(id, { category });
+    });
+    toast.success(`${selectedProducts.size} products moved to ${category}`);
+    setSelectedProducts(new Set());
+  };
+
   const handleAiDescription = () => {
     setIsAiGenerating(true);
     setTimeout(() => {
@@ -271,10 +297,33 @@ export default function AdminProducts() {
 
             {/* Bulk Actions Bar */}
             {selectedProducts.size > 0 && (
-              <div className="flex items-center gap-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <span className="font-sans text-sm">
+              <div className="flex flex-wrap items-center gap-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <span className="font-sans text-sm font-medium">
                   {selectedProducts.size} product{selectedProducts.size > 1 ? 's' : ''} selected
                 </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="font-sans text-[10px] uppercase tracking-widest"
+                    >
+                      <MoveRight className="h-3 w-3 mr-2" />
+                      Move to Category
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-popover z-50">
+                    {['Top', 'Bottom', 'One-Piece', 'Other'].map(cat => (
+                      <DropdownMenuItem 
+                        key={cat} 
+                        onClick={() => bulkMoveToCategory(cat)}
+                        className="font-sans text-sm cursor-pointer"
+                      >
+                        {cat}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="destructive"
                   size="sm"
@@ -285,12 +334,12 @@ export default function AdminProducts() {
                   Delete Selected
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={() => setSelectedProducts(new Set())}
                   className="font-sans text-[10px] uppercase tracking-widest"
                 >
-                  Clear Selection
+                  Clear
                 </Button>
               </div>
             )}
@@ -350,9 +399,21 @@ export default function AdminProducts() {
                         </TableCell>
                         <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
                         <TableCell>
-                          <span className="px-2 py-1 rounded-full text-[10px] font-sans uppercase tracking-widest bg-secondary text-secondary-foreground">
-                            {override?.category || 'Other'}
-                          </span>
+                          <Select
+                            value={override?.category || 'Other'}
+                            onValueChange={(value) => moveProductToCategory(product.node.id, value)}
+                          >
+                            <SelectTrigger className="w-[110px] h-8 text-[10px] font-sans uppercase tracking-widest bg-background">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover z-50">
+                              {['Top', 'Bottom', 'One-Piece', 'Other'].map(cat => (
+                                <SelectItem key={cat} value={cat} className="text-sm font-sans">
+                                  {cat}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1.5 max-w-[200px]">
@@ -455,6 +516,24 @@ export default function AdminProducts() {
                       onChange={(e) => setEditingProduct({...editingProduct, title: e.target.value})}
                       className="col-span-3 font-sans text-sm"
                     />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right font-sans text-[10px] uppercase tracking-widest">Category</Label>
+                    <Select
+                      value={editingProduct?.category || 'Other'}
+                      onValueChange={(value) => setEditingProduct({...editingProduct, category: value})}
+                    >
+                      <SelectTrigger className="col-span-3 font-sans text-sm bg-background">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {['Top', 'Bottom', 'One-Piece', 'Other'].map(cat => (
+                          <SelectItem key={cat} value={cat} className="text-sm font-sans">
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid grid-cols-4 items-start gap-4">
                     <Label className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Sizes</Label>
