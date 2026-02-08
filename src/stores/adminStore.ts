@@ -79,9 +79,9 @@ const INITIAL_SETTINGS: AdminSettings = {
   currency: 'USD',
   taxRate: 7.5,
   lowStockThreshold: 10,
-  posProvider: 'none',
+  posProvider: 'square',
   squareApiKey: '',
-  autoSync: false
+  autoSync: true
 };
 
 export const useAdminStore = create<AdminStore>()(

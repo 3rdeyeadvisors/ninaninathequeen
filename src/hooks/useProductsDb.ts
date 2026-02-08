@@ -2,16 +2,14 @@ import { useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
-import { useSquareSync } from './useSquareSync';
 import { toast } from 'sonner';
 
 /**
- * Hook to sync products with the database.
- * Fetches products on mount and provides functions to upsert/delete.
+ * Hook to sync products with the database and Square.
+ * Products are automatically synced to Square whenever they are added/edited/deleted.
  */
 export function useProductsDb() {
-  const { updateProductOverride, settings } = useAdminStore();
-  const { pushToSquare } = useSquareSync();
+  const { updateProductOverride } = useAdminStore();
 
   // Fetch all products from database on mount
   const fetchProducts = useCallback(async () => {
@@ -54,7 +52,7 @@ export function useProductsDb() {
     }
   }, [updateProductOverride]);
 
-  // Internal helper for syncing via edge function
+  // Internal helper for syncing via edge function (includes auto-push to Square)
   const syncWithEdgeFunction = async (products: ProductOverride | ProductOverride[]) => {
     try {
       const userEmail = useAuthStore.getState().user?.email;
@@ -76,6 +74,17 @@ export function useProductsDb() {
         console.error('Database sync failed:', error);
         return false;
       }
+
+      // Auto-sync to Square after successful database sync
+      try {
+        await supabase.functions.invoke('square-sync-inventory', {
+          body: { action: 'push' }
+        });
+        console.log('[useProductsDb] Auto-synced to Square');
+      } catch (squareErr) {
+        console.warn('[useProductsDb] Square auto-sync failed (non-blocking):', squareErr);
+      }
+
       return true;
     } catch (err) {
       console.error('Database sync exception:', err);
@@ -83,26 +92,17 @@ export function useProductsDb() {
     }
   };
 
-  // Upsert a product to the database
+  // Upsert a product to the database (auto-syncs to Square)
   const upsertProduct = useCallback(async (product: ProductOverride) => {
-    const success = await syncWithEdgeFunction(product);
-    if (success && settings.autoSync && settings.posProvider === 'square') {
-      // Small delay to ensure DB is updated before Square pulls from it
-      setTimeout(() => pushToSquare(), 1000);
-    }
-    return success;
-  }, [settings.autoSync, settings.posProvider, pushToSquare]);
+    return await syncWithEdgeFunction(product);
+  }, []);
 
-  // Bulk upsert products to the database
+  // Bulk upsert products to the database (auto-syncs to Square)
   const bulkUpsertProducts = useCallback(async (products: ProductOverride[]) => {
-    const success = await syncWithEdgeFunction(products);
-    if (success && settings.autoSync && settings.posProvider === 'square') {
-      setTimeout(() => pushToSquare(), 1000);
-    }
-    return success;
-  }, [settings.autoSync, settings.posProvider, pushToSquare]);
+    return await syncWithEdgeFunction(products);
+  }, []);
 
-  // Soft delete a product in the database
+  // Soft delete a product in the database (auto-syncs to Square)
   const deleteProductDb = useCallback(async (productId: string) => {
     // Preserve existing data by merging with isDeleted: true
     const existingOverride = useAdminStore.getState().productOverrides[productId];
@@ -110,12 +110,8 @@ export function useProductsDb() {
       ? { ...existingOverride, isDeleted: true }
       : { id: productId, isDeleted: true };
 
-    const success = await syncWithEdgeFunction(productData as any);
-    if (success && settings.autoSync && settings.posProvider === 'square') {
-      setTimeout(() => pushToSquare(), 1000);
-    }
-    return success;
-  }, [settings.autoSync, settings.posProvider, pushToSquare]);
+    return await syncWithEdgeFunction(productData as ProductOverride);
+  }, []);
 
   // Load products from database on mount
   useEffect(() => {

@@ -190,6 +190,7 @@ export type Database = {
       }
       store_settings: {
         Row: {
+          auto_sync: boolean | null
           created_at: string
           currency: string | null
           id: string
@@ -201,6 +202,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_sync?: boolean | null
           created_at?: string
           currency?: string | null
           id?: string
@@ -212,6 +214,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_sync?: boolean | null
           created_at?: string
           currency?: string | null
           id?: string
