@@ -5,7 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Search, Plus, Minus, Trash2, CreditCard, User, ShoppingBag, CheckCircle } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type Product } from '@/hooks/useProducts';
-import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
+import { useAdminStore, type AdminOrder, type ProductOverride } from '@/stores/adminStore';
+import { useOrdersDb } from '@/hooks/useOrdersDb';
+import { useProductsDb } from '@/hooks/useProductsDb';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { playSound } from '@/lib/sounds';
@@ -28,6 +30,8 @@ interface PosItem {
 export default function AdminPOS() {
   const { data: initialProducts } = useProducts(100);
   const { productOverrides, addOrder, settings, decrementInventory } = useAdminStore();
+  const { upsertOrder } = useOrdersDb();
+  const { upsertProduct } = useProductsDb();
   const [searchQuery, setSearchQuery] = useState('');
   const [posCart, setPosCart] = useState<PosItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -87,16 +91,22 @@ export default function AdminPOS() {
   const taxAmount = subtotal * (settings.taxRate / 100);
   const cartTotal = subtotal + taxAmount;
 
-  const completeSale = () => {
+  const completeSale = async () => {
     if (posCart.length === 0) return;
 
     setIsProcessing(true);
 
-    setTimeout(() => {
-      // Decrement inventory for each item
-      posCart.forEach(item => {
+    try {
+      // Decrement inventory and update DB for each item
+      for (const item of posCart) {
         decrementInventory(item.id, item.size, item.quantity);
-      });
+
+        // Get updated override to sync to DB
+        const updatedOverride = useAdminStore.getState().productOverrides[item.id];
+        if (updatedOverride) {
+          await upsertProduct(updatedOverride);
+        }
+      }
 
       const newOrder: AdminOrder = {
         id: `#POS-${Math.floor(Math.random() * 9000) + 1000}`,
@@ -118,6 +128,8 @@ export default function AdminPOS() {
       };
 
       addOrder(newOrder);
+      await upsertOrder(newOrder);
+
       setIsProcessing(false);
       setShowSuccess(true);
       setPosCart([]);
@@ -125,13 +137,17 @@ export default function AdminPOS() {
       toast.success("Transaction completed successfully!");
 
       setTimeout(() => setShowSuccess(false), 3000);
-    }, 1500);
+    } catch (error) {
+      console.error("Sale error:", error);
+      toast.error("Failed to complete transaction");
+      setIsProcessing(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-secondary/20">
       <Header />
-      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+      <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
         <div className="flex flex-col gap-8 lg:gap-12">
           <AdminSidebar />
 
@@ -148,9 +164,9 @@ export default function AdminPOS() {
               </div>
 
               <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-primary/10">
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                   {products.map((product) => (
-                    <Card key={product.id} className="cursor-pointer hover:shadow-gold transition-all duration-300 group overflow-hidden border-border/50 hover:-translate-y-1 bg-background flex flex-col" onClick={() => addToCart(product)}>
+                    <Card key={product.id} className="cursor-pointer hover:shadow-gold transition-all duration-300 group overflow-hidden border-border/50 hover:-translate-y-1 bg-background flex flex-col rounded-xl" onClick={() => addToCart(product)}>
                       <div className="aspect-[3/4] overflow-hidden relative bg-secondary/10">
                         <img
                           src={product.images[0]?.url || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400'}
@@ -201,9 +217,9 @@ export default function AdminPOS() {
                       <div key={`${item.id}-${item.size}`} className="flex items-center gap-3 bg-secondary/20 p-2 rounded-xl border border-border/50">
                         <img src={item.image} alt="" className="w-10 h-14 object-cover rounded shadow-sm" />
                         <div className="flex-1 min-w-0">
-                          <p className="font-sans text-[11px] font-medium truncate">{item.title}</p>
-                          <p className="font-sans text-[9px] uppercase tracking-wider text-muted-foreground">Size: {item.size}</p>
-                          <p className="font-serif text-xs">${item.price}</p>
+                          <p className="font-sans text-xs font-medium truncate">{item.title}</p>
+                          <p className="font-sans text-[10px] uppercase tracking-wider text-muted-foreground">Size: {item.size}</p>
+                          <p className="font-serif text-sm">${item.price}</p>
                         </div>
                         <div className="flex items-center gap-2 bg-background rounded-lg border px-1">
                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, item.size, -1); }}>

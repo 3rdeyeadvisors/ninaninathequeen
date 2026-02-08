@@ -110,7 +110,7 @@ export default function AdminOrders() {
   return (
     <div className="min-h-screen bg-secondary/20">
       <Header />
-      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+      <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
         <div className="flex flex-col gap-8 lg:gap-12">
           <AdminSidebar />
 
@@ -118,7 +118,7 @@ export default function AdminOrders() {
             <h1 className="font-serif text-3xl">Manage Orders</h1>
 
             <div className="overflow-x-auto rounded-lg border">
-              <Table>
+              <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Order ID</TableHead>

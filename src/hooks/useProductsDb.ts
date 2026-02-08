@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
+import { useSquareSync } from './useSquareSync';
 import { toast } from 'sonner';
 
 /**
@@ -9,7 +10,8 @@ import { toast } from 'sonner';
  * Fetches products on mount and provides functions to upsert/delete.
  */
 export function useProductsDb() {
-  const { updateProductOverride } = useAdminStore();
+  const { updateProductOverride, settings } = useAdminStore();
+  const { pushToSquare } = useSquareSync();
 
   // Fetch all products from database on mount
   const fetchProducts = useCallback(async () => {
@@ -89,18 +91,31 @@ export function useProductsDb() {
 
   // Upsert a product to the database
   const upsertProduct = useCallback(async (product: ProductOverride) => {
-    return await syncWithEdgeFunction(product);
-  }, []);
+    const success = await syncWithEdgeFunction(product);
+    if (success && settings.autoSync && settings.posProvider === 'square') {
+      // Small delay to ensure DB is updated before Square pulls from it
+      setTimeout(() => pushToSquare(), 1000);
+    }
+    return success;
+  }, [settings.autoSync, settings.posProvider, pushToSquare]);
 
   // Bulk upsert products to the database
   const bulkUpsertProducts = useCallback(async (products: ProductOverride[]) => {
-    return await syncWithEdgeFunction(products);
-  }, []);
+    const success = await syncWithEdgeFunction(products);
+    if (success && settings.autoSync && settings.posProvider === 'square') {
+      setTimeout(() => pushToSquare(), 1000);
+    }
+    return success;
+  }, [settings.autoSync, settings.posProvider, pushToSquare]);
 
   // Soft delete a product in the database
   const deleteProductDb = useCallback(async (productId: string) => {
-    return await syncWithEdgeFunction({ id: productId, isDeleted: true } as any);
-  }, []);
+    const success = await syncWithEdgeFunction({ id: productId, isDeleted: true } as any);
+    if (success && settings.autoSync && settings.posProvider === 'square') {
+      setTimeout(() => pushToSquare(), 1000);
+    }
+    return success;
+  }, [settings.autoSync, settings.posProvider, pushToSquare]);
 
   // Load products from database on mount
   useEffect(() => {

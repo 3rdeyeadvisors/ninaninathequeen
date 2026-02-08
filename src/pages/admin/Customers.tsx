@@ -72,7 +72,7 @@ export default function AdminCustomers() {
   return (
     <div className="min-h-screen bg-secondary/20">
       <Header />
-      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+      <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
         <div className="flex flex-col gap-8 lg:gap-12">
           <AdminSidebar />
 
@@ -110,7 +110,7 @@ export default function AdminCustomers() {
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
-              <Table>
+              <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Customer</TableHead>
@@ -144,7 +144,7 @@ export default function AdminCustomers() {
                       </TableCell>
                       <TableCell className="font-sans text-sm text-muted-foreground">{customer.email}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="font-sans text-[9px] uppercase tracking-widest border-primary/20 text-primary">
+                        <Badge variant="outline" className="font-sans text-[10px] uppercase tracking-widest border-primary/20 text-primary">
                           {getCustomerRole(customer.email)}
                         </Badge>
                       </TableCell>
@@ -221,9 +221,9 @@ export default function AdminCustomers() {
                         <div className="space-y-4">
                           <h3 className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-muted-foreground border-b pb-2">Preferences</h3>
                           <div className="flex flex-wrap gap-2">
-                            <Badge variant="secondary" className="font-sans text-[9px] uppercase tracking-wider">Size: M</Badge>
-                            <Badge variant="secondary" className="font-sans text-[9px] uppercase tracking-wider">Bikinis</Badge>
-                            <Badge variant="secondary" className="font-sans text-[9px] uppercase tracking-wider">Eco-Conscious</Badge>
+                          <Badge variant="secondary" className="font-sans text-[10px] uppercase tracking-wider">Size: M</Badge>
+                          <Badge variant="secondary" className="font-sans text-[10px] uppercase tracking-wider">Bikinis</Badge>
+                          <Badge variant="secondary" className="font-sans text-[10px] uppercase tracking-wider">Eco-Conscious</Badge>
                           </div>
                         </div>
                       </div>

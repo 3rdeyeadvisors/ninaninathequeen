@@ -32,6 +32,7 @@ export function useSettingsDb() {
           lowStockThreshold: data.low_stock_threshold || 10,
           posProvider: (data.pos_provider as 'none' | 'square') || 'none',
           squareApiKey: data.square_api_key || '',
+          autoSync: data.auto_sync || false,
         });
       }
     } catch (err) {
@@ -64,6 +65,7 @@ export function useSettingsDb() {
           low_stock_threshold: newSettings.lowStockThreshold,
           pos_provider: newSettings.posProvider,
           square_api_key: newSettings.squareApiKey,
+          auto_sync: newSettings.autoSync,
         })
         .eq('id', existing.id);
 

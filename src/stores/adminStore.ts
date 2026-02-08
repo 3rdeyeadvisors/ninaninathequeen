@@ -54,6 +54,7 @@ export interface AdminSettings {
   lowStockThreshold: number;
   posProvider: 'none' | 'square';
   squareApiKey: string;
+  autoSync: boolean;
 }
 
 interface AdminStore {
@@ -79,7 +80,8 @@ const INITIAL_SETTINGS: AdminSettings = {
   taxRate: 7.5,
   lowStockThreshold: 10,
   posProvider: 'none',
-  squareApiKey: ''
+  squareApiKey: '',
+  autoSync: false
 };
 
 export const useAdminStore = create<AdminStore>()(

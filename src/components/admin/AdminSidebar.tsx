@@ -16,7 +16,7 @@ export function AdminSidebar() {
   ];
 
   return (
-    <nav className="w-full flex items-center gap-4 mb-10 p-2.5 bg-background/60 backdrop-blur-md rounded-2xl border border-primary/10 shadow-lg overflow-x-auto no-scrollbar">
+    <nav className="w-full flex items-center gap-2 sm:gap-4 mb-8 md:mb-10 p-1.5 sm:p-2.5 bg-background/60 backdrop-blur-md rounded-xl sm:rounded-2xl border border-primary/10 shadow-lg overflow-x-auto no-scrollbar">
       <div className="hidden xl:block px-6 py-3 mr-4 border-r border-primary/10 shrink-0">
         <div className="flex flex-col">
           <p className="text-[10px] font-sans tracking-[0.4em] uppercase text-primary font-black">Admin</p>
@@ -24,7 +24,7 @@ export function AdminSidebar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = location.pathname === link.href;
@@ -34,13 +34,13 @@ export function AdminSidebar() {
               key={link.href}
               to={link.href}
               className={cn(
-                "flex items-center gap-2.5 px-4 sm:px-6 py-3 rounded-xl transition-all duration-300 font-sans text-[10px] uppercase tracking-[0.2em] whitespace-nowrap",
+                "flex items-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 font-sans text-[9px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.2em] whitespace-nowrap",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-gold font-bold scale-105"
                   : "text-muted-foreground hover:bg-primary/5 hover:text-primary hover:scale-105"
               )}
             >
-              <Icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground/70")} />
+              <Icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", isActive ? "text-primary-foreground" : "text-muted-foreground/70")} />
               <span>{link.label}</span>
             </Link>
           );
@@ -50,7 +50,7 @@ export function AdminSidebar() {
       <div className="ml-auto pr-4 hidden lg:block">
         <Link
           to="/"
-          className="flex items-center gap-2 px-4 py-2 text-muted-foreground hover:text-primary transition-all font-sans text-[9px] uppercase tracking-widest group"
+          className="flex items-center gap-2 px-4 py-2 text-muted-foreground hover:text-primary transition-all font-sans text-[10px] uppercase tracking-widest group"
         >
           <Store className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
           <span>Back to Store</span>

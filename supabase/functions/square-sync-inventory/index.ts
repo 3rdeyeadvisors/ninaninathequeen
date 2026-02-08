@@ -45,16 +45,17 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-    if (!SQUARE_ACCESS_TOKEN) {
-      throw new Error('SQUARE_ACCESS_TOKEN is not configured')
+    const { action, apiKey } = await req.json()
+    const FINAL_SQUARE_TOKEN = apiKey || SQUARE_ACCESS_TOKEN
+
+    if (!FINAL_SQUARE_TOKEN) {
+      throw new Error('Square Access Token is not configured. Please provide it in settings.')
     }
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error('Supabase configuration missing')
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-    const { action } = await req.json()
 
     if (action === 'pull') {
       // Pull inventory from Square to local database
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
       // Get catalog items from Square
       const catalogResponse = await fetch('https://connect.squareup.com/v2/catalog/list?types=ITEM', {
         headers: {
-          'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
           'Content-Type': 'application/json',
           'Square-Version': '2024-01-18'
         }
@@ -115,7 +116,7 @@ Deno.serve(async (req) => {
         const inventoryResponse = await fetch('https://connect.squareup.com/v2/inventory/counts/batch-retrieve', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+            'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
             'Content-Type': 'application/json',
             'Square-Version': '2024-01-18'
           },
@@ -239,7 +240,7 @@ Deno.serve(async (req) => {
       // Get locations from Square
       const locationsResponse = await fetch('https://connect.squareup.com/v2/locations', {
         headers: {
-          'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
           'Content-Type': 'application/json',
           'Square-Version': '2024-01-18'
         }
@@ -284,7 +285,7 @@ Deno.serve(async (req) => {
         const batchResponse = await fetch('https://connect.squareup.com/v2/inventory/changes/batch-create', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+            'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
             'Content-Type': 'application/json',
             'Square-Version': '2024-01-18'
           },
