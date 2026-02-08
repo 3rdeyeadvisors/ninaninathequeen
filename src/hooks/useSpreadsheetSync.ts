@@ -4,7 +4,7 @@ import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { parseSpreadsheet } from '@/lib/spreadsheet';
 import { useProducts } from '@/hooks/useProducts';
 import { PRODUCT_SIZES } from '@/lib/constants';
-import { getSupabase } from '@/lib/supabaseClient';
+import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 
 // Upload limits
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -239,10 +239,18 @@ export function useSpreadsheetSync() {
 
         console.log('[SpreadsheetSync] Products to sync to database:', productsToSync.length);
 
-        // Sync all products to database
+        // Sync all products to database via edge function (bypasses RLS)
         const syncToDb = async () => {
           try {
-            const supabase = getSupabase();
+            // Get current user email from legacy auth
+            const userEmail = useAuthStore.getState().user?.email;
+            
+            if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+              toast.error('Admin access required to sync products');
+              setIsUploading(false);
+              return;
+            }
+
             const rows = productsToSync.map(p => ({
               id: p.id,
               title: p.title,
@@ -261,20 +269,29 @@ export function useSpreadsheetSync() {
               is_deleted: false,
             }));
 
-            console.log('[SpreadsheetSync] Upserting to database:', rows.length, 'products');
+            console.log('[SpreadsheetSync] Syncing via edge function:', rows.length, 'products');
             console.log('[SpreadsheetSync] Sample product:', JSON.stringify(rows[0], null, 2));
 
-            const { data, error } = await supabase
-              .from('products')
-              .upsert(rows, { onConflict: 'id' })
-              .select();
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const response = await fetch(`${supabaseUrl}/functions/v1/sync-products`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                products: rows,
+                adminEmail: userEmail,
+              }),
+            });
 
-            if (error) {
-              console.error('[SpreadsheetSync] Database error:', JSON.stringify(error, null, 2));
-              toast.error(`Database sync failed: ${error.message}`);
+            const result = await response.json();
+
+            if (!response.ok) {
+              console.error('[SpreadsheetSync] Sync error:', result);
+              toast.error(`Database sync failed: ${result.error || 'Unknown error'}`);
             } else {
-              console.log('[SpreadsheetSync] Database success! Upserted:', data?.length || 0, 'products');
-              toast.success(`Sync complete! ${updatedCount} products saved to database.`);
+              console.log('[SpreadsheetSync] Success! Synced:', result.count, 'products');
+              toast.success(`Sync complete! ${result.count} products saved to database.`);
             }
           } catch (err) {
             console.error('[SpreadsheetSync] Database sync exception:', err);
