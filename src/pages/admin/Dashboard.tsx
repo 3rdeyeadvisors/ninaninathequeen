@@ -67,10 +67,13 @@ export default function AdminDashboard() {
   const [chatInput, setChatInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [mostViewed, setMostViewed] = useState<{id: string, title: string, views: number, image: string}[]>([]);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
@@ -382,7 +385,7 @@ export default function AdminDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col h-[400px]">
-                  <div className="flex-1 overflow-y-auto space-y-4 mb-6 pr-2 scrollbar-thin">
+                  <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-6 pr-2 scrollbar-thin">
                     {chatMessages.map((msg, idx) => (
                       <div key={idx} className="flex justify-center px-4">
                         <div className={`max-w-[90%] p-4 rounded-2xl text-sm font-sans text-center transition-all duration-300 ${
