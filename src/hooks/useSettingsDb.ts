@@ -25,14 +25,15 @@ export function useSettingsDb() {
       }
 
       if (data) {
+        const settingsData = data as typeof data & { auto_sync?: boolean };
         updateSettings({
-          storeName: data.store_name || 'NINA ARMEND',
-          currency: data.currency || 'USD',
-          taxRate: Number(data.tax_rate) || 7.5,
-          lowStockThreshold: data.low_stock_threshold || 10,
-          posProvider: (data.pos_provider as 'none' | 'square') || 'none',
-          squareApiKey: data.square_api_key || '',
-          autoSync: data.auto_sync || false,
+          storeName: settingsData.store_name || 'NINA ARMEND',
+          currency: settingsData.currency || 'USD',
+          taxRate: Number(settingsData.tax_rate) || 7.5,
+          lowStockThreshold: settingsData.low_stock_threshold || 10,
+          posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
+          squareApiKey: settingsData.square_api_key || '',
+          autoSync: settingsData.auto_sync ?? true,
         });
       }
     } catch (err) {

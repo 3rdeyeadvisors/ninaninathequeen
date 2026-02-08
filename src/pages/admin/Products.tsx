@@ -3,11 +3,10 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight, RefreshCw, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
-import { useSquareSync } from '@/hooks/useSquareSync';
 import { useProductsDb } from '@/hooks/useProductsDb';
 import { toast } from 'sonner';
 import { useState, useMemo, useRef } from 'react';
@@ -55,7 +54,6 @@ export default function AdminProducts() {
   const { data: initialProducts, isLoading } = useProducts(1000);
   const { productOverrides, updateProductOverride, deleteProduct, _hasHydrated } = useAdminStore();
   const { isUploading, handleFileUpload, downloadTemplate, fileInputRef: syncInputRef } = useSpreadsheetSync();
-  const { isPulling, isPushing, pullFromSquare, pushToSquare } = useSquareSync();
   const { fetchProducts, upsertProduct, deleteProductDb } = useProductsDb();
   const [editingProduct, setEditingProduct] = useState<Partial<ProductOverride> | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -385,31 +383,6 @@ export default function AdminProducts() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h1 className="font-serif text-3xl">Products</h1>
               <div className="flex flex-wrap gap-2">
-                {/* Square Sync Buttons */}
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    await pullFromSquare();
-                    fetchProducts(); // Refresh local state
-                  }}
-                  disabled={isPulling || isPushing}
-                  className="font-sans text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
-                >
-                  {isPulling ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <ArrowDownToLine className="h-3 w-3 mr-2" />}
-                  Pull from Square
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={pushToSquare}
-                  disabled={isPulling || isPushing}
-                  className="font-sans text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
-                >
-                  {isPushing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <ArrowUpFromLine className="h-3 w-3 mr-2" />}
-                  Push to Square
-                </Button>
-                
-                <div className="w-px h-8 bg-border mx-1" />
-                
                 <input
                   type="file"
                   ref={syncInputRef}
