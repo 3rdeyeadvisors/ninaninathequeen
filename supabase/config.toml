@@ -1,1 +1,4 @@
 project_id = "ykhgqjownxmioexytfzc"
+
+[functions.square-sync-inventory]
+verify_jwt = false
