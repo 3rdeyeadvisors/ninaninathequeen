@@ -1,7 +1,6 @@
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { useMemo } from 'react';
 import { PRODUCT_SIZES } from '@/lib/constants';
-import { MOCK_PRODUCTS, type MockProduct } from '@/lib/mockData';
 
 // Product type used throughout the app (fully flattened)
 export interface Product {
@@ -38,33 +37,6 @@ export interface Product {
   }>;
 }
 
-// Helper to convert mock product to standard format
-function mapMockToProduct(product: MockProduct): Product {
-  return {
-    id: `product-${product.id}`,
-    title: product.title,
-    description: "Experience the ultimate in Brazilian luxury. Our collection is handcrafted using sustainable, high-performance fabrics.",
-    handle: product.handle,
-    productType: product.productType,
-    category: product.category,
-    price: {
-      amount: product.price.toString(),
-      currencyCode: "USD",
-    },
-    images: product.images.map((url: string) => ({
-      url, altText: product.title,
-    })),
-    variants: product.sizes.map(size => ({
-      id: `product-${product.id}-${size.toLowerCase()}`,
-      title: size,
-      price: { amount: product.price.toString(), currencyCode: "USD" },
-      availableForSale: true,
-      selectedOptions: [{ name: "Size", value: size }],
-    })),
-    options: [{ name: "Size", values: product.sizes }],
-  };
-}
-
 // Helper to convert override to product format
 function overrideToProduct(override: ProductOverride): Product {
   const sizes = override.sizes || [...PRODUCT_SIZES];
@@ -98,63 +70,23 @@ export function useProducts(first: number = 20, query?: string) {
     // Wait for store hydration
     if (!_hasHydrated) return [];
 
-    // Start with mock products as base
-    const mockProducts: Product[] = MOCK_PRODUCTS.map(mapMockToProduct);
-    
-    // Get IDs of mock products
-    const mockIds = new Set(mockProducts.map(p => p.id));
-    
-    // Get new products from overrides (not mock products)
-    const newOverrideProducts: Product[] = Object.values(productOverrides)
-      .filter(o => !o.isDeleted && o.title && !mockIds.has(o.id))
+    // Only use products from database (via productOverrides store)
+    const allProducts: Product[] = Object.values(productOverrides)
+      .filter(o => !o.isDeleted && o.title)
       .map(overrideToProduct);
-    
-    // Merge: Apply overrides to mock products + add new products
-    const mergedMockProducts = mockProducts
-      .map(p => {
-        const override = productOverrides[p.id];
-        if (override?.isDeleted) return null; // Skip deleted
-        if (override) {
-          // Merge override with mock product
-          const sizes = override.sizes || p.options[0]?.values || [...PRODUCT_SIZES];
-          return {
-            ...p,
-            title: override.title || p.title,
-            description: override.description || p.description,
-            productType: override.productType || p.productType,
-            category: override.category || p.category,
-            price: {
-              amount: override.price || p.price.amount,
-              currencyCode: 'USD',
-            },
-            images: override.image ? [{ url: override.image, altText: override.title || p.title }] : p.images,
-            variants: sizes.map(size => ({
-              id: `${p.id}-${size.toLowerCase()}`,
-              title: size,
-              price: { amount: override.price || p.price.amount, currencyCode: 'USD' },
-              availableForSale: true,
-              selectedOptions: [{ name: 'Size', value: size }],
-            })),
-            options: [{ name: 'Size', values: sizes }],
-          };
-        }
-        return p;
-      })
-      .filter((p): p is Product => p !== null);
-
-    let allProducts = [...mergedMockProducts, ...newOverrideProducts];
 
     // Apply search filter
+    let filteredProducts = allProducts;
     if (query) {
       const q = query.toLowerCase();
-      allProducts = allProducts.filter(p => {
+      filteredProducts = allProducts.filter(p => {
         const title = p.title.toLowerCase();
         const type = (p.productType || '').toLowerCase();
         return title.includes(q) || type.includes(q);
       });
     }
 
-    return allProducts.slice(0, first);
+    return filteredProducts.slice(0, first);
   }, [productOverrides, _hasHydrated, first, query]);
 
   return {
@@ -170,18 +102,12 @@ export function useProduct(handle: string) {
   const product = useMemo(() => {
     if (!_hasHydrated) return null;
 
-    // First check overrides
+    // Find product in overrides by handle
     const override = Object.values(productOverrides).find(
       o => o.title && o.title.toLowerCase().replace(/\s+/g, '-') === handle && !o.isDeleted
     );
 
-    if (override) {
-      return overrideToProduct(override);
-    }
-
-    // Fall back to mock products
-    const mockProduct = MOCK_PRODUCTS.find(p => p.handle === handle);
-    return mockProduct ? mapMockToProduct(mockProduct) : null;
+    return override ? overrideToProduct(override) : null;
   }, [productOverrides, handle, _hasHydrated]);
 
   return {
@@ -190,4 +116,3 @@ export function useProduct(handle: string) {
     isError: false,
   };
 }
-
