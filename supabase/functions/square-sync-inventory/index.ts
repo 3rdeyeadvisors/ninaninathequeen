@@ -317,11 +317,12 @@ Deno.serve(async (req) => {
       throw new Error('Invalid action. Use "pull" or "push"')
     }
 
-  } catch (error) {
-    console.error('[SquareSync] Error:', error)
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    console.error('[SquareSync] Error:', errorMessage)
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: errorMessage 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
