@@ -39,11 +39,12 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
       return;
     }
 
+    if (!user) return;
     addReview({
       productId,
-      userId: user!.email,
-      userName: user!.name,
-      userAvatar: user!.avatar,
+      userId: user.email,
+      userName: user.name,
+      userAvatar: user.avatar,
       rating: newRating,
       comment: newComment
     });
@@ -54,8 +55,8 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
   };
 
   const handleAdminReply = (reviewId: string) => {
-    if (!adminReply.trim()) return;
-    addAdminComment(reviewId, adminReply, user!.name, user!.role || 'Owner');
+    if (!adminReply.trim() || !user) return;
+    addAdminComment(reviewId, adminReply, user.name, user.role || 'Owner');
     setAdminReply('');
     setReplyingTo(null);
     toast.success("Reply posted.");
@@ -154,7 +155,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
 
                   <div className="flex items-center gap-6">
                     <button
-                      onClick={() => isAuthenticated && likeReview(review.id, user!.email)}
+                      onClick={() => isAuthenticated && user && likeReview(review.id, user.email)}
                       className={`flex items-center gap-2 text-[10px] uppercase tracking-widest transition-colors ${
                         user && review.likes.includes(user.email) ? 'text-primary' : 'text-muted-foreground hover:text-primary'
                       }`}

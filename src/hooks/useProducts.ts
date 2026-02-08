@@ -172,7 +172,7 @@ export function useProduct(handle: string) {
 
     // First check overrides
     const override = Object.values(productOverrides).find(
-      o => o.title.toLowerCase().replace(/\s+/g, '-') === handle && !o.isDeleted
+      o => o.title && o.title.toLowerCase().replace(/\s+/g, '-') === handle && !o.isDeleted
     );
 
     if (override) {

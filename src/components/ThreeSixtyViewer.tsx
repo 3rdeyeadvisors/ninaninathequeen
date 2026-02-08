@@ -9,6 +9,14 @@ interface ThreeSixtyViewerProps {
 }
 
 export function ThreeSixtyViewer({ images, className = "" }: ThreeSixtyViewerProps) {
+  if (!images || images.length === 0) {
+    return (
+      <div className={`relative aspect-[3/4] bg-card rounded-sm overflow-hidden flex items-center justify-center ${className}`}>
+        <p className="text-muted-foreground text-sm">No 360° view available</p>
+      </div>
+    );
+  }
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);

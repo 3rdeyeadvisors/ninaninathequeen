@@ -1,15 +1,20 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
-// Lazy getter for supabase client to prevent initialization errors
-// when environment variables aren't loaded yet
 let supabaseClient: SupabaseClient<Database> | null = null;
 
 export const getSupabase = (): SupabaseClient<Database> => {
   if (!supabaseClient) {
-    // Dynamic import to handle cases where env vars might not be ready
-    const { supabase } = require('@/integrations/supabase/client');
-    supabaseClient = supabase;
+    const url = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder';
+
+    supabaseClient = createClient<Database>(url, key, {
+      auth: {
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    });
   }
   return supabaseClient;
 };

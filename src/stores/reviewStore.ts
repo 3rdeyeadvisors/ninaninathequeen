@@ -33,7 +33,7 @@ export const useReviewStore = create<ReviewStore>()(
       reviews: [
         {
           id: 'r1',
-          productId: 'gid://shopify/Product/m1',
+          productId: 'product-m1',
           userId: 'u1',
           userName: 'Isabella Silva',
           userAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
@@ -50,7 +50,7 @@ export const useReviewStore = create<ReviewStore>()(
         },
         {
           id: 'r2',
-          productId: 'gid://shopify/Product/m1',
+          productId: 'product-m1',
           userId: 'u2',
           userName: 'Camila Santos',
           rating: 4,

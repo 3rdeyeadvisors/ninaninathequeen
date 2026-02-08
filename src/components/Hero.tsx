@@ -75,7 +75,7 @@ export function Hero() {
               size="lg"
               className="border-primary/50 hover:bg-primary/10 text-foreground font-sans tracking-wider px-10 py-6 text-base"
             >
-              <Link to="/new-arrivals">
+              <Link to="/shop?category=new-arrivals">
                 New Arrivals
               </Link>
             </Button>

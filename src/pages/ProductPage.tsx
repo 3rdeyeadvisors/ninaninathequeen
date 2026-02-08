@@ -85,10 +85,10 @@ const ProductPage = () => {
     );
   }
 
-  const images = product.images;
-  const variants = product.variants;
-  const selectedVariant = variants[selectedVariantIndex];
-  const mainImage = images[selectedImageIndex];
+  const images = product.images || [];
+  const variants = product.variants || [];
+  const selectedVariant = variants.length > selectedVariantIndex ? variants[selectedVariantIndex] : variants[0];
+  const mainImage = images.length > selectedImageIndex ? images[selectedImageIndex] : images[0];
 
   const handleAddToCart = async () => {
     if (!selectedVariant) return;

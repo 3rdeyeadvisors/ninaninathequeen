@@ -14,7 +14,7 @@ import { useEffect } from 'react';
 export default function FittingRoom() {
   const { data: allProducts, isLoading } = useProducts(100);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState(allProducts[0]);
+  const [selectedProduct, setSelectedProduct] = useState(allProducts.length > 0 ? allProducts[0] : null);
 
   useEffect(() => {
     if (!selectedProduct && allProducts.length > 0) {
