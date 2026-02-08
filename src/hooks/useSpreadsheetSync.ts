@@ -57,6 +57,7 @@ export function useSpreadsheetSync() {
     }
 
     toast.info(`Analyzing ${spreadsheetFile.name}...`);
+    console.log('[SpreadsheetSync] Starting file upload:', spreadsheetFile.name);
 
     // Process images into a map of filenames to data URLs
     const imageMap: Record<string, string> = {};
@@ -71,15 +72,26 @@ export function useSpreadsheetSync() {
       });
     }));
 
+    console.log('[SpreadsheetSync] Loaded images:', Object.keys(imageMap).length);
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const data = event.target?.result as ArrayBuffer;
         const rows = parseSpreadsheet(data);
         
+        console.log('[SpreadsheetSync] Parsed rows:', rows.length);
+        console.log('[SpreadsheetSync] Sample row:', rows[0]);
+        
         // Validate row count
         if (rows.length > MAX_ROWS) {
           toast.error(`Too many rows (${rows.length}). Maximum ${MAX_ROWS} allowed.`);
+          setIsUploading(false);
+          return;
+        }
+
+        if (rows.length === 0) {
+          toast.error("No data rows found in spreadsheet.");
           setIsUploading(false);
           return;
         }
@@ -99,9 +111,12 @@ export function useSpreadsheetSync() {
           colorCodes?: string[];
         }> = {};
 
-        rows.forEach((row) => {
+        rows.forEach((row, index) => {
           const title = row.title ? String(row.title) : '';
-          if (!title) return;
+          if (!title) {
+            console.log(`[SpreadsheetSync] Row ${index} skipped - no title`);
+            return;
+          }
 
           // Normalize title to handle inconsistencies
           const normalizedTitle = normalizeTitle(title);
@@ -145,6 +160,8 @@ export function useSpreadsheetSync() {
               (productGroups[groupKey].sizeInventory['ONE_SIZE'] || 0) + stock;
           }
         });
+
+        console.log('[SpreadsheetSync] Product groups created:', Object.keys(productGroups).length);
 
         let updatedCount = 0;
         const productsToSync: ProductOverride[] = [];
@@ -220,6 +237,8 @@ export function useSpreadsheetSync() {
           updatedCount++;
         });
 
+        console.log('[SpreadsheetSync] Products to sync to database:', productsToSync.length);
+
         // Sync all products to database
         const syncToDb = async () => {
           try {
@@ -242,26 +261,31 @@ export function useSpreadsheetSync() {
               is_deleted: false,
             }));
 
-            const { error } = await supabase
+            console.log('[SpreadsheetSync] Upserting to database:', rows.length, 'products');
+            console.log('[SpreadsheetSync] Sample product:', JSON.stringify(rows[0], null, 2));
+
+            const { data, error } = await supabase
               .from('products')
-              .upsert(rows, { onConflict: 'id' });
+              .upsert(rows, { onConflict: 'id' })
+              .select();
 
             if (error) {
-              console.error('Error syncing products to database:', error);
-              toast.warning('Products saved locally. Database sync may have failed - check your connection.');
+              console.error('[SpreadsheetSync] Database error:', JSON.stringify(error, null, 2));
+              toast.error(`Database sync failed: ${error.message}`);
             } else {
-              toast.success(`Sync complete! ${updatedCount} products saved to database from ${rows.length} inventory rows.`);
+              console.log('[SpreadsheetSync] Database success! Upserted:', data?.length || 0, 'products');
+              toast.success(`Sync complete! ${updatedCount} products saved to database.`);
             }
           } catch (err) {
-            console.error('Database sync failed:', err);
-            toast.warning('Products saved locally but database sync failed.');
+            console.error('[SpreadsheetSync] Database sync exception:', err);
+            toast.error('Database sync failed. Check console for details.');
           }
           setIsUploading(false);
         };
 
         syncToDb();
       } catch (error) {
-        console.error('Spreadsheet parsing failed:', error);
+        console.error('[SpreadsheetSync] Spreadsheet parsing failed:', error);
         setIsUploading(false);
         toast.error("Failed to parse spreadsheet. Please ensure it's a valid CSV or Excel file.");
       }
