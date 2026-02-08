@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { supabase } from '@/integrations/supabase/client';
-import { User, Session } from '@supabase/supabase-js';
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
 
 export interface CloudAuthUser {
   id: string;
@@ -24,6 +24,18 @@ interface CloudAuthState {
   checkIsAdmin: (userId: string) => Promise<boolean>;
 }
 
+// Lazy getter for supabase client to avoid initialization errors
+let supabaseClient: SupabaseClient<Database> | null = null;
+
+const getSupabase = (): SupabaseClient<Database> => {
+  if (!supabaseClient) {
+    // Dynamic import to handle cases where env vars might not be ready
+    const { supabase } = require('@/integrations/supabase/client');
+    supabaseClient = supabase;
+  }
+  return supabaseClient;
+};
+
 export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
   user: null,
   session: null,
@@ -32,6 +44,8 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
 
   initialize: async () => {
     try {
+      const supabase = getSupabase();
+      
       // Get current session
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -84,6 +98,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
 
   checkIsAdmin: async (userId: string) => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .rpc('has_role', { _user_id: userId, _role: 'admin' });
       
@@ -100,6 +115,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
 
   signInWithEmail: async (email: string, password: string) => {
     try {
+      const supabase = getSupabase();
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -117,6 +133,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
 
   signUpWithEmail: async (email: string, password: string, name?: string) => {
     try {
+      const supabase = getSupabase();
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -138,6 +155,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
   },
 
   signOut: async () => {
+    const supabase = getSupabase();
     await supabase.auth.signOut();
     set({
       user: null,
