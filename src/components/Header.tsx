@@ -65,7 +65,7 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30">
+    <header className="fixed top-0 left-0 right-0 z-[100] glass border-b border-border/30">
       <AnnouncementBar />
       <nav className="mx-auto px-4 md:px-8 relative h-16 md:h-24 max-w-[1920px]">
         {/* Mobile menu button */}
@@ -73,7 +73,10 @@ export function Header() {
           variant="ghost"
           size="icon"
           className="lg:hidden absolute left-4 top-1/2 -translate-y-1/2 z-50"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          onClick={() => {
+            setMobileMenuOpen(!mobileMenuOpen);
+            setSearchOpen(false);
+          }}
           aria-label="Toggle menu"
         >
           {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -116,7 +119,10 @@ export function Header() {
               variant="ghost"
               size="icon"
               className="h-9 w-9 xl:h-10 xl:w-10 transition-colors"
-              onClick={() => setSearchOpen(!searchOpen)}
+              onClick={() => {
+                setSearchOpen(!searchOpen);
+                setMobileMenuOpen(false);
+              }}
               aria-label="Toggle search"
             >
               {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
@@ -170,7 +176,11 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setSearchOpen(!searchOpen)}
+            aria-label="Toggle search"
+            onClick={() => {
+              setSearchOpen(!searchOpen);
+              setMobileMenuOpen(false);
+            }}
           >
             <Search className="h-5 w-5" />
           </Button>
@@ -184,7 +194,7 @@ export function Header() {
               initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
               animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
               exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
-              className="bg-background/95 backdrop-blur-md border-t border-border/30"
+              className="absolute top-full left-0 right-0 bg-background backdrop-blur-md border-t border-border/30 z-[60]"
             >
               <div className="container mx-auto px-4 md:px-8 py-4">
                 <div className="relative max-w-2xl mx-auto">
@@ -278,7 +288,7 @@ export function Header() {
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="md:hidden overflow-hidden border-t border-border/30"
+              className="lg:hidden absolute top-full left-0 right-0 bg-background backdrop-blur-md px-4 py-6 border-t border-border/30 z-[60] overflow-hidden"
             >
               <div className="py-6 space-y-4">
                 {isAdmin && (
