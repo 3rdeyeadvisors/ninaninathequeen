@@ -4,7 +4,6 @@ import { Footer } from '@/components/Footer';
 import { ProductCard } from '@/components/ProductCard';
 import { useSearchParams } from 'react-router-dom';
 import { useProducts } from '@/hooks/useProducts';
-import { MOCK_PRODUCTS } from '@/lib/mockData';
 import { motion } from 'framer-motion';
 import { Search as SearchIcon } from 'lucide-react';
 
@@ -36,7 +35,7 @@ export default function SearchPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
               {products.map((product, index) => (
                 <ProductCard
-                  key={product.node.id}
+                  key={product.id}
                   product={product}
                   index={index}
                 />

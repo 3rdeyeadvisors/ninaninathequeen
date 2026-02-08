@@ -27,8 +27,8 @@ const ProductPage = () => {
       const productInfo = JSON.parse(localStorage.getItem('tracked_products') || '{}');
       productInfo[product.id] = {
         title: product.title,
-        image: product.images.edges[0]?.node.url,
-        price: product.priceRange.minVariantPrice.amount
+        image: product.images[0]?.url,
+        price: product.price.amount
       };
       localStorage.setItem('tracked_products', JSON.stringify(productInfo));
     }
@@ -43,8 +43,8 @@ const ProductPage = () => {
   // Auto-select preferred size
   useEffect(() => {
     if (product && user?.preferredSize) {
-      const preferredIndex = product.variants.edges.findIndex(v =>
-        v.node.selectedOptions.some(so => so.name === 'Size' && so.value === user.preferredSize)
+      const preferredIndex = product.variants.findIndex(v =>
+        v.selectedOptions.some(so => so.name === 'Size' && so.value === user.preferredSize)
       );
       if (preferredIndex !== -1) {
         setSelectedVariantIndex(preferredIndex);
@@ -85,17 +85,17 @@ const ProductPage = () => {
     );
   }
 
-  const images = product.images.edges;
-  const variants = product.variants.edges;
-  const selectedVariant = variants[selectedVariantIndex]?.node;
-  const mainImage = images[selectedImageIndex]?.node;
+  const images = product.images;
+  const variants = product.variants;
+  const selectedVariant = variants[selectedVariantIndex];
+  const mainImage = images[selectedImageIndex];
 
   const handleAddToCart = async () => {
     if (!selectedVariant) return;
 
     setIsAdding(true);
     await addItem({
-      product: { node: product },
+      product: product,
       variantId: selectedVariant.id,
       variantTitle: selectedVariant.title,
       price: selectedVariant.price,
@@ -140,7 +140,7 @@ const ProductPage = () => {
               {/* Main image / 360 Viewer */}
               <div className="relative mb-4">
                 {is360View ? (
-                  <ThreeSixtyViewer images={images.map(img => img.node.url)} />
+                  <ThreeSixtyViewer images={images.map(img => img.url)} />
                 ) : (
                   <div className="aspect-[3/4] bg-card rounded-sm overflow-hidden">
                     {mainImage && (
@@ -178,8 +178,8 @@ const ProductPage = () => {
                       }`}
                     >
                       <img
-                        src={img.node.url}
-                        alt={img.node.altText || `${product.title} view ${index + 1}`}
+                        src={img.url}
+                        alt={img.altText || `${product.title} view ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
                     </button>
@@ -229,7 +229,7 @@ const ProductPage = () => {
                     <div className="flex flex-wrap gap-2">
                       {option.values.map((value) => {
                         const variantWithValue = variants.findIndex(v => 
-                          v.node.selectedOptions.some(so => so.name === option.name && so.value === value)
+                          v.selectedOptions.some(so => so.name === option.name && so.value === value)
                         );
                         const isSelected = selectedVariant?.selectedOptions.some(
                           so => so.name === option.name && so.value === value
@@ -306,8 +306,8 @@ const ProductPage = () => {
                       id: product.id,
                       title: product.title,
                       handle: product.handle,
-                      image: product.images.edges[0]?.node.url || '',
-                      price: product.priceRange.minVariantPrice.amount
+                      image: product.images[0]?.url || '',
+                      price: product.price.amount
                     });
                     if (!isInWishlist(product.id)) {
                       toast.success('Added to wishlist');

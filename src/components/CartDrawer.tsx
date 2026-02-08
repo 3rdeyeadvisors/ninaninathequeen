@@ -16,9 +16,9 @@ export const CartDrawer = () => {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
 
-  const topsCount = items.filter(i => i.product.node.productType === 'Top').reduce((sum, i) => sum + i.quantity, 0);
-  const bottomsCount = items.filter(i => i.product.node.productType === 'Bottom').reduce((sum, i) => sum + i.quantity, 0);
-  const onePiecesCount = items.filter(i => i.product.node.productType === 'One-Piece').reduce((sum, i) => sum + i.quantity, 0);
+  const topsCount = items.filter(i => i.product.productType === 'Top').reduce((sum, i) => sum + i.quantity, 0);
+  const bottomsCount = items.filter(i => i.product.productType === 'Bottom').reduce((sum, i) => sum + i.quantity, 0);
+  const onePiecesCount = items.filter(i => i.product.productType === 'One-Piece').reduce((sum, i) => sum + i.quantity, 0);
 
   const totalSets = Math.min(topsCount, bottomsCount) + onePiecesCount;
   const freeShippingEligible = totalSets >= 2;
@@ -36,10 +36,10 @@ export const CartDrawer = () => {
       shippingCost: freeShippingEligible ? '0.00' : '12.50',
       itemCost: (totalPrice * 0.3).toFixed(2),
       items: items.map(item => ({
-        title: item.product.node.title,
+        title: item.product.title,
         quantity: item.quantity,
         price: item.price.amount,
-        image: item.product.node.images.edges[0]?.node.url || '',
+        image: item.product.images[0]?.url || '',
         size: item.variantTitle
       }))
     });
@@ -87,16 +87,16 @@ export const CartDrawer = () => {
                   {items.map((item) => (
                     <div key={item.variantId} className="flex gap-4 p-3 bg-card rounded-lg border border-border">
                       <div className="w-20 h-24 bg-muted rounded overflow-hidden flex-shrink-0">
-                        {item.product.node.images?.edges?.[0]?.node && (
+                        {item.product.images?.[0] && (
                           <img 
-                            src={item.product.node.images.edges[0].node.url} 
-                            alt={item.product.node.title} 
+                            src={item.product.images[0].url}
+                            alt={item.product.title}
                             className="w-full h-full object-cover" 
                           />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-serif text-lg truncate">{item.product.node.title}</h4>
+                        <h4 className="font-serif text-lg truncate">{item.product.title}</h4>
                         <p className="text-sm text-muted-foreground">
                           {item.selectedOptions.map(option => option.value).join(' / ')}
                         </p>

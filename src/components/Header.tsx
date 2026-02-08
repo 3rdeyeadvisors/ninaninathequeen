@@ -42,8 +42,8 @@ export function Header() {
         setIsSearching(true);
         const q = searchQuery.toLowerCase();
         const filtered = allProducts.filter(p => 
-          p.node.title.toLowerCase().includes(q) ||
-          (p.node.productType || '').toLowerCase().includes(q)
+          p.title.toLowerCase().includes(q) ||
+          (p.productType || '').toLowerCase().includes(q)
         ).slice(0, 5);
         setSuggestions(filtered);
         setIsSearching(false);
@@ -226,8 +226,8 @@ export function Header() {
                           <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground px-4 py-2">Suggested Products</p>
                           {suggestions.map((product) => (
                             <Link
-                              key={product.node.id}
-                              to={`/product/${product.node.handle}`}
+                              key={product.id}
+                              to={`/product/${product.handle}`}
                               onClick={() => {
                                 setSearchOpen(false);
                                 setSearchQuery('');
@@ -236,17 +236,17 @@ export function Header() {
                             >
                               <div className="h-12 w-10 shrink-0 overflow-hidden rounded-md border border-border/50">
                                 <img
-                                  src={product.node.images.edges[0]?.node.url}
-                                  alt={product.node.title}
+                                  src={product.images[0]?.url}
+                                  alt={product.title}
                                   className="h-full w-full object-cover transition-transform group-hover:scale-110"
                                 />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h4 className="text-sm font-sans font-medium truncate group-hover:text-primary transition-colors">
-                                  {product.node.title}
+                                  {product.title}
                                 </h4>
                                 <p className="text-xs text-muted-foreground font-serif">
-                                  {product.node.priceRange.minVariantPrice.currencyCode} {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
+                                  {product.price.currencyCode} {parseFloat(product.price.amount).toFixed(2)}
                                 </p>
                               </div>
                             </Link>

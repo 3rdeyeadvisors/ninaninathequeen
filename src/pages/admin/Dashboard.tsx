@@ -88,10 +88,10 @@ export default function AdminDashboard() {
         let image = info?.image;
 
         if (!title || !image) {
-          const product = allProducts?.find(p => p.node.id === id);
+          const product = allProducts?.find(p => p.id === id);
           if (product) {
-            title = title || product.node.title;
-            image = image || product.node.images.edges[0]?.node.url;
+            title = title || product.title;
+            image = image || product.images[0]?.url;
           }
         }
 

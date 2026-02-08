@@ -15,7 +15,6 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index = 0 }: ProductCardProps) {
-  const { node } = product;
   const addItem = useCartStore(state => state.addItem);
   const isLoading = useCartStore(state => state.isLoading);
   const { toggleItem, isInWishlist } = useWishlistStore();
@@ -23,10 +22,10 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
-  const mainImage = node.images.edges[0]?.node;
-  const hoverImage = node.images.edges[1]?.node || mainImage;
-  const price = node.priceRange.minVariantPrice;
-  const firstVariant = node.variants.edges[0]?.node;
+  const mainImage = product.images[0];
+  const hoverImage = product.images[1] || mainImage;
+  const price = product.price;
+  const firstVariant = product.variants[0];
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -34,11 +33,11 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
 
     let selectedVariant = firstVariant;
     if (user?.preferredSize) {
-      const preferredVariant = product.node.variants.edges.find(v =>
-        v.node.selectedOptions.some(so => so.name === 'Size' && so.value === user.preferredSize)
+      const preferredVariant = product.variants.find(v =>
+        v.selectedOptions.some(so => so.name === 'Size' && so.value === user.preferredSize)
       );
       if (preferredVariant) {
-        selectedVariant = preferredVariant.node;
+        selectedVariant = preferredVariant;
       }
     }
 
@@ -56,7 +55,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     setIsAdding(false);
     
     toast.success('Added to bag', {
-      description: node.title,
+      description: product.title,
       position: 'top-center',
     });
   };
@@ -71,14 +70,14 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link to={`/product/${node.handle}`} className="block">
+      <Link to={`/product/${product.handle}`} className="block">
         {/* Image container */}
         <div className="relative aspect-[3/4] overflow-hidden bg-card rounded-sm mb-4">
           {mainImage && (
             <>
               <motion.img
                 src={mainImage.url}
-                alt={mainImage.altText || node.title}
+                alt={mainImage.altText || product.title}
                 className="absolute inset-0 w-full h-full object-cover"
                 animate={{ opacity: isHovered && hoverImage !== mainImage ? 0 : 1 }}
                 transition={{ duration: 0.5 }}
@@ -86,7 +85,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               {hoverImage !== mainImage && (
                 <motion.img
                   src={hoverImage.url}
-                  alt={hoverImage.altText || node.title}
+                  alt={hoverImage.altText || product.title}
                   className="absolute inset-0 w-full h-full object-cover"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: isHovered ? 1 : 0 }}
@@ -124,36 +123,36 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           {/* Wishlist button */}
           <motion.button
             initial={{ opacity: 0 }}
-            animate={{ opacity: isHovered || isInWishlist(node.id) ? 1 : 0 }}
+            animate={{ opacity: isHovered || isInWishlist(product.id) ? 1 : 0 }}
             transition={{ duration: 0.3 }}
             className={`absolute top-4 right-4 p-2 bg-background/80 rounded-full hover:bg-background transition-colors ${
-              isInWishlist(node.id) ? 'text-primary' : ''
+              isInWishlist(product.id) ? 'text-primary' : ''
             }`}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               toggleItem({
-                id: node.id,
-                title: node.title,
-                handle: node.handle,
+                id: product.id,
+                title: product.title,
+                handle: product.handle,
                 image: mainImage?.url || '',
                 price: price.amount
               });
-              if (!isInWishlist(node.id)) {
+              if (!isInWishlist(product.id)) {
                 toast.success('Added to wishlist');
               } else {
                 toast.info('Removed from wishlist');
               }
             }}
           >
-            <Heart className={`h-4 w-4 ${isInWishlist(node.id) ? 'fill-current' : ''}`} />
+            <Heart className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
           </motion.button>
         </div>
 
         {/* Product info */}
         <div className="space-y-1">
           <h3 className="font-serif text-lg tracking-wide group-hover:text-primary transition-colors">
-            {node.title}
+            {product.title}
           </h3>
           <p className="font-sans text-sm text-muted-foreground">
             {price.currencyCode} {parseFloat(price.amount).toFixed(2)}

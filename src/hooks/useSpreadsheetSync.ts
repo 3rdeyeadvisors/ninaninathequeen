@@ -140,14 +140,14 @@ export function useSpreadsheetSync() {
         Object.values(productGroups).forEach((product) => {
           // Find existing product for matching
           let existingProduct = allProducts?.find(p =>
-            p.node.id === product.id ||
-            p.node.id === `gid://shopify/Product/${product.id}` ||
-            p.node.title.toLowerCase() === product.baseTitle.toLowerCase()
+            p.id === product.id ||
+            p.id === `product-${product.id}` ||
+            p.title.toLowerCase() === product.baseTitle.toLowerCase()
           );
 
           const id = existingProduct
-            ? existingProduct.node.id
-            : (product.id.startsWith('gid://') ? product.id : `gid://shopify/Product/${product.id}`);
+            ? existingProduct.id
+            : (product.id.startsWith('product-') ? product.id : `product-${product.id}`);
 
           // Get sizes from inventory or use defaults
           // Filter out ONE_SIZE if we have other sizes
@@ -163,7 +163,7 @@ export function useSpreadsheetSync() {
           const totalInventory = Object.values(product.sizeInventory).reduce((sum, qty) => sum + qty, 0);
 
           // Handle Image
-          let image = existingProduct?.node.images.edges[0]?.node.url || 
+          let image = existingProduct?.images[0]?.url ||
             "https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=800";
           if (product.image) {
             if (imageMap[product.image]) {
@@ -183,7 +183,7 @@ export function useSpreadsheetSync() {
             sizes: sizes,
             sizeInventory: product.sizeInventory,
             image: image,
-            description: product.description || existingProduct?.node.description || 
+            description: product.description || existingProduct?.description ||
               `Luxury ${product.productType.toLowerCase()} from the ${product.collection || 'Nina Armend'} collection.`,
             productType: product.productType,
             collection: product.collection,

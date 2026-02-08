@@ -4,15 +4,24 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MOCK_PRODUCTS } from '@/lib/mockData';
+import { useProducts } from '@/hooks/useProducts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, User, Maximize2, Move, Trash2, RotateCcw, Download, Sparkles, Share2, Camera } from 'lucide-react';
+import { Upload, User, Maximize2, Move, Trash2, RotateCcw, Download, Sparkles, Share2, Camera, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { playSound } from '@/lib/sounds';
+import { useEffect } from 'react';
 
 export default function FittingRoom() {
+  const { data: allProducts, isLoading } = useProducts(100);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState(MOCK_PRODUCTS[0]);
+  const [selectedProduct, setSelectedProduct] = useState(allProducts[0]);
+
+  useEffect(() => {
+    if (!selectedProduct && allProducts.length > 0) {
+      setSelectedProduct(allProducts[0]);
+    }
+  }, [allProducts, selectedProduct]);
+
   const [overlayStyle, setOverlayStyle] = useState({
     width: 200,
     top: 150,
@@ -75,22 +84,28 @@ export default function FittingRoom() {
             {/* Left: Product Selector */}
             <div className="space-y-6 bg-card border border-border/50 p-6 rounded-2xl shadow-sm">
               <h2 className="font-serif text-xl border-b border-border pb-4">Select Product</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {MOCK_PRODUCTS.map((product) => (
-                  <button
-                    key={product.id}
-                      onClick={() => {
-                        setSelectedProduct(product);
-                        resetOverlay();
-                        playSound('click');
-                      }}
-                    className={`aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedProduct.id === product.id ? 'border-primary' : 'border-transparent hover:border-primary/30'
-                    }`}
-                  >
-                    <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2">
+                {isLoading ? (
+                  <div className="col-span-2 flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  allProducts.map((product) => (
+                    <button
+                      key={product.id}
+                        onClick={() => {
+                          setSelectedProduct(product);
+                          resetOverlay();
+                          playSound('click');
+                        }}
+                      className={`aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedProduct?.id === product.id ? 'border-primary' : 'border-transparent hover:border-primary/30'
+                      }`}
+                    >
+                      <img src={product.images[0]?.url} alt={product.title} className="w-full h-full object-cover" />
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -115,7 +130,7 @@ export default function FittingRoom() {
                       }}
                     >
                       <img
-                        src={selectedProduct.images[0]}
+                        src={selectedProduct?.images[0]?.url}
                         alt="Try on"
                         className="w-full h-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
                         style={{ filter: 'contrast(1.05) saturate(1.1)' }}

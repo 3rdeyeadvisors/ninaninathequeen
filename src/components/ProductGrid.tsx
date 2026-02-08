@@ -1,4 +1,4 @@
-import { useProducts, ShopifyProduct } from '@/hooks/useProducts';
+import { useProducts, type Product } from '@/hooks/useProducts';
 import { ProductCard } from './ProductCard';
 import { motion } from 'framer-motion';
 import { Loader2, Package } from 'lucide-react';
@@ -102,8 +102,8 @@ export function ProductGrid({ query, limit = 12, title, subtitle }: ProductGridP
         )}
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
-          {products.map((product: ShopifyProduct, index: number) => (
-            <ProductCard key={product.node.id} product={product} index={index} />
+          {products.map((product: Product, index: number) => (
+            <ProductCard key={product.id} product={product} index={index} />
           ))}
         </div>
       </div>

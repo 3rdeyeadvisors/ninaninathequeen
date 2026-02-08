@@ -1,56 +1,35 @@
 import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { MOCK_PRODUCTS, type MockProduct } from '@/lib/mockData';
+import { useProducts } from '@/hooks/useProducts';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ShoppingBag, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingBag, RotateCcw, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import { PRODUCT_SIZES } from '@/lib/constants';
-import { Product } from '@/hooks/useProducts';
-
-// Helper to convert mock product to Product format
-function mapMockToProduct(product: MockProduct): Product {
-  return {
-    node: {
-      id: `product-${product.id}`,
-      title: product.title,
-      description: "Experience the ultimate in Brazilian luxury.",
-      handle: product.handle,
-      productType: product.productType,
-      priceRange: {
-        minVariantPrice: {
-          amount: product.price.toString(),
-          currencyCode: "USD",
-        },
-      },
-      images: {
-        edges: product.images.map((url: string) => ({
-          node: { url, altText: product.title },
-        })),
-      },
-      variants: {
-        edges: product.sizes.map(size => ({
-          node: {
-            id: `${product.id}-${size.toLowerCase()}`,
-            title: size,
-            price: { amount: product.price.toString(), currencyCode: "USD" },
-            availableForSale: true,
-            selectedOptions: [{ name: "Size", value: size }],
-          },
-        })),
-      },
-      options: [{ name: "Size", values: product.sizes }],
-    },
-  };
-}
+import { useAdminStore } from '@/stores/adminStore';
+import { useMemo } from 'react';
 
 export default function MixAndMatch() {
   const { user } = useAuthStore();
-  const tops = MOCK_PRODUCTS.filter(p => p.category === 'Top');
-  const bottoms = MOCK_PRODUCTS.filter(p => p.category === 'Bottom');
+  const { data: allProducts, isLoading } = useProducts(100);
+  const { productOverrides } = useAdminStore();
+
+  const tops = useMemo(() => {
+    return allProducts.filter(p => {
+      const category = p.category || (p.productType?.toLowerCase().includes('top') ? 'Top' : '');
+      return category === 'Top';
+    });
+  }, [allProducts]);
+
+  const bottoms = useMemo(() => {
+    return allProducts.filter(p => {
+      const category = p.category || (p.productType?.toLowerCase().includes('bottom') ? 'Bottom' : '');
+      return category === 'Bottom';
+    });
+  }, [allProducts]);
 
   const [topIndex, setTopIndex] = useState(0);
   const [bottomIndex, setBottomIndex] = useState(0);
@@ -73,25 +52,50 @@ export default function MixAndMatch() {
 
   const handleAddSetToCart = () => {
     addItem({
-      product: mapMockToProduct(currentTop),
+      product: currentTop,
       variantId: `${currentTop.id}-${topSize.toLowerCase()}`,
       variantTitle: topSize,
-      price: { amount: currentTop.price.toString(), currencyCode: 'USD' },
+      price: currentTop.price,
       quantity: 1,
       selectedOptions: [{ name: 'Size', value: topSize }]
     });
     
     addItem({
-      product: mapMockToProduct(currentBottom),
+      product: currentBottom,
       variantId: `${currentBottom.id}-${bottomSize.toLowerCase()}`,
       variantTitle: bottomSize,
-      price: { amount: currentBottom.price.toString(), currencyCode: 'USD' },
+      price: currentBottom.price,
       quantity: 1,
       selectedOptions: [{ name: 'Size', value: bottomSize }]
     });
     
     toast.success('Set added to your bag!');
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (tops.length === 0 || bottoms.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+          <h2 className="font-serif text-2xl">Not enough products</h2>
+          <p className="text-muted-foreground">Add some Tops and Bottoms to use Mix & Match.</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -112,7 +116,7 @@ export default function MixAndMatch() {
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={currentTop.id}
-                    src={currentTop.images[0]}
+                    src={currentTop.images[0]?.url}
                     alt={currentTop.title}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -146,7 +150,7 @@ export default function MixAndMatch() {
                     </button>
                   ))}
                 </div>
-                <p className="text-sm text-primary font-sans">${currentTop.price.toFixed(2)}</p>
+                <p className="text-sm text-primary font-sans">${parseFloat(currentTop.price.amount).toFixed(2)}</p>
               </div>
             </div>
 
@@ -156,7 +160,7 @@ export default function MixAndMatch() {
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={currentBottom.id}
-                    src={currentBottom.images[0]}
+                    src={currentBottom.images[0]?.url}
                     alt={currentBottom.title}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -190,7 +194,7 @@ export default function MixAndMatch() {
                     </button>
                   ))}
                 </div>
-                <p className="text-sm text-primary font-sans">${currentBottom.price.toFixed(2)}</p>
+                <p className="text-sm text-primary font-sans">${parseFloat(currentBottom.price.amount).toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -202,7 +206,7 @@ export default function MixAndMatch() {
             </Button>
             <Button size="lg" className="rounded-full px-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-gold" onClick={handleAddSetToCart}>
               <ShoppingBag className="h-4 w-4 mr-2" />
-              Add Set to Bag — ${(currentTop.price + currentBottom.price).toFixed(2)}
+              Add Set to Bag — ${(parseFloat(currentTop.price.amount) + parseFloat(currentBottom.price.amount)).toFixed(2)}
             </Button>
           </div>
         </div>

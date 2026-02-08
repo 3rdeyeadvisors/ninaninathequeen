@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Plus, Minus, Trash2, CreditCard, User, ShoppingBag, CheckCircle } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { useProducts, type ShopifyProduct } from '@/hooks/useProducts';
+import { useProducts, type Product } from '@/hooks/useProducts';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -32,43 +32,23 @@ export default function AdminPOS() {
   const [posCart, setPosCart] = useState<PosItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [selectingProduct, setSelectingProduct] = useState<ShopifyProduct['node'] | null>(null);
+  const [selectingProduct, setSelectingProduct] = useState<Product | null>(null);
 
   const products = useMemo(() => {
     if (!initialProducts) return [];
 
-    const baseProducts = initialProducts.map(p => {
-      const override = productOverrides[p.node.id];
-      if (override) {
-        return {
-          ...p,
-          node: {
-            ...p.node,
-            title: override.title,
-            priceRange: {
-              ...p.node.priceRange,
-              minVariantPrice: { ...p.node.priceRange.minVariantPrice, amount: override.price }
-            },
-            images: {
-              ...p.node.images,
-              edges: [{ node: { url: override.image, altText: override.title } }]
-            }
-          }
-        };
-      }
-      return p;
-    }).filter(p => !productOverrides[p.node.id]?.isDeleted);
+    const baseProducts = initialProducts.filter(p => !productOverrides[p.id]?.isDeleted);
 
     if (!searchQuery) return baseProducts;
     const q = searchQuery.toLowerCase();
-    return baseProducts.filter(p => p.node.title.toLowerCase().includes(q));
+    return baseProducts.filter(p => p.title.toLowerCase().includes(q));
   }, [initialProducts, productOverrides, searchQuery]);
 
-  const addToCart = (product: ShopifyProduct['node']) => {
+  const addToCart = (product: Product) => {
     setSelectingProduct(product);
   };
 
-  const confirmAddToCart = (product: ShopifyProduct['node'], size: string) => {
+  const confirmAddToCart = (product: Product, size: string) => {
     const existing = posCart.find(item => item.id === product.id && item.size === size);
     if (existing) {
       setPosCart(posCart.map(item =>
@@ -78,8 +58,8 @@ export default function AdminPOS() {
       setPosCart([...posCart, {
         id: product.id,
         title: product.title,
-        price: product.priceRange.minVariantPrice.amount,
-        image: product.images.edges[0]?.node.url || 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?q=80&w=200',
+        price: product.price.amount,
+        image: product.images[0]?.url || 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?q=80&w=200',
         quantity: 1,
         size: size
       }]);
@@ -170,11 +150,11 @@ export default function AdminPOS() {
               <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-primary/10">
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                   {products.map((product) => (
-                    <Card key={product.node.id} className="cursor-pointer hover:shadow-gold transition-all duration-300 group overflow-hidden border-border/50 hover:-translate-y-1 bg-background flex flex-col" onClick={() => addToCart(product.node)}>
+                    <Card key={product.id} className="cursor-pointer hover:shadow-gold transition-all duration-300 group overflow-hidden border-border/50 hover:-translate-y-1 bg-background flex flex-col" onClick={() => addToCart(product)}>
                       <div className="aspect-[3/4] overflow-hidden relative bg-secondary/10">
                         <img
-                          src={product.node.images.edges[0]?.node.url || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400'}
-                          alt={product.node.title}
+                          src={product.images[0]?.url || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400'}
+                          alt={product.title}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1585924756944-b82af627eca9?q=80&w=400';
@@ -188,9 +168,9 @@ export default function AdminPOS() {
                         </div>
                       </div>
                       <CardContent className="p-3 bg-background">
-                        <p className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{product.node.productType}</p>
-                        <p className="font-sans text-xs font-bold truncate mb-1">{product.node.title}</p>
-                        <p className="font-serif text-sm text-primary">${parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}</p>
+                        <p className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{product.productType}</p>
+                        <p className="font-sans text-xs font-bold truncate mb-1">{product.title}</p>
+                        <p className="font-serif text-sm text-primary">${parseFloat(product.price.amount).toFixed(2)}</p>
                       </CardContent>
                     </Card>
                   ))}

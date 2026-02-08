@@ -80,5 +80,3 @@ export const useCartStore = create<CartStore>()(
   )
 );
 
-// Re-export types
-export type { Product as ShopifyProduct };

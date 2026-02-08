@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { useProducts, type ShopifyProduct } from '@/hooks/useProducts';
+import { useProducts, type Product } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
 import { toast } from 'sonner';
 import { useState, useMemo, useRef } from 'react';
@@ -69,15 +69,15 @@ export default function AdminProducts() {
     if (!initialProducts) return counts;
     
     initialProducts.forEach(p => {
-      const override = productOverrides[p.node.id];
+      const override = productOverrides[p.id];
       if (override?.isDeleted) return;
       
       counts.All++;
-      // Derive category from override or productType
-      const category = override?.category || 
-        (p.node.productType?.toLowerCase().includes('top') ? 'Top' :
-         p.node.productType?.toLowerCase().includes('bottom') ? 'Bottom' :
-         p.node.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 'Other');
+      // Derive category from product data (which includes override)
+      const category = p.category ||
+        (p.productType?.toLowerCase().includes('top') ? 'Top' :
+         p.productType?.toLowerCase().includes('bottom') ? 'Bottom' :
+         p.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 'Other');
       if (counts[category] !== undefined) {
         counts[category]++;
       } else {
@@ -96,12 +96,10 @@ export default function AdminProducts() {
     // Filter by category
     if (selectedCategory !== 'All') {
       filtered = filtered.filter(p => {
-        const override = productOverrides[p.node.id];
-        // If no override exists, categorize based on productType or default to 'Other'
-        const category = override?.category || 
-          (p.node.productType?.toLowerCase().includes('top') ? 'Top' :
-           p.node.productType?.toLowerCase().includes('bottom') ? 'Bottom' :
-           p.node.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 'Other');
+        const category = p.category ||
+          (p.productType?.toLowerCase().includes('top') ? 'Top' :
+           p.productType?.toLowerCase().includes('bottom') ? 'Bottom' :
+           p.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 'Other');
         return category === selectedCategory;
       });
     }
@@ -110,8 +108,8 @@ export default function AdminProducts() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(p =>
-        p.node.title.toLowerCase().includes(q) ||
-        (p.node.description || '').toLowerCase().includes(q)
+        p.title.toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q)
       );
     }
 
@@ -160,7 +158,7 @@ export default function AdminProducts() {
     if (selectedProducts.size === products.length && products.length > 0) {
       setSelectedProducts(new Set());
     } else {
-      setSelectedProducts(new Set(products.map(p => p.node.id)));
+      setSelectedProducts(new Set(products.map(p => p.id)));
     }
   };
 
@@ -183,17 +181,17 @@ export default function AdminProducts() {
 
   const moveProductToCategory = (productId: string, category: string) => {
     // Ensure the product exists in overrides before updating category
-    const product = products.find(p => p.node.id === productId);
+    const product = products.find(p => p.id === productId);
     if (product) {
       const existingOverride = productOverrides[productId];
       if (!existingOverride) {
         // Create a full override from the current product data
         updateProductOverride(productId, {
-          title: product.node.title,
-          price: product.node.priceRange.minVariantPrice.amount,
-          image: product.node.images.edges[0]?.node.url || '',
-          description: product.node.description || '',
-          productType: product.node.productType,
+          title: product.title,
+          price: product.price.amount,
+          image: product.images[0]?.url || '',
+          description: product.description || '',
+          productType: product.productType,
           inventory: 0,
           category,
         });
@@ -206,16 +204,16 @@ export default function AdminProducts() {
 
   const bulkMoveToCategory = (category: string) => {
     selectedProducts.forEach(id => {
-      const product = products.find(p => p.node.id === id);
+      const product = products.find(p => p.id === id);
       if (product) {
         const existingOverride = productOverrides[id];
         if (!existingOverride) {
           updateProductOverride(id, {
-            title: product.node.title,
-            price: product.node.priceRange.minVariantPrice.amount,
-            image: product.node.images.edges[0]?.node.url || '',
-            description: product.node.description || '',
-            productType: product.node.productType,
+            title: product.title,
+            price: product.price.amount,
+            image: product.images[0]?.url || '',
+            description: product.description || '',
+            productType: product.productType,
             inventory: 0,
             category,
           });
@@ -424,27 +422,27 @@ export default function AdminProducts() {
                       </TableCell>
                     </TableRow>
                   ) : products.map((product) => {
-                    const override = productOverrides[product.node.id];
-                    const sizes = product.node.options.find(o => o.name === 'Size')?.values || override?.sizes || [];
+                    const override = productOverrides[product.id];
+                    const sizes = product.options.find(o => o.name === 'Size')?.values || override?.sizes || [];
                     const sizeInventory = override?.sizeInventory || {};
                     const totalStock = override?.inventory ?? Object.values(sizeInventory).reduce((a, b) => a + b, 0);
                     
                     return (
-                      <TableRow key={product.node.id}>
+                      <TableRow key={product.id}>
                         <TableCell>
                           <Checkbox
-                            checked={selectedProducts.has(product.node.id)}
-                            onCheckedChange={() => toggleProductSelection(product.node.id)}
+                            checked={selectedProducts.has(product.id)}
+                            onCheckedChange={() => toggleProductSelection(product.id)}
                           />
                         </TableCell>
                         <TableCell>
-                          <img src={product.node.images.edges[0]?.node.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
+                          <img src={product.images[0]?.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
                         </TableCell>
-                        <TableCell className="font-medium font-sans text-sm">{product.node.title}</TableCell>
+                        <TableCell className="font-medium font-sans text-sm">{product.title}</TableCell>
                         <TableCell>
                           <Select
-                            value={override?.category || 'Other'}
-                            onValueChange={(value) => moveProductToCategory(product.node.id, value)}
+                            value={product.category || 'Other'}
+                            onValueChange={(value) => moveProductToCategory(product.id, value)}
                           >
                             <SelectTrigger className="w-[110px] h-8 text-[10px] font-sans uppercase tracking-widest bg-background">
                               <SelectValue />
@@ -480,7 +478,7 @@ export default function AdminProducts() {
                           </div>
                         </TableCell>
                         <TableCell className="font-sans text-sm font-medium">
-                          {product.node.priceRange.minVariantPrice.currencyCode} {parseFloat(product.node.priceRange.minVariantPrice.amount).toFixed(2)}
+                          {product.price.currencyCode} {parseFloat(product.price.amount).toFixed(2)}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
@@ -498,8 +496,8 @@ export default function AdminProducts() {
                         </TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                            const sizes = product.node.options.find(o => o.name === 'Size')?.values || [];
-                            const override = productOverrides[product.node.id];
+                            const sizes = product.options.find(o => o.name === 'Size')?.values || [];
+                            const override = productOverrides[product.id];
                             let sizeInventory = override?.sizeInventory;
 
                             // Initialize sizeInventory if missing
@@ -513,20 +511,20 @@ export default function AdminProducts() {
                             }
 
                             setEditingProduct({
-                              id: product.node.id,
-                              title: product.node.title,
-                              price: product.node.priceRange.minVariantPrice.amount,
+                              id: product.id,
+                              title: product.title,
+                              price: product.price.amount,
                               inventory: override?.inventory || 45,
                               sizeInventory: sizeInventory,
-                              image: product.node.images.edges[0]?.node.url,
-                              description: product.node.description || "",
+                              image: product.images[0]?.url,
+                              description: product.description || "",
                               sizes: sizes,
                               category: override?.category
                             });
                           }}>
                             <Edit2 className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => setProductToDelete(product.node.id)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/5" onClick={() => setProductToDelete(product.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>

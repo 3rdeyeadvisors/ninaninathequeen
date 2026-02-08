@@ -159,27 +159,43 @@ export const useAdminStore = create<AdminStore>()(
       }),
 
       decrementInventory: (productId, size, quantity) => set((state) => {
-        const product = state.productOverrides[productId];
-        if (!product || !product.sizeInventory) return state;
+        const currentOverride = state.productOverrides[productId];
 
-        const currentSizeStock = product.sizeInventory[size] || 0;
+        // If no override exists yet, we create one starting from a default base
+        // In a real app, we'd fetch the product details first, but here we can
+        // initialize it with defaults or use the provided data.
+        const sizeInventory = currentOverride?.sizeInventory || {
+          'XS': 15, 'S': 15, 'M': 15, 'L': 15, 'XL': 15, '2XL': 15
+        };
+
+        const currentSizeStock = sizeInventory[size] !== undefined
+          ? sizeInventory[size]
+          : (currentOverride ? 0 : 15);
         const newSizeStock = Math.max(0, currentSizeStock - quantity);
 
         const newSizeInventory = {
-          ...product.sizeInventory,
+          ...sizeInventory,
           [size]: newSizeStock
         };
 
         const newTotalInventory = Object.values(newSizeInventory).reduce((acc, val) => acc + val, 0);
 
+        const updatedOverride = {
+          ...(currentOverride || {
+            id: productId,
+            title: 'Product', // Fallback, usually updated by other means
+            price: '0.00',
+            image: '',
+            description: '',
+          }),
+          sizeInventory: newSizeInventory,
+          inventory: newTotalInventory
+        };
+
         return {
           productOverrides: {
             ...state.productOverrides,
-            [productId]: {
-              ...product,
-              sizeInventory: newSizeInventory,
-              inventory: newTotalInventory
-            }
+            [productId]: updatedOverride as ProductOverride
           }
         };
       }),
