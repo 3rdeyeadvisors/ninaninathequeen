@@ -66,7 +66,14 @@ export default function AdminProducts() {
 
   // Count products by category
   const countByCategory = useMemo(() => {
-    const counts: Record<string, number> = { All: 0, 'Top & Bottom': 0, 'One-Piece': 0, Other: 0 };
+    const counts: Record<string, number> = { 
+      All: 0, 
+      Top: 0, 
+      Bottom: 0, 
+      'Top & Bottom': 0, 
+      'One-Piece': 0, 
+      Other: 0 
+    };
     if (!initialProducts) return counts;
     
     initialProducts.forEach(p => {
@@ -74,15 +81,27 @@ export default function AdminProducts() {
       if (override?.isDeleted) return;
       
       counts.All++;
-      // Use override category if set, otherwise derive from productType
-      const category = override?.category || p.category ||
-        (p.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 
-         p.productType?.toLowerCase().includes('top & bottom') ? 'Top & Bottom' : 'Other');
-      if (counts[category] !== undefined) {
-        counts[category]++;
+      
+      // Use override category if set, otherwise derive from productType or product category
+      const explicitCategory = override?.category || p.category;
+      const type = (p.productType || '').toLowerCase();
+      
+      let category: string;
+      if (explicitCategory && counts[explicitCategory] !== undefined) {
+        category = explicitCategory;
+      } else if (type.includes('one-piece') || type.includes('onepiece')) {
+        category = 'One-Piece';
+      } else if (type.includes('top & bottom') || type.includes('top and bottom')) {
+        category = 'Top & Bottom';
+      } else if (type.includes('top') && !type.includes('bottom')) {
+        category = 'Top';
+      } else if (type.includes('bottom') && !type.includes('top')) {
+        category = 'Bottom';
       } else {
-        counts.Other++;
+        category = 'Other';
       }
+      
+      counts[category]++;
     });
     
     return counts;
@@ -97,9 +116,24 @@ export default function AdminProducts() {
     if (selectedCategory !== 'All') {
       filtered = filtered.filter(p => {
         const override = productOverrides[p.id];
-        const category = override?.category || p.category ||
-          (p.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 
-           p.productType?.toLowerCase().includes('top & bottom') ? 'Top & Bottom' : 'Other');
+        const explicitCategory = override?.category || p.category;
+        const type = (p.productType || '').toLowerCase();
+        
+        let category: string;
+        if (explicitCategory && ['Top', 'Bottom', 'Top & Bottom', 'One-Piece', 'Other'].includes(explicitCategory)) {
+          category = explicitCategory;
+        } else if (type.includes('one-piece') || type.includes('onepiece')) {
+          category = 'One-Piece';
+        } else if (type.includes('top & bottom') || type.includes('top and bottom')) {
+          category = 'Top & Bottom';
+        } else if (type.includes('top') && !type.includes('bottom')) {
+          category = 'Top';
+        } else if (type.includes('bottom') && !type.includes('top')) {
+          category = 'Bottom';
+        } else {
+          category = 'Other';
+        }
+        
         return category === selectedCategory;
       });
     }

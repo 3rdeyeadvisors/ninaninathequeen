@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
-import { useAdminStore } from '@/stores/adminStore';
+import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { parseSpreadsheet } from '@/lib/spreadsheet';
 import { useProducts } from '@/hooks/useProducts';
 import { PRODUCT_SIZES } from '@/lib/constants';
+import { supabase } from '@/integrations/supabase/client';
 
 // Upload limits
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -146,18 +147,27 @@ export function useSpreadsheetSync() {
         });
 
         let updatedCount = 0;
+        const productsToSync: ProductOverride[] = [];
 
         Object.values(productGroups).forEach((product) => {
+          // Generate consistent ID based on normalized title to prevent duplicates
+          const normalizedId = product.baseTitle.toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+          
           // Find existing product for matching
           let existingProduct = allProducts?.find(p =>
             p.id === product.id ||
             p.id === `product-${product.id}` ||
+            p.id === `sync-${normalizedId}` ||
             p.title.toLowerCase() === product.baseTitle.toLowerCase()
           );
 
+          // Use consistent ID generation for new products
           const id = existingProduct
             ? existingProduct.id
-            : (product.id.startsWith('product-') ? product.id : `product-${product.id}`);
+            : `sync-${normalizedId}`;
 
           // Get sizes from inventory or use defaults
           // Filter out ONE_SIZE if we have other sizes
@@ -186,7 +196,8 @@ export function useSpreadsheetSync() {
           // Use Type column directly as category (no auto-detection needed)
           const category = product.productType || 'Other';
 
-          updateProductOverride(id, {
+          const productOverride: ProductOverride = {
+            id,
             title: product.baseTitle,
             price: product.price,
             inventory: totalInventory,
@@ -201,14 +212,53 @@ export function useSpreadsheetSync() {
             status: product.status as 'Active' | 'Inactive' | 'Draft',
             itemNumber: product.itemNumber,
             colorCodes: product.colorCodes
-          });
+          };
+
+          // Update local store
+          updateProductOverride(id, productOverride);
+          productsToSync.push(productOverride);
           updatedCount++;
         });
 
-        setTimeout(() => {
+        // Sync all products to database
+        const syncToDb = async () => {
+          try {
+            const rows = productsToSync.map(p => ({
+              id: p.id,
+              title: p.title,
+              price: p.price,
+              inventory: p.inventory,
+              size_inventory: p.sizeInventory || {},
+              image: p.image,
+              description: p.description,
+              product_type: p.productType,
+              collection: p.collection,
+              category: p.category,
+              status: p.status,
+              item_number: p.itemNumber,
+              color_codes: p.colorCodes,
+              sizes: p.sizes,
+              is_deleted: false,
+            }));
+
+            const { error } = await supabase
+              .from('products')
+              .upsert(rows, { onConflict: 'id' });
+
+            if (error) {
+              console.error('Error syncing products to database:', error);
+              toast.warning('Products saved locally. Database sync may have failed - check your connection.');
+            } else {
+              toast.success(`Sync complete! ${updatedCount} products saved to database from ${rows.length} inventory rows.`);
+            }
+          } catch (err) {
+            console.error('Database sync failed:', err);
+            toast.warning('Products saved locally but database sync failed.');
+          }
           setIsUploading(false);
-          toast.success(`Sync complete! ${updatedCount} products created from ${rows.length} inventory rows.`);
-        }, 1500);
+        };
+
+        syncToDb();
       } catch (error) {
         console.error('Spreadsheet parsing failed:', error);
         setIsUploading(false);

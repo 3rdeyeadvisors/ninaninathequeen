@@ -1,0 +1,231 @@
+import { useEffect, useState, createContext, useContext, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAdminStore, type ProductOverride, type AdminOrder, type AdminCustomer } from '@/stores/adminStore';
+import { toast } from 'sonner';
+
+interface DbSyncContextType {
+  isLoading: boolean;
+  isInitialized: boolean;
+  syncProducts: () => Promise<void>;
+  syncOrders: () => Promise<void>;
+  syncCustomers: () => Promise<void>;
+  syncSettings: () => Promise<void>;
+}
+
+const DbSyncContext = createContext<DbSyncContextType | null>(null);
+
+export function useDbSync() {
+  const context = useContext(DbSyncContext);
+  if (!context) {
+    throw new Error('useDbSync must be used within a DbSyncProvider');
+  }
+  return context;
+}
+
+interface DbSyncProviderProps {
+  children: ReactNode;
+}
+
+export function DbSyncProvider({ children }: DbSyncProviderProps) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const { updateProductOverride, addOrder, addCustomer, updateSettings } = useAdminStore();
+
+  // Sync products from database
+  const syncProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_deleted', false);
+
+      if (error) {
+        console.error('Error fetching products:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        data.forEach((product) => {
+          updateProductOverride(product.id, {
+            id: product.id,
+            title: product.title,
+            price: product.price,
+            inventory: product.inventory,
+            sizeInventory: (product.size_inventory as Record<string, number>) || {},
+            image: product.image || '',
+            description: product.description || '',
+            productType: product.product_type || 'Bikini',
+            collection: product.collection || '',
+            category: product.category || 'Other',
+            status: (product.status as 'Active' | 'Inactive' | 'Draft') || 'Active',
+            itemNumber: product.item_number || '',
+            colorCodes: product.color_codes || [],
+            sizes: product.sizes || [],
+            isDeleted: product.is_deleted || false,
+          });
+        });
+        console.log(`Loaded ${data.length} products from database`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+    }
+  };
+
+  // Sync orders from database
+  const syncOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching orders:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const store = useAdminStore.getState();
+        
+        data.forEach((order) => {
+          const existingOrder = store.orders.find(o => o.id === order.id);
+          if (!existingOrder) {
+            addOrder({
+              id: order.id,
+              customerName: order.customer_name,
+              customerEmail: order.customer_email,
+              date: order.date,
+              total: order.total,
+              shippingCost: order.shipping_cost || undefined,
+              itemCost: order.item_cost || undefined,
+              status: order.status as AdminOrder['status'],
+              trackingNumber: order.tracking_number || '',
+              items: (order.items as AdminOrder['items']) || [],
+            });
+          }
+        });
+        console.log(`Loaded ${data.length} orders from database`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+    }
+  };
+
+  // Sync customers from database
+  const syncCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching customers:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const store = useAdminStore.getState();
+        
+        data.forEach((customer) => {
+          const existingCustomer = store.customers.find(c => c.id === customer.id || c.email === customer.email);
+          if (!existingCustomer) {
+            addCustomer({
+              id: customer.id,
+              name: customer.name,
+              email: customer.email,
+              totalSpent: customer.total_spent || '0.00',
+              orderCount: customer.order_count || 0,
+              joinDate: customer.join_date,
+            });
+          }
+        });
+        console.log(`Loaded ${data.length} customers from database`);
+      }
+    } catch (err) {
+      console.error('Failed to fetch customers:', err);
+    }
+  };
+
+  // Sync settings from database
+  const syncSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('store_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching settings:', error);
+        return;
+      }
+
+      if (data) {
+        updateSettings({
+          storeName: data.store_name || 'NINA ARMEND',
+          currency: data.currency || 'USD',
+          taxRate: Number(data.tax_rate) || 7.5,
+          lowStockThreshold: data.low_stock_threshold || 10,
+          posProvider: (data.pos_provider as 'none' | 'square') || 'none',
+          squareApiKey: data.square_api_key || '',
+        });
+        console.log('Loaded settings from database');
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    }
+  };
+
+  // Initial load from database
+  useEffect(() => {
+    const loadAllData = async () => {
+      setIsLoading(true);
+      
+      try {
+        // Load all data in parallel
+        await Promise.all([
+          syncProducts(),
+          syncOrders(),
+          syncCustomers(),
+          syncSettings(),
+        ]);
+        
+        setIsInitialized(true);
+      } catch (err) {
+        console.error('Error loading data from database:', err);
+        toast.error('Failed to load data from database. Using local cache.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Only load after Zustand has hydrated from localStorage
+    const store = useAdminStore.getState();
+    if (store._hasHydrated) {
+      loadAllData();
+    } else {
+      // Wait for hydration
+      const unsubscribe = useAdminStore.subscribe((state) => {
+        if (state._hasHydrated && !isInitialized) {
+          loadAllData();
+          unsubscribe();
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, []);
+
+  return (
+    <DbSyncContext.Provider value={{ 
+      isLoading, 
+      isInitialized, 
+      syncProducts, 
+      syncOrders, 
+      syncCustomers, 
+      syncSettings 
+    }}>
+      {children}
+    </DbSyncContext.Provider>
+  );
+}
