@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminCustomer } from '@/stores/adminStore';
 
 /**
@@ -12,6 +12,7 @@ export function useCustomersDb() {
   // Fetch all customers from database on mount
   const fetchCustomers = useCallback(async () => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('customers')
         .select('*')
@@ -47,6 +48,7 @@ export function useCustomersDb() {
   // Upsert a customer to the database
   const upsertCustomer = useCallback(async (customer: AdminCustomer) => {
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from('customers')
         .upsert({
@@ -72,6 +74,7 @@ export function useCustomersDb() {
   // Delete a customer from the database
   const deleteCustomerDb = useCallback(async (customerId: string) => {
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from('customers')
         .delete()

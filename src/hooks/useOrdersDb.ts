@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 
 /**
@@ -12,6 +12,7 @@ export function useOrdersDb() {
   // Fetch all orders from database on mount
   const fetchOrders = useCallback(async () => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -53,6 +54,7 @@ export function useOrdersDb() {
   // Upsert an order to the database
   const upsertOrder = useCallback(async (order: AdminOrder) => {
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from('orders')
         .upsert({

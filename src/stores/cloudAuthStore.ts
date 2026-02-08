@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { Session, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/integrations/supabase/types';
+import type { Session } from '@supabase/supabase-js';
+import { getSupabase } from '@/lib/supabaseClient';
 
 export interface CloudAuthUser {
   id: string;
@@ -23,18 +23,6 @@ interface CloudAuthState {
   signOut: () => Promise<void>;
   checkIsAdmin: (userId: string) => Promise<boolean>;
 }
-
-// Lazy getter for supabase client to avoid initialization errors
-let supabaseClient: SupabaseClient<Database> | null = null;
-
-const getSupabase = (): SupabaseClient<Database> => {
-  if (!supabaseClient) {
-    // Dynamic import to handle cases where env vars might not be ready
-    const { supabase } = require('@/integrations/supabase/client');
-    supabaseClient = supabase;
-  }
-  return supabaseClient;
-};
 
 export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
   user: null,

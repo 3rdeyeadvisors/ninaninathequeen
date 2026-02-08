@@ -4,7 +4,7 @@ import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { parseSpreadsheet } from '@/lib/spreadsheet';
 import { useProducts } from '@/hooks/useProducts';
 import { PRODUCT_SIZES } from '@/lib/constants';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/lib/supabaseClient';
 
 // Upload limits
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -223,6 +223,7 @@ export function useSpreadsheetSync() {
         // Sync all products to database
         const syncToDb = async () => {
           try {
+            const supabase = getSupabase();
             const rows = productsToSync.map(p => ({
               id: p.id,
               title: p.title,

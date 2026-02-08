@@ -1,8 +1,7 @@
 import { useEffect, useState, createContext, useContext, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAdminStore, type ProductOverride, type AdminOrder, type AdminCustomer } from '@/stores/adminStore';
 import { toast } from 'sonner';
-
+import { getSupabase } from '@/lib/supabaseClient';
 interface DbSyncContextType {
   isLoading: boolean;
   isInitialized: boolean;
@@ -34,6 +33,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
   // Sync products from database
   const syncProducts = async () => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -74,6 +74,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
   // Sync orders from database
   const syncOrders = async () => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -114,6 +115,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
   // Sync customers from database
   const syncCustomers = async () => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('customers')
         .select('*')
@@ -150,6 +152,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
   // Sync settings from database
   const syncSettings = async () => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('store_settings')
         .select('*')

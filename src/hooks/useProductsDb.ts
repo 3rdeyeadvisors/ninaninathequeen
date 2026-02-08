@@ -1,7 +1,6 @@
 import { useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
-import { toast } from 'sonner';
 
 /**
  * Hook to sync products with the database.
@@ -13,6 +12,7 @@ export function useProductsDb() {
   // Fetch all products from database on mount
   const fetchProducts = useCallback(async () => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -53,6 +53,7 @@ export function useProductsDb() {
   // Upsert a product to the database
   const upsertProduct = useCallback(async (product: ProductOverride) => {
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from('products')
         .upsert({
@@ -88,6 +89,7 @@ export function useProductsDb() {
   // Bulk upsert products to the database
   const bulkUpsertProducts = useCallback(async (products: ProductOverride[]) => {
     try {
+      const supabase = getSupabase();
       const rows = products.map(product => ({
         id: product.id,
         title: product.title,
@@ -124,6 +126,7 @@ export function useProductsDb() {
   // Soft delete a product in the database
   const deleteProductDb = useCallback(async (productId: string) => {
     try {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from('products')
         .update({ is_deleted: true })

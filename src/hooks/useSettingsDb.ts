@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminSettings } from '@/stores/adminStore';
 
 /**
@@ -12,6 +12,7 @@ export function useSettingsDb() {
   // Fetch settings from database on mount
   const fetchSettings = useCallback(async () => {
     try {
+      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('store_settings')
         .select('*')
@@ -41,6 +42,7 @@ export function useSettingsDb() {
   // Update settings in the database
   const updateSettingsDb = useCallback(async (newSettings: Partial<AdminSettings>) => {
     try {
+      const supabase = getSupabase();
       // First get the existing settings row ID
       const { data: existing } = await supabase
         .from('store_settings')
