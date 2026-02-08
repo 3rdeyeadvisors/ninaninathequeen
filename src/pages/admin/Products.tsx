@@ -187,16 +187,22 @@ export default function AdminProducts() {
 
   const confirmDelete = async () => {
     if (productToDelete) {
-      setIsSyncing(true);
-      const success = await deleteProductDb(productToDelete);
-      if (success) {
-        deleteProduct(productToDelete);
-        toast.success("Product deleted successfully");
-      } else {
-        toast.error("Failed to delete product from database");
+      try {
+        setIsSyncing(true);
+        const success = await deleteProductDb(productToDelete);
+        if (success) {
+          deleteProduct(productToDelete);
+          toast.success("Product deleted successfully");
+        } else {
+          toast.error("Failed to delete product from database");
+        }
+      } catch (err) {
+        console.error("Delete error:", err);
+        toast.error("An unexpected error occurred during deletion");
+      } finally {
+        setIsSyncing(false);
+        setProductToDelete(null);
       }
-      setIsSyncing(false);
-      setProductToDelete(null);
     }
   };
 
@@ -219,19 +225,25 @@ export default function AdminProducts() {
   };
 
   const bulkDelete = async () => {
-    setIsSyncing(true);
-    let successCount = 0;
-    for (const id of selectedProducts) {
-      const success = await deleteProductDb(id);
-      if (success) {
-        deleteProduct(id);
-        successCount++;
+    try {
+      setIsSyncing(true);
+      let successCount = 0;
+      for (const id of selectedProducts) {
+        const success = await deleteProductDb(id);
+        if (success) {
+          deleteProduct(id);
+          successCount++;
+        }
       }
+      toast.success(`${successCount} products deleted`);
+    } catch (err) {
+      console.error("Bulk delete error:", err);
+      toast.error("An error occurred during bulk deletion");
+    } finally {
+      setSelectedProducts(new Set());
+      setShowBulkDeleteConfirm(false);
+      setIsSyncing(false);
     }
-    toast.success(`${successCount} products deleted`);
-    setSelectedProducts(new Set());
-    setShowBulkDeleteConfirm(false);
-    setIsSyncing(false);
   };
 
   const moveProductToCategory = async (productId: string, category: string) => {

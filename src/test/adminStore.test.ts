@@ -60,4 +60,19 @@ describe("adminStore", () => {
     expect(product.sizeInventory?.["L"]).toBe(0);
     expect(product.inventory).toBe(10);
   });
+
+  it("should mark product as deleted", () => {
+    const { updateProductOverride, deleteProduct } = useAdminStore.getState();
+    const productId = "test-prod-1";
+
+    updateProductOverride(productId, {
+      title: "Test Product",
+      isDeleted: false
+    });
+
+    deleteProduct(productId);
+
+    const product = useAdminStore.getState().productOverrides[productId];
+    expect(product.isDeleted).toBe(true);
+  });
 });

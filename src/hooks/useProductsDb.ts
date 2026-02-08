@@ -17,10 +17,10 @@ export function useProductsDb() {
   const fetchProducts = useCallback(async () => {
     try {
       const supabase = getSupabase();
+      // Fetch all products to sync soft-deleted status locally
       const { data, error } = await supabase
         .from('products')
-        .select('*')
-        .eq('is_deleted', false);
+        .select('*');
 
       if (error) {
         console.error('Error fetching products:', error);
@@ -64,22 +64,16 @@ export function useProductsDb() {
         return false;
       }
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/sync-products`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const supabase = getSupabase();
+      const { data, error } = await supabase.functions.invoke('sync-products', {
+        body: {
           products,
           adminEmail: userEmail,
-        }),
+        },
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        console.error('Database sync failed:', result.error || 'Unknown error');
+      if (error) {
+        console.error('Database sync failed:', error);
         return false;
       }
       return true;
@@ -110,7 +104,13 @@ export function useProductsDb() {
 
   // Soft delete a product in the database
   const deleteProductDb = useCallback(async (productId: string) => {
-    const success = await syncWithEdgeFunction({ id: productId, isDeleted: true } as any);
+    // Preserve existing data by merging with isDeleted: true
+    const existingOverride = useAdminStore.getState().productOverrides[productId];
+    const productData = existingOverride
+      ? { ...existingOverride, isDeleted: true }
+      : { id: productId, isDeleted: true };
+
+    const success = await syncWithEdgeFunction(productData as any);
     if (success && settings.autoSync && settings.posProvider === 'square') {
       setTimeout(() => pushToSquare(), 1000);
     }
