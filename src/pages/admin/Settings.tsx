@@ -32,7 +32,7 @@ export default function AdminSettings() {
   return (
     <div className="min-h-screen bg-secondary/20">
       <Header />
-      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+      <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
         <div className="flex flex-col gap-4">
           <AdminSidebar />
 
@@ -194,7 +194,11 @@ export default function AdminSettings() {
                         <Label className="text-sm">Automated Inventory Sync</Label>
                         <p className="text-[10px] text-muted-foreground">Keep Shopify and POS stock levels synchronized in real-time</p>
                       </div>
-                      <Switch defaultChecked={localSettings.posProvider !== 'none'} disabled={localSettings.posProvider === 'none'} />
+                      <Switch
+                        checked={localSettings.autoSync}
+                        onCheckedChange={(checked) => setLocalSettings({...localSettings, autoSync: checked})}
+                        disabled={localSettings.posProvider === 'none'}
+                      />
                     </div>
                   </CardContent>
                 </Card>

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+import { useAdminStore } from '@/stores/adminStore';
 
 interface SyncResult {
   success: boolean;
@@ -22,8 +23,10 @@ export function useSquareSync() {
     setIsPulling(true);
     try {
       const supabase = getSupabase();
+      const apiKey = useAdminStore.getState().settings.squareApiKey;
+
       const { data, error } = await supabase.functions.invoke('square-sync-inventory', {
-        body: { action: 'pull' }
+        body: { action: 'pull', apiKey }
       });
 
       if (error) {
@@ -52,8 +55,10 @@ export function useSquareSync() {
     setIsPushing(true);
     try {
       const supabase = getSupabase();
+      const apiKey = useAdminStore.getState().settings.squareApiKey;
+
       const { data, error } = await supabase.functions.invoke('square-sync-inventory', {
-        body: { action: 'push' }
+        body: { action: 'push', apiKey }
       });
 
       if (error) {

@@ -365,7 +365,7 @@ export default function AdminProducts() {
   return (
     <div className="min-h-screen bg-secondary/20">
       <Header />
-      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+      <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
         <div className="flex flex-col gap-8 lg:gap-12">
           <AdminSidebar />
 
@@ -390,7 +390,7 @@ export default function AdminProducts() {
                   variant="outline"
                   onClick={pushToSquare}
                   disabled={isPulling || isPushing}
-                  className="font-sans text-[10px] uppercase tracking-widest border-accent/30 text-accent-foreground hover:bg-accent/10"
+                  className="font-sans text-[10px] uppercase tracking-widest border-primary/30 text-primary hover:bg-primary/5"
                 >
                   {isPushing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <ArrowUpFromLine className="h-3 w-3 mr-2" />}
                   Push to Square
@@ -508,7 +508,7 @@ export default function AdminProducts() {
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
-              <Table>
+              <Table className="min-w-[1000px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">

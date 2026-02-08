@@ -155,7 +155,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-secondary/20">
       <Header />
-      <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+      <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
         <div className="flex flex-col gap-8 lg:gap-12">
           <AdminSidebar />
 
@@ -424,7 +424,7 @@ export default function AdminDashboard() {
                         <MessageSquare className="h-4 w-4" />
                       </Button>
                     </div>
-                    <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium">Powered by Nina Intelligence</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium">Powered by Nina Intelligence</p>
                   </div>
                 </CardContent>
               </Card>

@@ -172,6 +172,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
           lowStockThreshold: data.low_stock_threshold || 10,
           posProvider: (data.pos_provider as 'none' | 'square') || 'none',
           squareApiKey: data.square_api_key || '',
+          autoSync: data.auto_sync || false,
         });
         console.log('Loaded settings from database');
       }
