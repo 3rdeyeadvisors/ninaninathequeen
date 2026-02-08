@@ -10,14 +10,22 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore } from '@/stores/adminStore';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Store, Globe, Bell, Shield, Save, CreditCard, Key, ExternalLink } from 'lucide-react';
+import { Store, Globe, Bell, Shield, Save, CreditCard, Key, ExternalLink, CheckCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 export default function AdminSettings() {
   const { settings, updateSettings } = useAdminStore();
   const [localSettings, setLocalSettings] = useState(settings);
+  const [isEditingToken, setIsEditingToken] = useState(false);
+
+  // Mask the token for display
+  const maskedToken = localSettings.squareApiKey 
+    ? `${localSettings.squareApiKey.slice(0, 4)}...${localSettings.squareApiKey.slice(-4)}` 
+    : '';
 
   const handleSave = () => {
     updateSettings(localSettings);
+    setIsEditingToken(false);
     toast.success("Store settings updated successfully!");
   };
 
@@ -111,66 +119,72 @@ export default function AdminSettings() {
                   <CardContent className="space-y-6">
                     <div className="grid gap-4 p-4 bg-secondary/20 rounded-xl border border-primary/10">
                       <div className="grid gap-2">
-                        <Label>Primary Payment Provider</Label>
-                        <div className="grid grid-cols-3 gap-3">
-                          {['stripe', 'square', 'clover'].map((provider) => (
-                            <Button
-                              key={provider}
-                              variant={localSettings.posProvider === provider ? 'default' : 'outline'}
-                              className="capitalize font-sans text-[10px] tracking-widest h-10"
-                              onClick={() => setLocalSettings({...localSettings, posProvider: provider as 'stripe' | 'square' | 'clover' | 'none'})}
-                            >
-                              {provider}
-                            </Button>
-                          ))}
+                        <Label>Payment Provider</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <Button
+                            variant={localSettings.posProvider === 'square' ? 'default' : 'outline'}
+                            className="capitalize font-sans text-[10px] tracking-widest h-10"
+                            onClick={() => setLocalSettings({...localSettings, posProvider: 'square'})}
+                          >
+                            Square
+                          </Button>
+                          <Button
+                            variant={localSettings.posProvider === 'none' ? 'default' : 'outline'}
+                            className="capitalize font-sans text-[10px] tracking-widest h-10"
+                            onClick={() => setLocalSettings({...localSettings, posProvider: 'none'})}
+                          >
+                            None
+                          </Button>
                         </div>
                       </div>
 
-                      {localSettings.posProvider === 'stripe' && (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <div className="grid gap-2">
-                            <Label htmlFor="stripeKey" className="flex items-center gap-2">
-                              <Key className="h-3 w-3" /> Stripe Restricted API Key
-                            </Label>
-                            <Input
-                              id="stripeKey"
-                              type="password"
-                              placeholder="rk_live_..."
-                              value={localSettings.stripeApiKey}
-                              onChange={(e) => setLocalSettings({...localSettings, stripeApiKey: e.target.value})}
-                              className="font-mono text-xs"
-                            />
-                            <p className="text-[10px] text-muted-foreground">
-                              Requires 'Terminal' and 'Orders' permissions. <a href="https://stripe.com/docs/terminal" target="_blank" rel="noopener noreferrer" className="text-primary underline inline-flex items-center gap-1">View Documentation <ExternalLink className="h-2 w-2" /></a>
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
                       {localSettings.posProvider === 'square' && (
                         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <div className="grid gap-2">
-                            <Label htmlFor="squareKey" className="flex items-center gap-2">
-                              <Key className="h-3 w-3" /> Square Access Token
-                            </Label>
-                            <Input
-                              id="squareKey"
-                              type="password"
-                              placeholder="EAAA..."
-                              value={localSettings.squareApiKey}
-                              onChange={(e) => setLocalSettings({...localSettings, squareApiKey: e.target.value})}
-                              className="font-mono text-xs"
-                            />
-                            <p className="text-[10px] text-muted-foreground">
-                              Generate this in your Square Developer Dashboard.
-                            </p>
-                          </div>
+                          {localSettings.squareApiKey && !isEditingToken ? (
+                            <div className="grid gap-2">
+                              <Label className="flex items-center gap-2">
+                                <Key className="h-3 w-3" /> Square Access Token
+                              </Label>
+                              <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg border border-primary/10">
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Connected
+                                </Badge>
+                                <span className="font-mono text-xs text-muted-foreground">{maskedToken}</span>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="ml-auto font-sans text-[10px] uppercase tracking-widest"
+                                  onClick={() => setIsEditingToken(true)}
+                                >
+                                  Edit
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid gap-2">
+                              <Label htmlFor="squareKey" className="flex items-center gap-2">
+                                <Key className="h-3 w-3" /> Square Access Token
+                              </Label>
+                              <Input
+                                id="squareKey"
+                                type="password"
+                                placeholder="EAAA..."
+                                value={localSettings.squareApiKey}
+                                onChange={(e) => setLocalSettings({...localSettings, squareApiKey: e.target.value})}
+                                className="font-mono text-xs"
+                              />
+                              <p className="text-[10px] text-muted-foreground">
+                                Generate this in your Square Developer Dashboard.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {localSettings.posProvider === 'none' && (
                         <p className="text-xs text-center py-4 text-muted-foreground italic">
-                          Select a provider to enable automated sync between your physical store and online inventory.
+                          Select Square to enable automated sync between your physical store and online inventory.
                         </p>
                       )}
                     </div>

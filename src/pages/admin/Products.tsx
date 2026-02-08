@@ -47,10 +47,10 @@ import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { PRODUCT_SIZES } from '@/lib/constants';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const CATEGORIES = ['All', 'Top', 'Bottom', 'One-Piece', 'Other'] as const;
+const CATEGORIES = ['All', 'Top & Bottom', 'One-Piece', 'Other'] as const;
 
 export default function AdminProducts() {
-  const { data: initialProducts, isLoading } = useProducts(100);
+  const { data: initialProducts, isLoading } = useProducts(1000);
   const { productOverrides, updateProductOverride, deleteProduct, _hasHydrated } = useAdminStore();
   const { isUploading, handleFileUpload, downloadTemplate, fileInputRef: syncInputRef } = useSpreadsheetSync();
   const [editingProduct, setEditingProduct] = useState<Partial<ProductOverride> | null>(null);
@@ -61,11 +61,12 @@ export default function AdminProducts() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [newColorInput, setNewColorInput] = useState('');
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Count products by category
   const countByCategory = useMemo(() => {
-    const counts: Record<string, number> = { All: 0, Top: 0, Bottom: 0, 'One-Piece': 0, Other: 0 };
+    const counts: Record<string, number> = { All: 0, 'Top & Bottom': 0, 'One-Piece': 0, Other: 0 };
     if (!initialProducts) return counts;
     
     initialProducts.forEach(p => {
@@ -73,11 +74,10 @@ export default function AdminProducts() {
       if (override?.isDeleted) return;
       
       counts.All++;
-      // Derive category from product data (which includes override)
-      const category = p.category ||
-        (p.productType?.toLowerCase().includes('top') ? 'Top' :
-         p.productType?.toLowerCase().includes('bottom') ? 'Bottom' :
-         p.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 'Other');
+      // Use override category if set, otherwise derive from productType
+      const category = override?.category || p.category ||
+        (p.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 
+         p.productType?.toLowerCase().includes('top & bottom') ? 'Top & Bottom' : 'Other');
       if (counts[category] !== undefined) {
         counts[category]++;
       } else {
@@ -96,10 +96,10 @@ export default function AdminProducts() {
     // Filter by category
     if (selectedCategory !== 'All') {
       filtered = filtered.filter(p => {
-        const category = p.category ||
-          (p.productType?.toLowerCase().includes('top') ? 'Top' :
-           p.productType?.toLowerCase().includes('bottom') ? 'Bottom' :
-           p.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 'Other');
+        const override = productOverrides[p.id];
+        const category = override?.category || p.category ||
+          (p.productType?.toLowerCase().includes('one-piece') ? 'One-Piece' : 
+           p.productType?.toLowerCase().includes('top & bottom') ? 'Top & Bottom' : 'Other');
         return category === selectedCategory;
       });
     }
@@ -365,7 +365,7 @@ export default function AdminProducts() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-popover z-50">
-                    {['Top', 'Bottom', 'One-Piece', 'Other'].map(cat => (
+                    {['Top & Bottom', 'One-Piece', 'Other'].map(cat => (
                       <DropdownMenuItem 
                         key={cat} 
                         onClick={() => bulkMoveToCategory(cat)}
@@ -417,8 +417,10 @@ export default function AdminProducts() {
                       />
                     </TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Image</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Item #</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Product Name</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Category</TableHead>
+                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Colors</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Sizes & Stock</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Price</TableHead>
                     <TableHead className="font-sans text-[10px] uppercase tracking-widest">Status</TableHead>
@@ -428,7 +430,7 @@ export default function AdminProducts() {
                 <TableBody>
                   {isLoading && products.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
+                      <TableCell colSpan={10} className="h-24 text-center">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                       </TableCell>
                     </TableRow>
@@ -452,23 +454,42 @@ export default function AdminProducts() {
                         <TableCell>
                           <img src={product.images[0]?.url} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
                         </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {override?.itemNumber || '-'}
+                        </TableCell>
                         <TableCell className="font-medium font-sans text-sm">{product.title}</TableCell>
                         <TableCell>
                           <Select
-                            value={product.category || 'Other'}
+                            value={override?.category || 'Other'}
                             onValueChange={(value) => moveProductToCategory(product.id, value)}
                           >
-                            <SelectTrigger className="w-[110px] h-8 text-[10px] font-sans uppercase tracking-widest bg-background">
+                            <SelectTrigger className="w-[130px] h-8 text-[10px] font-sans uppercase tracking-widest bg-background">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-popover z-50">
-                              {['Top', 'Bottom', 'One-Piece', 'Other'].map(cat => (
+                              {['Top & Bottom', 'One-Piece', 'Other'].map(cat => (
                                 <SelectItem key={cat} value={cat} className="text-sm font-sans">
                                   {cat}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 flex-wrap max-w-[80px]">
+                            {override?.colorCodes?.length ? (
+                              override.colorCodes.map((color, i) => (
+                                <div
+                                  key={i}
+                                  className="w-5 h-5 rounded border border-border shadow-sm"
+                                  style={{ backgroundColor: color }}
+                                  title={color}
+                                />
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1.5 max-w-[200px]">
@@ -536,7 +557,9 @@ export default function AdminProducts() {
                               image: product.images[0]?.url,
                               description: product.description || "",
                               sizes: sizes,
-                              category: override?.category
+                              category: override?.category,
+                              itemNumber: override?.itemNumber,
+                              colorCodes: override?.colorCodes || []
                             });
                           }}>
                             <Edit2 className="h-4 w-4 text-muted-foreground" />
@@ -577,6 +600,16 @@ export default function AdminProducts() {
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="itemNumber" className="text-right font-sans text-[10px] uppercase tracking-widest">Item #</Label>
+                    <Input
+                      id="itemNumber"
+                      placeholder="e.g., LB-001"
+                      value={editingProduct?.itemNumber || ""}
+                      onChange={(e) => setEditingProduct({...editingProduct, itemNumber: e.target.value})}
+                      className="col-span-3 font-sans text-sm font-mono"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right font-sans text-[10px] uppercase tracking-widest">Category</Label>
                     <Select
                       value={editingProduct?.category || 'Other'}
@@ -586,13 +619,69 @@ export default function AdminProducts() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover z-50">
-                        {['Top', 'Bottom', 'One-Piece', 'Other'].map(cat => (
+                        {['Top & Bottom', 'One-Piece', 'Other'].map(cat => (
                           <SelectItem key={cat} value={cat} className="text-sm font-sans">
                             {cat}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-start gap-4">
+                    <Label className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Colors</Label>
+                    <div className="col-span-3 space-y-2">
+                      <div className="flex gap-2 flex-wrap">
+                        {editingProduct?.colorCodes?.map((color, i) => (
+                          <div key={i} className="flex items-center gap-1">
+                            <input 
+                              type="color" 
+                              value={color}
+                              onChange={(e) => {
+                                const newColors = [...(editingProduct.colorCodes || [])];
+                                newColors[i] = e.target.value;
+                                setEditingProduct({...editingProduct, colorCodes: newColors});
+                              }}
+                              className="w-8 h-8 rounded cursor-pointer border border-border"
+                            />
+                            <button 
+                              onClick={() => {
+                                const newColors = editingProduct.colorCodes?.filter((_, idx) => idx !== i) || [];
+                                setEditingProduct({...editingProduct, colorCodes: newColors});
+                              }}
+                              className="text-xs text-muted-foreground hover:text-destructive"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add color (e.g., #FFD700)"
+                          value={newColorInput}
+                          onChange={(e) => setNewColorInput(e.target.value)}
+                          className="text-sm font-mono"
+                        />
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => {
+                            if (newColorInput.trim()) {
+                              const colorValue = newColorInput.trim().startsWith('#') 
+                                ? newColorInput.trim() 
+                                : `#${newColorInput.trim()}`;
+                              setEditingProduct({
+                                ...editingProduct, 
+                                colorCodes: [...(editingProduct?.colorCodes || []), colorValue]
+                              });
+                              setNewColorInput('');
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-start gap-4">
                     <Label className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Sizes</Label>

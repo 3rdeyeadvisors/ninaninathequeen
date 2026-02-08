@@ -41,8 +41,10 @@ export interface ProductOverride {
   isDeleted?: boolean;
   sizes?: string[];
   collection?: string;
-  category?: string; // 'Top' | 'Bottom' | 'One-Piece' | 'Other'
+  category?: string; // 'Top & Bottom' | 'One-Piece' | 'Other'
   status?: 'Active' | 'Inactive' | 'Draft';
+  itemNumber?: string;     // SKU/Item number (e.g., "LB-001")
+  colorCodes?: string[];   // Array of hex colors (e.g., ["#FFD700", "#1A1A1A"])
 }
 
 export interface AdminSettings {
@@ -50,8 +52,7 @@ export interface AdminSettings {
   currency: string;
   taxRate: number;
   lowStockThreshold: number;
-  posProvider: 'none' | 'stripe' | 'square' | 'clover';
-  stripeApiKey: string;
+  posProvider: 'none' | 'square';
   squareApiKey: string;
 }
 
@@ -117,7 +118,6 @@ const INITIAL_SETTINGS: AdminSettings = {
   taxRate: 7.5,
   lowStockThreshold: 10,
   posProvider: 'none',
-  stripeApiKey: '',
   squareApiKey: ''
 };
 

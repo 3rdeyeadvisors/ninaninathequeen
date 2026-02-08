@@ -7,7 +7,13 @@ import { PRODUCT_SIZES } from '@/lib/constants';
 
 // Upload limits
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_ROWS = 500;
+const MAX_ROWS = 1000;
+
+// Parse color codes from spreadsheet (comma-separated hex values or names)
+const parseColors = (colorStr: string): string[] => {
+  if (!colorStr) return [];
+  return colorStr.split(',').map(c => c.trim()).filter(c => c.length > 0);
+};
 
 // Normalize title to handle inconsistencies like "One Piece" vs "One-Piece"
 const normalizeTitle = (title: string): string => {
@@ -18,7 +24,7 @@ const normalizeTitle = (title: string): string => {
 };
 
 export function useSpreadsheetSync() {
-  const { data: allProducts } = useProducts(200);
+  const { data: allProducts } = useProducts(1000);
   const { updateProductOverride } = useAdminStore();
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -88,6 +94,8 @@ export function useSpreadsheetSync() {
           sizeInventory: Record<string, number>;
           image?: string;
           description?: string;
+          itemNumber?: string;
+          colorCodes?: string[];
         }> = {};
 
         rows.forEach((row) => {
@@ -117,7 +125,9 @@ export function useSpreadsheetSync() {
               status: row.status || 'Active',
               sizeInventory: {},
               image: row.image,
-              description: row.description
+              description: row.description,
+              itemNumber: row.itemnumber,
+              colorCodes: row.colors ? parseColors(String(row.colors)) : undefined
             };
           }
 
@@ -188,7 +198,9 @@ export function useSpreadsheetSync() {
             productType: product.productType,
             collection: product.collection,
             category: category,
-            status: product.status as 'Active' | 'Inactive' | 'Draft'
+            status: product.status as 'Active' | 'Inactive' | 'Draft',
+            itemNumber: product.itemNumber,
+            colorCodes: product.colorCodes
           });
           updatedCount++;
         });
@@ -207,12 +219,12 @@ export function useSpreadsheetSync() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = `Item ID,Item Name,Type,Price Per Unit,Stock,Collection,Status
-LB-001,White Top (XS),Top,85.00,10,La Bella,Active
-LB-002,White Top (S),Top,85.00,15,La Bella,Active
-LB-003,White Bottom (XS),Bottom,75.00,8,La Bella,Active
-EM-001,Black One-Piece (M),One-Piece,120.00,5,El Mar,Active
-EM-002,Black One-Piece Plus,One-Piece,130.00,3,El Mar,Active
+    const csvContent = `Item ID,Item Name,Type,Price Per Unit,Stock,Collection,Status,Item Number,Color
+LB-001,White Top (XS),Top,85.00,10,La Bella,Active,SKU-001,#FFFFFF
+LB-002,White Top (S),Top,85.00,15,La Bella,Active,SKU-001,#FFFFFF
+LB-003,White Bottom (XS),Bottom,75.00,8,La Bella,Active,SKU-002,#FFD700
+EM-001,Black One-Piece (M),One-Piece,120.00,5,El Mar,Active,SKU-003,#000000
+TB-001,Sunset Set (S),Top & Bottom,150.00,12,Summer,Active,SKU-004,"#FF6B35,#FFD700"
 `;
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);

@@ -37,6 +37,12 @@ export function parseSpreadsheet(data: ArrayBuffer): any[] {
       if (['status', 'product status'].includes(normalizedKey)) {
         normalizedKey = 'status';
       }
+      if (['item number', 'item#', 'item #', 'itemnumber', 'sku'].includes(normalizedKey)) {
+        normalizedKey = 'itemnumber';
+      }
+      if (['color', 'colors', 'color code', 'colorcodes', 'hex', 'color hex'].includes(normalizedKey)) {
+        normalizedKey = 'colors';
+      }
 
       normalizedRow[normalizedKey] = row[key];
     });
