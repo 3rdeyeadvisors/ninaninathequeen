@@ -152,6 +152,42 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          points: number | null
+          preferred_size: string | null
+          referral_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          id: string
+          name?: string | null
+          points?: number | null
+          preferred_size?: string | null
+          referral_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          points?: number | null
+          preferred_size?: string | null
+          referral_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       store_settings: {
         Row: {
           created_at: string
