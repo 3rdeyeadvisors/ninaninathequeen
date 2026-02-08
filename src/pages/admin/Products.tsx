@@ -365,7 +365,7 @@ export default function AdminProducts() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-popover z-50">
-                    {['Top & Bottom', 'One-Piece', 'Other'].map(cat => (
+                    {CATEGORIES.filter(c => c !== 'All').map(cat => (
                       <DropdownMenuItem 
                         key={cat} 
                         onClick={() => bulkMoveToCategory(cat)}
@@ -467,7 +467,7 @@ export default function AdminProducts() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-popover z-50">
-                              {['Top & Bottom', 'One-Piece', 'Other'].map(cat => (
+                              {CATEGORIES.filter(c => c !== 'All').map(cat => (
                                 <SelectItem key={cat} value={cat} className="text-sm font-sans">
                                   {cat}
                                 </SelectItem>
@@ -619,7 +619,7 @@ export default function AdminProducts() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover z-50">
-                        {['Top & Bottom', 'One-Piece', 'Other'].map(cat => (
+                        {CATEGORIES.filter(c => c !== 'All').map(cat => (
                           <SelectItem key={cat} value={cat} className="text-sm font-sans">
                             {cat}
                           </SelectItem>
