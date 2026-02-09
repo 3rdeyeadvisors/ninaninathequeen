@@ -134,7 +134,20 @@ serve(async (req) => {
         product_type: String(p.product_type || p.productType || 'Other'),
         collection: String(p.collection || ''),
         category: String(p.category || p.productType || 'Other'),
-        status: String(p.status || 'Active'),
+        status: (() => {
+          // Normalize status to match database constraints (Active, Inactive, Draft)
+          const rawStatus = String(p.status || 'Active');
+          if (['Active', 'Inactive', 'Draft'].includes(rawStatus)) {
+            return rawStatus;
+          }
+          const statusLower = rawStatus.toLowerCase();
+          if (statusLower.includes('active') || statusLower.includes('stock') || statusLower.includes('order')) {
+            return 'Active';
+          } else if (statusLower.includes('draft')) {
+            return 'Draft';
+          }
+          return 'Inactive';
+        })(),
         item_number: p.item_number || p.itemNumber || null,
         color_codes: Array.isArray(p.color_codes || p.colorCodes) ? (p.color_codes || p.colorCodes) : [],
         sizes: Array.isArray(p.sizes) ? p.sizes : [],
