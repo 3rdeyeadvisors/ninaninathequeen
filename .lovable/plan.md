@@ -1,44 +1,49 @@
 
-# Fix: Stop Auto-Scroll on Admin Pages
 
-## Problem
-The admin dashboard and products page scroll to the bottom when you navigate to them. This is caused by the AI Chat widget calling `scrollIntoView()` which scrolls the entire page, not just the chat container.
+## Spreadsheet Sync Fixes
 
-## Solution
-Change the chat scroll behavior to only scroll within its own container, leaving the page position unaffected.
+### Summary
+Fix the spreadsheet parser to correctly import your inventory using the Price column as selling price, properly map "Ordered" status, and ensure products persist in the database.
 
-## Changes Required
+---
 
-### File: `src/pages/admin/Dashboard.tsx`
+### Changes to Make
 
-1. Add a ref for the chat messages container
-2. Update `scrollToBottom()` to use `scrollTop` on the container instead of `scrollIntoView()`
-3. Attach the ref to the chat messages div
+**1. Update Spreadsheet Parser (`src/lib/spreadsheet.ts`)**
 
-**Before:**
-```typescript
-const chatEndRef = useRef<HTMLDivElement>(null);
+Remove "price per unit" from price mapping - only use "Price" column as selling price:
 
-const scrollToBottom = () => {
-  chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-};
-```
+| Column | Action |
+|--------|--------|
+| Price | Map to `price` (selling price) |
+| Price Per Unit | Ignore (this is cost) |
 
-**After:**
-```typescript
-const chatContainerRef = useRef<HTMLDivElement>(null);
-const chatEndRef = useRef<HTMLDivElement>(null);
+---
 
-const scrollToBottom = () => {
-  if (chatContainerRef.current) {
-    chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-  }
-};
-```
+**2. Update Sync Logic (`src/hooks/useSpreadsheetSync.ts`)**
 
-Then attach `chatContainerRef` to the scrollable chat messages div (the one with `overflow-y-auto`).
+| Fix | Current | Updated |
+|-----|---------|---------|
+| Status mapping | Only "active" and "stock" recognized | Add "order" so "Ordered" becomes Active |
+| Default productType | "Bikini" | Empty string (leave blank if not specified) |
 
-## Result
-- Page loads at the top as expected
-- AI chat still auto-scrolls internally when new messages appear
-- No disruption to normal navigation behavior
+---
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/lib/spreadsheet.ts` | Only map "Price" column, ignore "Price Per Unit" |
+| `src/hooks/useSpreadsheetSync.ts` | Map "Ordered" to Active, allow blank productType |
+
+---
+
+### Expected Result
+
+After these fixes and re-uploading your spreadsheet:
+- **Price** column (150.00) used as selling price
+- **Price Per Unit** ignored (it's your cost)
+- **"Ordered"** status maps to Active
+- **Blank fields** stay blank
+- **Products persist** in database between sessions
+
