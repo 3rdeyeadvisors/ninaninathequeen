@@ -192,7 +192,7 @@ export default function AdminSettings() {
                     <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
                       <div className="space-y-0.5">
                         <Label className="text-sm">Automated Inventory Sync</Label>
-                        <p className="text-[10px] text-muted-foreground">Keep Shopify and POS stock levels synchronized in real-time</p>
+                        <p className="text-[10px] text-muted-foreground">Keep Storefront and POS stock levels synchronized in real-time</p>
                       </div>
                       <Switch
                         checked={localSettings.autoSync}

@@ -127,7 +127,15 @@ export default function Account() {
     try {
       const { error } = await cloudAuth.signInWithEmail(loginEmail, loginPassword);
       if (error) {
-        toast.error(error.message || "Invalid email or password. Please try again.");
+        if (error.message.includes('Invalid login credentials')) {
+          if (loginEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+            toast.error("Admin account not found. If this is your first time logging in, please use the 'Sign Up' tab with your admin email to establish your account.", { duration: 6000 });
+          } else {
+            toast.error("Invalid email or password. If you haven't created an account yet, please Sign Up first.");
+          }
+        } else {
+          toast.error(error.message || "Invalid email or password. Please try again.");
+        }
       } else {
         toast.success(`Welcome back!`);
         setLoginEmail('');

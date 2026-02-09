@@ -153,29 +153,48 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
   const syncSettings = async () => {
     try {
       const supabase = getSupabase();
-      const { data, error } = await supabase
+
+      const applySettings = (data: any) => {
+        updateSettings({
+          storeName: data.store_name || 'NINA ARMEND',
+          currency: data.currency || 'USD',
+          taxRate: Number(data.tax_rate) || 7.5,
+          lowStockThreshold: data.low_stock_threshold || 10,
+          posProvider: (data.pos_provider as 'none' | 'square') || 'none',
+          squareApiKey: data.square_api_key || '',
+          autoSync: data.auto_sync ?? true,
+        });
+      };
+
+      // Try fetching from store_settings first (admin/authenticated access)
+      const { data: settings, error: settingsError } = await supabase
         .from('store_settings')
         .select('*')
         .limit(1)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching settings:', error);
+      if (!settingsError && settings) {
+        applySettings(settings);
+        console.log('Loaded settings from database (full access)');
         return;
       }
 
-      if (data) {
-        const settingsData = data as typeof data & { auto_sync?: boolean };
-        updateSettings({
-          storeName: settingsData.store_name || 'NINA ARMEND',
-          currency: settingsData.currency || 'USD',
-          taxRate: Number(settingsData.tax_rate) || 7.5,
-          lowStockThreshold: settingsData.low_stock_threshold || 10,
-          posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
-          squareApiKey: settingsData.square_api_key || '',
-          autoSync: settingsData.auto_sync ?? true,
-        });
-        console.log('Loaded settings from database');
+      // If that fails (likely due to RLS for guest users), try the public store_info view
+      // We use 'as any' because the view might not be in the generated types yet
+      const { data: info, error: infoError } = await supabase
+        .from('store_info' as any)
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      if (infoError) {
+        console.warn('Could not fetch store settings or public info:', infoError);
+        return;
+      }
+
+      if (info) {
+        applySettings(info);
+        console.log('Loaded store info from public view');
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);

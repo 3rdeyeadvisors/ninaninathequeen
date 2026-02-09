@@ -158,7 +158,7 @@ export default function AdminProducts() {
     return (
       <div className="min-h-screen bg-secondary/20">
         <Header />
-        <div className="pt-40 md:pt-48 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+        <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
           <div className="flex flex-col gap-8 lg:gap-12">
             <AdminSidebar />
             <main className="flex-1 space-y-8 bg-card p-4 sm:p-8 rounded-2xl border border-border/50 shadow-sm">
