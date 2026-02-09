@@ -4,14 +4,15 @@ import * as XLSX from 'xlsx';
  * Parses an ArrayBuffer (from a CSV or Excel file) into an array of objects.
  * Normalizes all keys to lowercase and trims whitespace.
  */
-export function parseSpreadsheet(data: ArrayBuffer): any[] {
+export function parseSpreadsheet(data: ArrayBuffer): Record<string, string>[] {
   const workbook = XLSX.read(data, { type: 'array' });
   const sheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[sheetName];
   const json = XLSX.utils.sheet_to_json(worksheet);
 
-  return json.map((row: any) => {
-    const normalizedRow: any = {};
+  return json.map((row: unknown) => {
+    const rowObj = row as Record<string, string>;
+    const normalizedRow: Record<string, string> = {};
     Object.keys(row).forEach((key) => {
       let normalizedKey = key.toLowerCase().trim();
 
@@ -48,7 +49,7 @@ export function parseSpreadsheet(data: ArrayBuffer): any[] {
         normalizedKey = 'size';
       }
 
-      normalizedRow[normalizedKey] = row[key];
+      normalizedRow[normalizedKey] = rowObj[key];
     });
     return normalizedRow;
   });

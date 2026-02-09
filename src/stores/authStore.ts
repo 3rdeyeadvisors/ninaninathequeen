@@ -21,15 +21,10 @@ export interface User {
   preferredSize?: string;
 }
 
-// AuthUser no longer includes password - passwords are NOT stored client-side
-interface AuthUser extends User {
-  // Password field removed for security - use Cloud Auth instead
-}
-
 interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
-  users: AuthUser[];
+  users: User[];
   /** @deprecated Use cloudAuthStore.signInWithEmail instead */
   login: (email: string, password: string) => Promise<boolean>;
   /** @deprecated Use cloudAuthStore.signUpWithEmail instead */
@@ -40,7 +35,7 @@ interface AuthStore {
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
   updateUserRole: (email: string, role: string) => void;
-  addUser: (user: AuthUser) => void;
+  addUser: (user: User) => void;
 }
 
 /**
@@ -50,7 +45,7 @@ interface AuthStore {
  */
 export const ADMIN_EMAIL = 'lydia@ninaarmend.co.site';
 
-const DEFAULT_ADMIN: AuthUser = {
+const DEFAULT_ADMIN: User = {
   name: 'Lydia',
   email: ADMIN_EMAIL,
   // Password removed - authentication handled by Cloud Auth

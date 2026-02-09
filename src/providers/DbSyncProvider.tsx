@@ -154,17 +154,17 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
     try {
       const supabase = getSupabase();
 
-      const applySettings = (data: any) => {
+      const applySettings = (data: Record<string, unknown>) => {
         updateSettings({
-          storeName: data.store_name || 'NINA ARMEND',
-          currency: data.currency || 'USD',
+          storeName: (data.store_name as string) || 'NINA ARMEND',
+          currency: (data.currency as string) || 'USD',
           taxRate: Number(data.tax_rate) || 7.5,
-          lowStockThreshold: data.low_stock_threshold || 10,
+          lowStockThreshold: (data.low_stock_threshold as number) || 10,
           posProvider: (data.pos_provider as 'none' | 'square') || 'none',
-          squareApiKey: data.square_api_key || '',
-          squareApplicationId: data.square_application_id || '',
-          squareLocationId: data.square_location_id || '',
-          autoSync: data.auto_sync ?? true,
+          squareApiKey: (data.square_api_key as string) || '',
+          squareApplicationId: (data.square_application_id as string) || '',
+          squareLocationId: (data.square_location_id as string) || '',
+          autoSync: (data.auto_sync as boolean) ?? true,
         });
       };
 
@@ -182,9 +182,9 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
       }
 
       // If that fails (likely due to RLS for guest users), try the public store_info view
-      // We use 'as any' because the view might not be in the generated types yet
+      // We cast to any for the table name because the view might not be in the generated types yet
       const { data: info, error: infoError } = await supabase
-        .from('store_info' as any)
+        .from('store_info' as unknown as 'products')
         .select('*')
         .limit(1)
         .maybeSingle();
@@ -240,6 +240,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
       });
       return () => unsubscribe();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

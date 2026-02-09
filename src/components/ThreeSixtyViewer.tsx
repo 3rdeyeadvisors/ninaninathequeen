@@ -9,14 +9,6 @@ interface ThreeSixtyViewerProps {
 }
 
 export function ThreeSixtyViewer({ images, className = "" }: ThreeSixtyViewerProps) {
-  if (!images || images.length === 0) {
-    return (
-      <div className={`relative aspect-[3/4] bg-card rounded-sm overflow-hidden flex items-center justify-center ${className}`}>
-        <p className="text-muted-foreground text-sm">No 360° view available</p>
-      </div>
-    );
-  }
-
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -24,6 +16,7 @@ export function ThreeSixtyViewer({ images, className = "" }: ThreeSixtyViewerPro
   const loadedCount = useRef(0);
 
   useEffect(() => {
+    if (!images) return;
     images.forEach((src) => {
       const img = new Image();
       img.src = src;
@@ -77,6 +70,14 @@ export function ThreeSixtyViewer({ images, className = "" }: ThreeSixtyViewerPro
   const handleTouchEnd = () => {
     setIsDragging(false);
   };
+
+  if (!images || images.length === 0) {
+    return (
+      <div className={`relative aspect-[3/4] bg-card rounded-sm overflow-hidden flex items-center justify-center ${className}`}>
+        <p className="text-muted-foreground text-sm">No 360° view available</p>
+      </div>
+    );
+  }
 
   return (
     <div

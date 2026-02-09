@@ -15,7 +15,15 @@ import { motion } from 'framer-motion';
 
 declare global {
   interface Window {
-    Square: any;
+    Square: {
+      payments: (appId: string, locationId: string) => {
+        card: () => Promise<{
+          attach: (selector: string) => Promise<void>;
+          tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;
+          destroy: () => Promise<void>;
+        }>;
+      };
+    };
   }
 }
 
@@ -24,7 +32,10 @@ export default function Checkout() {
   const { items, getTotal, clearCart } = useCartStore();
   const { settings } = useAdminStore();
   const [isProcessing, setIsProcessing] = useState(false);
-  const cardRef = useRef<any>(null);
+  const cardRef = useRef<{
+    tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;
+    destroy: () => Promise<void>;
+  } | null>(null);
 
   // Shipping form state
   const [formData, setFormData] = useState({
@@ -103,9 +114,10 @@ export default function Checkout() {
       } else {
         throw new Error(result.errors?.[0]?.message || 'Tokenization failed');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Payment error:', err);
-      toast.error(err.message || 'An error occurred during payment');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during payment';
+      toast.error(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -117,7 +129,7 @@ export default function Checkout() {
     }
 
     let isMounted = true;
-    let cardInstance: any = null;
+    let cardInstance: { destroy: () => Promise<void> } | null = null;
 
     const initializePayments = async () => {
       // Poll for Square SDK availability (up to 5 seconds)

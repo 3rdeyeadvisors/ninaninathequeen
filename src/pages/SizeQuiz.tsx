@@ -66,10 +66,10 @@ export default function SizeQuiz() {
     else if (weight[0] > 75) size = "L";
 
     if (answers.fitPreference === 'tight') {
-      const idx = PRODUCT_SIZES.indexOf(size as any);
+      const idx = (PRODUCT_SIZES as readonly string[]).indexOf(size);
       if (idx > 0) size = PRODUCT_SIZES[idx - 1];
     } else if (answers.fitPreference === 'loose') {
-      const idx = PRODUCT_SIZES.indexOf(size as any);
+      const idx = (PRODUCT_SIZES as readonly string[]).indexOf(size);
       if (idx < PRODUCT_SIZES.length - 1) size = PRODUCT_SIZES[idx + 1];
     }
 

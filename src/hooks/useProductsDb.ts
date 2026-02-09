@@ -87,7 +87,8 @@ export function useProductsDb() {
           toast.error('Please log in again to save products.');
         } else {
           try {
-            const errorBody = await (error as any).response?.json();
+            const functionsError = error as { response?: { json: () => Promise<{ error?: string }> } };
+            const errorBody = await functionsError.response?.json();
             console.error('[useProductsDb] Sync error body:', errorBody);
             toast.error(`Database sync failed: ${errorBody?.error || error.message || 'Unknown error'}`);
           } catch (e) {

@@ -133,7 +133,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Prepare products for upsert
-    const rows = productList.map((p: any) => {
+    const rows = productList.map((p: Record<string, unknown>) => {
       // Ensure ID is a string and not empty
       const id = String(p.id || '').trim();
       if (!id) {
@@ -185,7 +185,7 @@ serve(async (req) => {
     }).filter(row => row.id); // Remove rows with missing IDs
 
     // Deduplicate rows by ID to prevent Postgres upsert collisions
-    const uniqueRows = rows.filter((row: any, index: number, self: any[]) =>
+    const uniqueRows = rows.filter((row: Record<string, unknown>, index: number, self: Record<string, unknown>[]) =>
       index === self.findIndex((r) => r.id === row.id)
     );
 

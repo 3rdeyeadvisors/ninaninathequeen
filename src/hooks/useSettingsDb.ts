@@ -33,8 +33,8 @@ export function useSettingsDb() {
           lowStockThreshold: settingsData.low_stock_threshold || 10,
           posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
           squareApiKey: settingsData.square_api_key || '',
-          squareApplicationId: (settingsData as any).square_application_id || '',
-          squareLocationId: (settingsData as any).square_location_id || '',
+          squareApplicationId: (settingsData as { square_application_id?: string }).square_application_id || '',
+          squareLocationId: (settingsData as { square_location_id?: string }).square_location_id || '',
           autoSync: settingsData.auto_sync ?? true,
         });
       }
@@ -68,8 +68,8 @@ export function useSettingsDb() {
           low_stock_threshold: newSettings.lowStockThreshold,
           pos_provider: newSettings.posProvider,
           square_api_key: newSettings.squareApiKey,
-          square_application_id: (newSettings as any).squareApplicationId,
-          square_location_id: (newSettings as any).squareLocationId,
+          square_application_id: (newSettings as AdminSettings).squareApplicationId,
+          square_location_id: (newSettings as AdminSettings).squareLocationId,
           auto_sync: newSettings.autoSync,
         })
         .eq('id', existing.id);

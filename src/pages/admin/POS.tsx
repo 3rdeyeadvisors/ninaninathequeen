@@ -31,12 +31,20 @@ interface PosItem {
   size: string;
 }
 
+interface PaymentData {
+  method: 'cash' | 'card' | 'other';
+  success: boolean;
+  token?: string;
+  customerName: string;
+  customerEmail: string;
+}
+
 interface POSCheckoutDialogProps {
   isOpen: boolean;
   onClose: () => void;
   items: PosItem[];
   subtotal: number;
-  onComplete: (paymentData: any) => Promise<void>;
+  onComplete: (paymentData: PaymentData) => Promise<void>;
 }
 
 function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POSCheckoutDialogProps) {
@@ -45,14 +53,17 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
   const [customerName, setCustomerName] = useState('In-Store Customer');
   const [customerEmail, setCustomerEmail] = useState('pos@ninaarmend.co.site');
   const [isProcessing, setIsProcessing] = useState(false);
-  const cardRef = useRef<any>(null);
+  const cardRef = useRef<{
+    tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;
+    destroy: () => Promise<void>;
+  } | null>(null);
 
   const taxAmount = subtotal * (settings.taxRate / 100);
   const total = subtotal + taxAmount;
 
   useEffect(() => {
     let isMounted = true;
-    let cardInstance: any = null;
+    let cardInstance: { destroy: () => Promise<void> } | null = null;
 
     if (paymentMethod === 'card' && isOpen && settings.squareApplicationId && settings.squareLocationId) {
       const initializePayments = async () => {
@@ -115,8 +126,9 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
         customerEmail
       });
       onClose();
-    } catch (err: any) {
-      toast.error(err.message || 'Payment failed');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Payment failed';
+      toast.error(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -285,7 +297,7 @@ export default function AdminPOS() {
   const taxAmount = subtotal * (settings.taxRate / 100);
   const cartTotal = subtotal + taxAmount;
 
-  const completeSale = async (paymentData: any) => {
+  const completeSale = async (paymentData: PaymentData) => {
     setIsProcessing(true);
 
     try {
@@ -354,9 +366,10 @@ export default function AdminPOS() {
       toast.success("Transaction completed successfully!");
 
       setTimeout(() => setShowSuccess(false), 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Sale error:", error);
-      toast.error(error.message || "Failed to complete transaction");
+      const errorMessage = error instanceof Error ? error.message : "Failed to complete transaction";
+      toast.error(errorMessage);
       setIsProcessing(false);
       throw error;
     }

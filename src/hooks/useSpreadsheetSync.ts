@@ -153,7 +153,7 @@ export function useSpreadsheetSync() {
             .replace(/-+/g, '-')
             .replace(/^-|-$/g, '');
           
-          let existingProduct = allProducts?.find(p =>
+          const existingProduct = allProducts?.find(p =>
             p.id === product.id ||
             p.id === `sync-${normalizedSlug}` ||
             (p.title.toLowerCase() === product.baseTitle.toLowerCase() &&

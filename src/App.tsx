@@ -78,16 +78,12 @@ function AppContent() {
             <AdminCustomers />
           </ProtectedRoute>
         } />
-        <Route path="/admin/pos" element={<ProtectedRoute adminOnly>
-            <AdminPOS />
-          </ProtectedRoute> /*
+        <Route path="/admin/pos" element={
           <ProtectedRoute adminOnly>
             <AdminPOS />
           </ProtectedRoute>
-        } /*  />
-        <Route path="/admin/settings" element={<ProtectedRoute adminOnly>
-            <AdminPOS />
-          </ProtectedRoute> /*
+        } />
+        <Route path="/admin/settings" element={
           <ProtectedRoute adminOnly>
             <AdminSettings />
           </ProtectedRoute>

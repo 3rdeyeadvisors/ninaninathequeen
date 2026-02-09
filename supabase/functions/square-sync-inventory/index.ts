@@ -361,7 +361,7 @@ Deno.serve(async (req) => {
 
       // Build products to upsert, comparing timestamps for conflict resolution
       const productsToUpsert: Record<string, unknown>[] = []
-      let skippedCount = 0
+      const skippedCount = 0
 
       for (const item of items) {
         const variation = item.item_data?.variations?.[0]
@@ -375,7 +375,7 @@ Deno.serve(async (req) => {
         const localProduct = localProductMap.get(item.id)
         
         // Timestamp-based conflict resolution
-        let shouldUpdateFromSquare = true
+        const shouldUpdateFromSquare = true
         let finalInventory = squareInventory
         
         if (localProduct && squareUpdatedAt) {
