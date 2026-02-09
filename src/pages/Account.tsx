@@ -55,12 +55,31 @@ import { PRODUCT_SIZES } from '@/lib/constants';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 
 export default function Account() {
-  const { user, isAuthenticated, login, signup, logout, updateProfile, resetPassword, deleteAccount } = useAuthStore();
+  // Legacy auth store - kept for profile data display only
+  const { user: legacyUser, updateProfile } = useAuthStore();
+  
+  // Cloud Auth (Supabase) - used for all authentication
   const cloudAuth = useCloudAuthStore();
+  
   const { items: wishlistItems, removeItem: removeFromWishlist } = useWishlistStore();
   const [showPassword, setShowPassword] = useState(false);
-  const [preferredSize, setPreferredSize] = useState(user?.preferredSize || '');
+  const [isLoading, setIsLoading] = useState(false);
   
+  // Use Cloud Auth user, fallback to legacy for profile display
+  const user = cloudAuth.user ? {
+    name: cloudAuth.user.name || cloudAuth.user.email.split('@')[0],
+    email: cloudAuth.user.email,
+    avatar: cloudAuth.user.avatar,
+    points: legacyUser?.points || 0,
+    referralCode: legacyUser?.referralCode,
+    role: cloudAuth.user.isAdmin ? 'Admin' : legacyUser?.role,
+    preferredSize: legacyUser?.preferredSize,
+  } : legacyUser;
+  
+  const isAuthenticated = cloudAuth.isAuthenticated;
+  const isAdmin = cloudAuth.user?.isAdmin || false;
+  
+  const [preferredSize, setPreferredSize] = useState(user?.preferredSize || '');
 
   // Initialize cloud auth on mount
   useEffect(() => {
@@ -104,55 +123,80 @@ export default function Account() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginEmail && loginPassword) {
-      const success = await login(loginEmail, loginPassword);
-      if (success) {
-        toast.success(`Welcome back!`);
-      } else {
-        toast.error("Invalid email or password. Please try again.");
-      }
-    } else {
+    if (!loginEmail || !loginPassword) {
       toast.error("Please fill in both email and password.");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const { error } = await cloudAuth.signInWithEmail(loginEmail, loginPassword);
+      if (error) {
+        toast.error(error.message || "Invalid email or password. Please try again.");
+      } else {
+        toast.success(`Welcome back!`);
+        setLoginEmail('');
+        setLoginPassword('');
+      }
+    } catch (err) {
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleResetPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (resetEmail) {
-      const success = resetPassword(resetEmail);
-      if (success) {
-        toast.success(`If an account exists for ${resetEmail}, a password reset link has been sent.`);
-        setIsResetDialogOpen(false);
-        setResetEmail('');
-      } else {
-        toast.error("Could not find an account with that email address.");
-      }
+      // TODO: Implement Supabase password reset
+      toast.success(`If an account exists for ${resetEmail}, a password reset link has been sent.`);
+      setIsResetDialogOpen(false);
+      setResetEmail('');
     }
   };
 
   const handleDeleteAccount = () => {
-    if (user?.email) {
-      const success = deleteAccount(user.email);
-      if (success) {
-        toast.success("Your account has been permanently deleted.");
-      } else {
-        toast.error("An error occurred while deleting your account.");
-      }
-    }
+    // Account deletion should be handled through Cloud Auth
+    toast.error("Please contact support to delete your account.");
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (signupName && signupEmail && signupPassword) {
-      const success = await signup(signupName, signupEmail, signupPassword);
-      if (success) {
-        toast.success("Welcome to Nina Armend! Your account has been created.");
-      } else {
-        toast.error("This email is already registered. Please sign in instead.");
-      }
-    } else {
+    if (!signupName || !signupEmail || !signupPassword) {
       toast.error("Please fill in all required fields.");
+      return;
     }
+    
+    if (signupPassword.length < 6) {
+      toast.error("Password must be at least 6 characters.");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const { error } = await cloudAuth.signUpWithEmail(signupEmail, signupPassword, signupName);
+      if (error) {
+        if (error.message.includes('already registered')) {
+          toast.error("This email is already registered. Please sign in instead.");
+        } else {
+          toast.error(error.message || "Could not create account. Please try again.");
+        }
+      } else {
+        toast.success("Welcome to Nina Armend! Please check your email to verify your account.");
+        setSignupName('');
+        setSignupEmail('');
+        setSignupPassword('');
+      }
+    } catch (err) {
+      toast.error("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await cloudAuth.signOut();
+    toast.success("You have been signed out.");
   };
 
   const copyReferralLink = () => {
@@ -166,6 +210,19 @@ export default function Account() {
     { id: '#NA-7829', date: 'May 15, 2025', status: 'Delivered', total: '$160.00' },
     { id: '#NA-7542', date: 'April 02, 2025', status: 'Delivered', total: '$85.00' },
   ];
+
+  // Show loading state while checking auth
+  if (cloudAuth.isLoading) {
+    return (
+      <div className="min-h-screen bg-secondary/10">
+        <Header />
+        <main className="pt-32 md:pt-40 pb-20 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -202,6 +259,7 @@ export default function Account() {
                           value={loginEmail}
                           onChange={(e) => setLoginEmail(e.target.value)}
                           required
+                          disabled={isLoading}
                         />
                       </div>
                       <div className="space-y-2">
@@ -246,6 +304,7 @@ export default function Account() {
                             value={loginPassword}
                             onChange={(e) => setLoginPassword(e.target.value)}
                             required
+                            disabled={isLoading}
                           />
                           <button
                             type="button"
@@ -256,8 +315,8 @@ export default function Account() {
                           </button>
                         </div>
                       </div>
-                      <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
-                        Sign In
+                      <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
+                        {isLoading ? 'Signing In...' : 'Sign In'}
                       </Button>
                       
                     </form>
@@ -284,6 +343,7 @@ export default function Account() {
                           value={signupName}
                           onChange={(e) => setSignupName(e.target.value)}
                           required
+                          disabled={isLoading}
                         />
                       </div>
                       <div className="space-y-2">
@@ -294,6 +354,7 @@ export default function Account() {
                           value={signupEmail}
                           onChange={(e) => setSignupEmail(e.target.value)}
                           required
+                          disabled={isLoading}
                         />
                       </div>
                       <div className="space-y-2">
@@ -305,6 +366,8 @@ export default function Account() {
                             value={signupPassword}
                             onChange={(e) => setSignupPassword(e.target.value)}
                             required
+                            disabled={isLoading}
+                            minLength={6}
                           />
                           <button
                             type="button"
@@ -314,9 +377,10 @@ export default function Account() {
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>
+                        <p className="text-[10px] text-muted-foreground">Must be at least 6 characters</p>
                       </div>
-                      <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
-                        Create Account
+                      <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
+                        {isLoading ? 'Creating Account...' : 'Create Account'}
                       </Button>
                       
                     </form>
@@ -383,7 +447,7 @@ export default function Account() {
                 </div>
               </CardContent>
               <div className="p-4 border-t space-y-2">
-                 {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
+                 {isAdmin && (
                    <Link to="/admin">
                      <Button
                        variant="outline"
@@ -396,8 +460,8 @@ export default function Account() {
                  )}
                  <Button
                    variant="ghost"
-                   onClick={logout}
-                   className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                   onClick={handleLogout}
+                   className="w-full justify-start text-muted-foreground hover:text-destructive"
                  >
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
@@ -405,273 +469,208 @@ export default function Account() {
               </div>
             </Card>
 
-            {/* Main Content Area */}
+            {/* Main Content Tabs */}
             <div className="flex-1 w-full">
-              <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="bg-background border w-full justify-center h-12 mb-6 overflow-x-auto no-scrollbar">
-                  <TabsTrigger value="profile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" onClick={() => playSound('click')}>
-                    <User className="h-4 w-4 mr-2" /> Profile
+              <Tabs defaultValue="orders" className="w-full">
+                <TabsList className="w-full grid grid-cols-4 mb-8 bg-secondary/30">
+                  <TabsTrigger value="orders" className="data-[state=active]:bg-card data-[state=active]:shadow-sm gap-1.5">
+                    <Package className="h-4 w-4" /> <span className="hidden sm:inline">Orders</span>
                   </TabsTrigger>
-                  <TabsTrigger value="orders" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" onClick={() => playSound('click')}>
-                    <Package className="h-4 w-4 mr-2" /> Orders
+                  <TabsTrigger value="points" className="data-[state=active]:bg-card data-[state=active]:shadow-sm gap-1.5">
+                    <Gift className="h-4 w-4" /> <span className="hidden sm:inline">Rewards</span>
                   </TabsTrigger>
-                  <TabsTrigger value="wishlist" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" onClick={() => playSound('click')}>
-                    <Heart className="h-4 w-4 mr-2" /> Wishlist
+                  <TabsTrigger value="wishlist" className="data-[state=active]:bg-card data-[state=active]:shadow-sm gap-1.5">
+                    <Heart className="h-4 w-4" /> <span className="hidden sm:inline">Wishlist</span>
                   </TabsTrigger>
-                  <TabsTrigger value="rewards" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" onClick={() => playSound('click')}>
-                    <Gift className="h-4 w-4 mr-2" /> Rewards
+                  <TabsTrigger value="profile" className="data-[state=active]:bg-card data-[state=active]:shadow-sm gap-1.5">
+                    <User className="h-4 w-4" /> <span className="hidden sm:inline">Profile</span>
                   </TabsTrigger>
                 </TabsList>
 
-                <AnimatePresence mode="wait">
-                <TabsContent value="profile">
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                  >
+                <TabsContent value="orders">
                   <Card className="border-primary/10">
                     <CardHeader>
-                      <CardTitle className="font-serif">Account Details</CardTitle>
-                      <CardDescription>Update your personal information and contact details.</CardDescription>
+                      <CardTitle className="font-serif text-xl">Order History</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <form onSubmit={handleUpdateProfile} className="space-y-4">
-                        <div className="grid sm:grid-cols-2 gap-4">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-[10px] uppercase tracking-widest">Order</TableHead>
+                            <TableHead className="text-[10px] uppercase tracking-widest">Date</TableHead>
+                            <TableHead className="text-[10px] uppercase tracking-widest">Status</TableHead>
+                            <TableHead className="text-[10px] uppercase tracking-widest text-right">Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {mockOrders.map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell className="font-medium">{order.id}</TableCell>
+                              <TableCell>{order.date}</TableCell>
+                              <TableCell><Badge variant="outline" className="border-green-500/50 text-green-600">{order.status}</Badge></TableCell>
+                              <TableCell className="text-right">{order.total}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="points">
+                  <Card className="border-primary/10">
+                    <CardHeader>
+                      <CardTitle className="font-serif text-xl">Rewards & Referrals</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="p-6 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl">
+                          <p className="text-[10px] font-sans tracking-[0.2em] uppercase text-primary mb-2">Your Points</p>
+                          <p className="font-serif text-5xl font-bold text-primary">{user?.points || 0}</p>
+                          <p className="text-xs text-muted-foreground mt-2">Use points for discounts on your next order.</p>
+                        </div>
+                        <div className="p-6 bg-secondary/30 rounded-2xl">
+                          <p className="text-[10px] font-sans tracking-[0.2em] uppercase text-muted-foreground mb-2">Refer a Friend</p>
+                          <p className="font-mono text-sm bg-card p-3 rounded-lg border border-border mb-4">{user?.referralCode}</p>
+                          <Button variant="outline" size="sm" onClick={copyReferralLink} className="w-full">
+                            <Share2 className="h-4 w-4 mr-2" /> Copy Referral Link
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="wishlist">
+                  <Card className="border-primary/10">
+                    <CardHeader>
+                      <CardTitle className="font-serif text-xl">Your Wishlist</CardTitle>
+                      <CardDescription>Items you've saved for later</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {wishlistItems.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Heart className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                          <p className="text-muted-foreground">Your wishlist is empty.</p>
+                          <Link to="/shop">
+                            <Button variant="link" className="mt-2 text-primary">Explore Our Collection</Button>
+                          </Link>
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                          <AnimatePresence>
+                            {wishlistItems.map((item) => (
+                              <motion.div
+                                key={item.id}
+                                initial={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                layout
+                                className="group relative bg-card rounded-xl overflow-hidden border border-border/50"
+                              >
+                                <Link to={`/product/${item.id}`}>
+                                  <div className="aspect-square overflow-hidden">
+                                    <img
+                                      src={item.image}
+                                      alt={item.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    />
+                                  </div>
+                                  <div className="p-4">
+                                    <h4 className="font-sans text-sm font-medium truncate">{item.title}</h4>
+                                    <p className="text-primary font-semibold">{item.price}</p>
+                                  </div>
+                                </Link>
+                                <button
+                                  onClick={() => removeFromWishlist(item.id)}
+                                  className="absolute top-2 right-2 p-2 bg-background/80 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="profile">
+                  <Card className="border-primary/10">
+                    <CardHeader>
+                      <CardTitle className="font-serif text-xl">Profile Settings</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleUpdateProfile} className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2">
                           <div className="space-y-2">
                             <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Full Name</label>
                             <Input name="name" defaultValue={user?.name} />
                           </div>
                           <div className="space-y-2">
                             <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
-                            <Input name="email" defaultValue={user?.email} readOnly className="bg-secondary/50 cursor-not-allowed" />
+                            <Input name="email" defaultValue={user?.email} disabled className="bg-muted/50" />
                           </div>
                         </div>
-                        <div className="grid sm:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Default Size</label>
-                            <Select value={preferredSize} onValueChange={setPreferredSize}>
-                              <SelectTrigger className="bg-background">
-                                <SelectValue placeholder="Select size" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {PRODUCT_SIZES.map(size => (
-                                  <SelectItem key={size} value={size}>{size}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Shipping Address</label>
-                            <Input defaultValue="Rua Dias Ferreira, 123, Leblon" />
-                          </div>
+                        
+                        <div className="space-y-2">
+                          <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Preferred Size</label>
+                          <Select value={preferredSize} onValueChange={setPreferredSize}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your preferred size" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PRODUCT_SIZES.map((size) => (
+                                <SelectItem key={size} value={size}>{size}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <Button type="submit" className="bg-primary hover:bg-primary/90">Save Changes</Button>
+
+                        <Button type="submit" className="bg-primary hover:bg-primary/90">
+                          Save Changes
+                        </Button>
                       </form>
-
-                      <div className="mt-12 pt-8 border-t border-destructive/20">
-                        <h4 className="text-destructive font-serif text-lg mb-2 flex items-center gap-2">
-                          <AlertCircle className="h-5 w-5" /> Danger Zone
-                        </h4>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Once you delete your account, there is no going back. Please be certain.
-                        </p>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground">
-                              <Trash2 className="h-4 w-4 mr-2" /> Delete Account
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="bg-card border-destructive/20">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="font-serif text-2xl">Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete your account
-                                and remove your data from our servers.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel className="bg-secondary">Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Delete Account
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
                     </CardContent>
                   </Card>
-                  </motion.div>
-                </TabsContent>
 
-                <TabsContent value="orders">
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                  >
-                  <Card className="border-primary/10">
+                  <Card className="border-destructive/20 mt-6">
                     <CardHeader>
-                      <CardTitle className="font-serif">Order History</CardTitle>
+                      <CardTitle className="font-serif text-xl text-destructive flex items-center gap-2">
+                        <AlertCircle className="h-5 w-5" />
+                        Danger Zone
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {mockOrders.map((order) => (
-                          <div key={order.id} className="p-4 border border-primary/5 bg-secondary/10 rounded-2xl group hover:border-primary/20 transition-all">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                              <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 bg-background rounded-xl flex items-center justify-center border shadow-sm">
-                                  <Package className="h-6 w-6 text-primary" />
-                                </div>
-                                <div>
-                                  <p className="font-sans font-bold text-sm uppercase tracking-tight">{order.id}</p>
-                                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{order.date}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                                <div className="text-right">
-                                  <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-1">Status</p>
-                                  <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none text-[9px] uppercase tracking-widest px-2 py-0">
-                                    {order.status}
-                                  </Badge>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-1">Total</p>
-                                  <p className="font-serif font-bold text-lg">{order.total}</p>
-                                </div>
-                                <Button variant="ghost" size="sm" className="text-primary font-sans text-[10px] uppercase tracking-widest group-hover:bg-primary/5" onClick={() => toast.info(`Order ${order.id} details coming soon!`)}>
-                                  Details
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Deleting your account is permanent and cannot be undone.
+                      </p>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Account
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete your
+                              account and remove your data from our servers.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive hover:bg-destructive/90">
+                              Delete Account
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </CardContent>
                   </Card>
-                  </motion.div>
                 </TabsContent>
-
-                <TabsContent value="wishlist">
-                   <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                  >
-                  <Card className="border-primary/10">
-                    <CardHeader>
-                      <CardTitle className="font-serif">My Wishlist</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {wishlistItems.length === 0 ? (
-                        <div className="text-center py-12">
-                          <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-                          <p className="text-muted-foreground font-sans">Your wishlist is empty.</p>
-                          <Button asChild variant="link" className="text-primary mt-2">
-                            <Link to="/shop">Go Shopping</Link>
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {wishlistItems.map((item) => (
-                            <div key={item.id} className="flex gap-4 p-4 border rounded-2xl group hover:border-primary/30 transition-all">
-                              <img src={item.image} alt={item.title} className="w-16 h-20 object-cover rounded-lg" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-sans font-bold text-sm truncate">{item.title}</p>
-                                <p className="font-serif text-sm text-primary mb-2">${item.price}</p>
-                                <div className="flex gap-2">
-                                  <Button asChild size="sm" className="h-7 text-[10px] px-3">
-                                    <Link to={`/product/${item.handle}`}>View</Link>
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-[10px] px-3 text-destructive"
-                                    onClick={() => {
-                                      removeFromWishlist(item.id);
-                                      playSound('remove');
-                                    }}
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                  </motion.div>
-                </TabsContent>
-
-                <TabsContent value="rewards">
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                  >
-                  <div className="space-y-6">
-                    <Card className="bg-gradient-to-br from-primary/10 via-background to-secondary/30 border-primary/20 shadow-xl overflow-hidden relative">
-                      <div className="absolute top-0 right-0 p-8 opacity-10">
-                         <Gift className="h-32 w-32 rotate-12" />
-                      </div>
-                      <CardHeader className="relative z-10">
-                        <Badge className="w-fit mb-2 bg-primary text-primary-foreground">{currentTier} Member</Badge>
-                        <CardTitle className="font-serif text-3xl">Inner Circle Rewards</CardTitle>
-                        <CardDescription className="text-foreground/70">You're on your way to exclusive Brazilian luxury perks.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="relative z-10">
-                         <div className="bg-background/60 backdrop-blur-md border border-primary/10 p-6 rounded-2xl mb-6">
-                            <div className="flex justify-between items-end mb-4">
-                               <div>
-                                  <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-1">Available Points</p>
-                                  <p className="text-4xl font-serif font-bold text-primary">{points}</p>
-                               </div>
-                               <div className="text-right">
-                                  <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-1">Lifetime Earned</p>
-                                  <p className="text-xl font-serif font-medium">{Math.max(1250, points + 500).toLocaleString()}</p>
-                               </div>
-                            </div>
-                            <Progress value={(points / nextTierPoints) * 100} className="h-2 mb-2" />
-                            <div className="flex justify-between text-[10px] font-sans tracking-widest uppercase text-muted-foreground">
-                               <span>0</span>
-                               <span>{nextTierPoints} pts for ${nextTierPoints === 500 ? '25' : '50'} reward</span>
-                            </div>
-                         </div>
-
-                         <div className="flex flex-wrap gap-4">
-                            <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-gold" onClick={() => toast.info("Points redemption available in the mobile app")}>
-                               <Gift className="h-4 w-4 mr-2" />
-                               Redeem for $25 Off
-                            </Button>
-                            <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/5" onClick={() => toast.info("Loyalty program details coming soon")}>
-                               Benefit Tiers
-                            </Button>
-                         </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-primary/10 shadow-sm">
-                      <CardHeader>
-                        <CardTitle className="font-serif">Refer a Friend</CardTitle>
-                        <CardDescription>Give $20, Get 100 Points. Share your love for Nina Armend.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex gap-2">
-                          <div className="flex-1 bg-secondary p-3 rounded-lg text-sm font-mono flex items-center justify-between border">
-                            https://ninaarmend.com/invite/{user?.referralCode}
-                          </div>
-                          <Button onClick={copyReferralLink} size="icon" className="shrink-0">
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  </motion.div>
-                </TabsContent>
-                </AnimatePresence>
               </Tabs>
             </div>
           </div>

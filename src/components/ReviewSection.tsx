@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useReviewStore, type Review } from '@/stores/reviewStore';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,12 +10,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
+// Input validation constants
+const MAX_REVIEW_LENGTH = 1000;
+const MIN_REVIEW_LENGTH = 10;
+const MAX_REPLY_LENGTH = 500;
+
 interface ReviewSectionProps {
   productId: string;
 }
 
 export function ReviewSection({ productId }: ReviewSectionProps) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user: legacyUser, isAuthenticated: legacyAuth } = useAuthStore();
+  const cloudAuth = useCloudAuthStore();
+  
+  // Use Cloud Auth if available, fallback to legacy
+  const isAuthenticated = cloudAuth.isAuthenticated || legacyAuth;
+  const user = cloudAuth.user ? {
+    email: cloudAuth.user.email,
+    name: cloudAuth.user.name || cloudAuth.user.email.split('@')[0],
+    avatar: cloudAuth.user.avatar,
+    role: cloudAuth.user.isAdmin ? 'Admin' : undefined,
+  } : legacyUser;
+  
+  const isAdmin = cloudAuth.user?.isAdmin || user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  
   const { reviews, addReview, likeReview, addAdminComment } = useReviewStore();
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
@@ -26,27 +45,35 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
     ? productReviews.reduce((acc, r) => acc + r.rating, 0) / productReviews.length
     : 0;
 
-  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
       toast.error("Please sign in to leave a review");
       return;
     }
-    if (!newComment.trim()) {
-      toast.error("Please enter a comment");
+    
+    // Input validation
+    const trimmedComment = newComment.trim();
+    
+    if (trimmedComment.length < MIN_REVIEW_LENGTH) {
+      toast.error(`Review must be at least ${MIN_REVIEW_LENGTH} characters`);
+      return;
+    }
+    
+    if (trimmedComment.length > MAX_REVIEW_LENGTH) {
+      toast.error(`Review cannot exceed ${MAX_REVIEW_LENGTH} characters`);
       return;
     }
 
     if (!user) return;
+    
     addReview({
       productId,
       userId: user.email,
       userName: user.name,
       userAvatar: user.avatar,
       rating: newRating,
-      comment: newComment
+      comment: trimmedComment
     });
 
     setNewComment('');
@@ -55,8 +82,22 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
   };
 
   const handleAdminReply = (reviewId: string) => {
-    if (!adminReply.trim() || !user) return;
-    addAdminComment(reviewId, adminReply, user.name, user.role || 'Owner');
+    // Input validation for admin reply
+    const trimmedReply = adminReply.trim();
+    
+    if (!trimmedReply) {
+      toast.error("Please enter a reply");
+      return;
+    }
+    
+    if (trimmedReply.length > MAX_REPLY_LENGTH) {
+      toast.error(`Reply cannot exceed ${MAX_REPLY_LENGTH} characters`);
+      return;
+    }
+    
+    if (!user) return;
+    
+    addAdminComment(reviewId, trimmedReply, user.name, user.role || 'Owner');
     setAdminReply('');
     setReplyingTo(null);
     toast.success("Reply posted.");
@@ -99,12 +140,19 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                       ))}
                     </div>
                   </div>
-                  <Textarea
-                    placeholder="Share your experience..."
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    className="min-h-[100px] bg-secondary/20 border-border/50 focus:ring-primary"
-                  />
+                  <div className="space-y-1">
+                    <Textarea
+                      placeholder="Share your experience..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      className="min-h-[100px] bg-secondary/20 border-border/50 focus:ring-primary"
+                      maxLength={MAX_REVIEW_LENGTH}
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>{newComment.length < MIN_REVIEW_LENGTH ? `Min ${MIN_REVIEW_LENGTH} characters` : ''}</span>
+                      <span>{newComment.length} / {MAX_REVIEW_LENGTH}</span>
+                    </div>
+                  </div>
                   <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-sans uppercase tracking-widest text-xs">
                     Post Review
                   </Button>
@@ -185,12 +233,18 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                         className="mt-6 overflow-hidden"
                       >
                         <div className="flex flex-col gap-3 pt-4 border-t border-border/50">
-                          <Textarea
-                            placeholder="Write your response as Owner..."
-                            value={adminReply}
-                            onChange={(e) => setAdminReply(e.target.value)}
-                            className="bg-secondary/30 border-primary/20 focus:ring-primary min-h-[80px]"
-                          />
+                          <div className="space-y-1">
+                            <Textarea
+                              placeholder="Write your response as Owner..."
+                              value={adminReply}
+                              onChange={(e) => setAdminReply(e.target.value)}
+                              className="bg-secondary/30 border-primary/20 focus:ring-primary min-h-[80px]"
+                              maxLength={MAX_REPLY_LENGTH}
+                            />
+                            <div className="text-right text-[10px] text-muted-foreground">
+                              {adminReply.length} / {MAX_REPLY_LENGTH}
+                            </div>
+                          </div>
                           <div className="flex gap-2">
                             <Button size="sm" onClick={() => handleAdminReply(review.id)} className="bg-primary">
                               Post Reply
