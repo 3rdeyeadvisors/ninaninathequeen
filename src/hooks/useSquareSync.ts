@@ -83,11 +83,25 @@ export function useSquareSync() {
     }
   }, []);
 
+  const syncBidirectional = useCallback(async (): Promise<{
+    pullResult: SyncResult | null;
+    pushResult: SyncResult | null;
+  }> => {
+    // Step 1: Pull from Square first (get latest products)
+    const pullResult = await pullFromSquare();
+    
+    // Step 2: Push local changes to Square
+    const pushResult = await pushToSquare();
+    
+    return { pullResult, pushResult };
+  }, [pullFromSquare, pushToSquare]);
+
   return {
     isPulling,
     isPushing,
     isSyncing: isPulling || isPushing,
     pullFromSquare,
     pushToSquare,
+    syncBidirectional,
   };
 }

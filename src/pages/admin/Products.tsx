@@ -3,11 +3,12 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight, RefreshCw } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
 import { useProductsDb } from '@/hooks/useProductsDb';
+import { useSquareSync } from '@/hooks/useSquareSync';
 import { toast } from 'sonner';
 import { useState, useMemo, useRef } from 'react';
 import {
@@ -55,6 +56,8 @@ export default function AdminProducts() {
   const { productOverrides, updateProductOverride, deleteProduct, _hasHydrated } = useAdminStore();
   const { isUploading, handleFileUpload, downloadTemplate, fileInputRef: syncInputRef } = useSpreadsheetSync();
   const { fetchProducts, upsertProduct, deleteProductDb, bulkDeleteProducts } = useProductsDb();
+  const { syncBidirectional, isSyncing: isSquareSyncing } = useSquareSync();
+  const settings = useAdminStore(state => state.settings);
   const [editingProduct, setEditingProduct] = useState<Partial<ProductOverride> | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -407,6 +410,22 @@ export default function AdminProducts() {
                   <Download className="h-3 w-3 mr-2" />
                   Template
                 </Button>
+                {settings.posProvider === 'square' && (
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      const { pullResult, pushResult } = await syncBidirectional();
+                      if (pullResult?.success || pushResult?.success) {
+                        await fetchProducts();
+                      }
+                    }}
+                    disabled={isSyncing || isSquareSyncing}
+                    className="font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    {isSquareSyncing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <RefreshCw className="h-3 w-3 mr-2" />}
+                    Sync with Square
+                  </Button>
+                )}
                 <Button className="bg-primary" onClick={startAdding}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add New Product
