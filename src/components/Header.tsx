@@ -85,9 +85,9 @@ export function Header() {
 
         {/* Desktop Navigation - Flex Container */}
         <div className="hidden lg:flex items-center h-full w-full">
-          {/* Left Navigation - 3 links */}
-          <div className="flex items-center gap-4 xl:gap-6 2xl:gap-10 w-[280px] xl:w-[320px] 2xl:w-[400px] justify-start">
-            {navLinks.slice(0, 3).map((link) => (
+          {/* Left Navigation - 4 links */}
+          <div className="flex items-center gap-3 xl:gap-5 2xl:gap-8 w-[340px] xl:w-[400px] 2xl:w-[480px] justify-start">
+            {navLinks.slice(0, 4).map((link) => (
               <Link
                 key={link.name}
                 to={link.href}
@@ -101,9 +101,9 @@ export function Header() {
           {/* Center - Flexible space for logo */}
           <div className="flex-1" />
 
-          {/* Right Navigation - 3 links */}
-          <div className="flex items-center gap-4 xl:gap-6 2xl:gap-10 w-[280px] xl:w-[320px] 2xl:w-[400px] justify-end">
-            {navLinks.slice(3).map((link) => (
+          {/* Right Navigation - 2 links */}
+          <div className="flex items-center gap-3 xl:gap-5 2xl:gap-8 w-[200px] xl:w-[240px] 2xl:w-[300px] justify-end">
+            {navLinks.slice(4).map((link) => (
               <Link
                 key={link.name}
                 to={link.href}
