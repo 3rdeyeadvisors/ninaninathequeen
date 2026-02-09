@@ -247,7 +247,7 @@ export default function AdminPOS() {
   const products = useMemo(() => {
     if (!initialProducts) return [];
 
-    const baseProducts = initialProducts.filter(p => !productOverrides[p.id]?.isDeleted);
+    const baseProducts = initialProducts;
 
     if (!searchQuery) return baseProducts;
     const q = searchQuery.toLowerCase();

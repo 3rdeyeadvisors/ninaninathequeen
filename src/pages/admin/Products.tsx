@@ -84,8 +84,6 @@ export default function AdminProducts() {
     
     initialProducts.forEach(p => {
       const override = productOverrides[p.id];
-      if (override?.isDeleted) return;
-      
       counts.All++;
       
       // Use override category if set, otherwise derive from productType or product category

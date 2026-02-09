@@ -36,8 +36,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
       const supabase = getSupabase();
       const { data, error } = await supabase
         .from('products')
-        .select('*')
-        .eq('is_deleted', false);
+        .select('*');
 
       if (error) {
         console.error('Error fetching products:', error);
