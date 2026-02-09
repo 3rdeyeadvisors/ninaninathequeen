@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useCartSync } from "@/hooks/useCartSync";
+import { useCloudAuthStore } from "@/stores/cloudAuthStore";
+import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { DbSyncProvider } from "@/providers/DbSyncProvider";
@@ -36,6 +38,11 @@ const queryClient = new QueryClient();
 
 function AppContent() {
   useCartSync();
+  const { initialize } = useCloudAuthStore();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
   
   return (
     <BrowserRouter>

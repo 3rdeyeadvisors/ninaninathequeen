@@ -10,13 +10,8 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) => {
   const { isAuthenticated: legacyAuth, user: legacyUser } = useAuthStore();
-  const { isAuthenticated: cloudAuth, user: cloudUser, isLoading, initialize } = useCloudAuthStore();
+  const { isAuthenticated: cloudAuth, user: cloudUser, isLoading } = useCloudAuthStore();
   const location = useLocation();
-
-  // Initialize cloud auth on mount
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
 
   // Consider authenticated if either legacy or cloud auth is active
   const isAuthenticated = legacyAuth || cloudAuth;

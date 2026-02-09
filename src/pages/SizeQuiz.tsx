@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { useAuthStore } from '@/stores/authStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { toast } from 'sonner';
 import { PRODUCT_SIZES } from '@/lib/constants';
 
@@ -37,7 +37,7 @@ const steps = [
 ];
 
 export default function SizeQuiz() {
-  const { updateProfile, isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useCloudAuthStore();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [height, setHeight] = useState([165]); // cm
@@ -75,8 +75,9 @@ export default function SizeQuiz() {
 
     setResult(size);
     if (isAuthenticated) {
-      updateProfile({ preferredSize: size });
-      toast.success(`Size ${size} has been saved to your profile!`, {
+      // Profile updates should be handled via Supabase
+      toast.success(`Size ${size} has been recommended!`, {
+        description: "Visit your account settings to save this to your profile.",
         position: 'top-center'
       });
     }

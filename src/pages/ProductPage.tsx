@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, Heart, Minus, Plus, Loader2, ChevronLeft, Truck, Shield, RotateCcw, Box } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/stores/authStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 
 const ProductPage = () => {
   const { handle } = useParams<{ handle: string }>();
@@ -36,7 +36,7 @@ const ProductPage = () => {
   const addItem = useCartStore(state => state.addItem);
   const isCartLoading = useCartStore(state => state.isLoading);
   const { toggleItem, isInWishlist } = useWishlistStore();
-  const { user } = useAuthStore();
+  const { user } = useCloudAuthStore();
   
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
 

@@ -5,6 +5,7 @@ import { Search, User, Mail, DollarSign, ShoppingBag, MapPin, Phone, Calendar, A
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminCustomer as Customer } from '@/stores/adminStore';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { useState, useMemo } from 'react';
 import {
   Dialog,
@@ -19,7 +20,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminCustomers() {
   const { customers, deleteCustomer, addCustomer, _hasHydrated } = useAdminStore();
-  const { user, users, updateUserRole, deleteAccount, addUser } = useAuthStore();
+  const { user: cloudUser } = useCloudAuthStore();
+  const { users, updateUserRole, deleteAccount, addUser } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
@@ -27,7 +29,7 @@ export default function AdminCustomers() {
   const [inviteName, setInviteName] = useState('');
   const [inviteRole, setInviteRole] = useState('User');
 
-  const isOwner = user?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isOwner = cloudUser?.isAdmin || cloudUser?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   const getCustomerRole = (email: string) => {
     const authUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());

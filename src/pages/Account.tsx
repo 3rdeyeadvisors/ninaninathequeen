@@ -70,21 +70,16 @@ export default function Account() {
     name: cloudAuth.user.name || cloudAuth.user.email.split('@')[0],
     email: cloudAuth.user.email,
     avatar: cloudAuth.user.avatar,
-    points: legacyUser?.points || 0,
+    points: cloudAuth.user.points || legacyUser?.points || 0,
     referralCode: legacyUser?.referralCode,
     role: cloudAuth.user.isAdmin ? 'Admin' : legacyUser?.role,
-    preferredSize: legacyUser?.preferredSize,
+    preferredSize: cloudAuth.user.preferredSize || legacyUser?.preferredSize,
   } : legacyUser;
   
   const isAuthenticated = cloudAuth.isAuthenticated;
   const isAdmin = cloudAuth.user?.isAdmin || false;
   
   const [preferredSize, setPreferredSize] = useState(user?.preferredSize || '');
-
-  // Initialize cloud auth on mount
-  useEffect(() => {
-    cloudAuth.initialize();
-  }, []);
 
   const points = user?.points || 0;
   const getTier = (pts: number) => {

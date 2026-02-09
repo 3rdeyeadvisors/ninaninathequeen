@@ -20,19 +20,18 @@ interface ReviewSectionProps {
 }
 
 export function ReviewSection({ productId }: ReviewSectionProps) {
-  const { user: legacyUser, isAuthenticated: legacyAuth } = useAuthStore();
   const cloudAuth = useCloudAuthStore();
   
-  // Use Cloud Auth if available, fallback to legacy
-  const isAuthenticated = cloudAuth.isAuthenticated || legacyAuth;
+  // Primary auth check via Cloud Auth
+  const isAuthenticated = cloudAuth.isAuthenticated;
   const user = cloudAuth.user ? {
     email: cloudAuth.user.email,
     name: cloudAuth.user.name || cloudAuth.user.email.split('@')[0],
     avatar: cloudAuth.user.avatar,
     role: cloudAuth.user.isAdmin ? 'Admin' : undefined,
-  } : legacyUser;
+  } : null;
   
-  const isAdmin = cloudAuth.user?.isAdmin || user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isAdmin = cloudAuth.isAuthenticated && (cloudAuth.user?.isAdmin || cloudAuth.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase());
   
   const { reviews, addReview, likeReview, addAdminComment } = useReviewStore();
   const [newRating, setNewRating] = useState(5);
@@ -70,7 +69,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
     addReview({
       productId,
       userId: user.email,
-      userName: user.name,
+      userName: user.name || 'Anonymous',
       userAvatar: user.avatar,
       rating: newRating,
       comment: trimmedComment

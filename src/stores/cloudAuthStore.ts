@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabaseClient';
+import { useAuthStore } from './authStore';
 
 export interface CloudAuthUser {
   id: string;
@@ -8,6 +9,8 @@ export interface CloudAuthUser {
   name?: string;
   avatar?: string;
   isAdmin: boolean;
+  preferredSize?: string;
+  points?: number;
 }
 
 interface CloudAuthState {
@@ -15,6 +18,7 @@ interface CloudAuthState {
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isInitialized: boolean;
   
   // Actions
   initialize: () => Promise<void>;
@@ -29,44 +33,55 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
   session: null,
   isLoading: true,
   isAuthenticated: false,
+  isInitialized: false,
 
   initialize: async () => {
+    if (get().isInitialized) return;
+
     try {
       const supabase = getSupabase();
       
       // Get current session
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (session?.user) {
-        const isAdmin = await get().checkIsAdmin(session.user.id);
-        set({
-          session,
-          user: {
+      const handleUserSession = async (session: Session | null) => {
+        if (session?.user) {
+          const isAdmin = await get().checkIsAdmin(session.user.id);
+
+          // Fetch additional profile data
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('preferred_size, points')
+            .eq('id', session.user.id)
+            .single();
+
+          const userData: CloudAuthUser = {
             id: session.user.id,
             email: session.user.email || '',
             name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
             avatar: session.user.user_metadata?.avatar_url,
             isAdmin,
-          },
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } else {
-        set({ isLoading: false });
-      }
+            preferredSize: profile?.preferred_size,
+            points: profile?.points || 0,
+          };
 
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          const isAdmin = await get().checkIsAdmin(session.user.id);
           set({
             session,
+            user: userData,
+            isAuthenticated: true,
+            isLoading: false,
+            isInitialized: true,
+          });
+
+          // Sync with legacy auth store for backward compatibility
+          useAuthStore.setState({
             user: {
-              id: session.user.id,
-              email: session.user.email || '',
-              name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
-              avatar: session.user.user_metadata?.avatar_url,
-              isAdmin,
+              name: userData.name || '',
+              email: userData.email,
+              avatar: userData.avatar,
+              points: userData.points,
+              role: userData.isAdmin ? 'Admin' : 'User',
+              preferredSize: userData.preferredSize,
             },
             isAuthenticated: true,
           });
@@ -75,12 +90,24 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
             session: null,
             user: null,
             isAuthenticated: false,
+            isLoading: false,
+            isInitialized: true,
           });
+
+          // Clear legacy auth store
+          useAuthStore.setState({ user: null, isAuthenticated: false });
         }
+      };
+
+      await handleUserSession(session);
+
+      // Listen for auth changes
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        await handleUserSession(session);
       });
     } catch (error) {
       console.error('Auth initialization error:', error);
-      set({ isLoading: false });
+      set({ isLoading: false, isInitialized: true });
     }
   },
 
