@@ -1,78 +1,77 @@
 
 
-## Add Bidirectional Square Sync Button
+# Category Restructuring Plan
 
-### What You'll Get
+## Summary
+Reorganize the customer-facing navigation categories to focus on **Tops**, **Bottoms**, **One-Pieces**, and **Mix & Match** rather than Bikinis and Cover-ups.
 
-A "Sync with Square" button on the Products page that performs a **full bidirectional sync**:
-1. **Pull from Square** - Gets the latest products and inventory from your Square catalog
-2. **Push to Square** - Sends your local inventory updates back to Square
-3. **Refresh the product list** - Shows the updated data immediately
+## What Will Change
 
----
+### Navigation Structure (Before → After)
 
-### Implementation
+| Current | New |
+|---------|-----|
+| Shop All | Shop All |
+| Mix & Match | Mix & Match |
+| Fitting Room | Fitting Room |
+| Bikinis | **Tops** |
+| One-Pieces | **Bottoms** |
+| Cover-ups | **One-Pieces** |
 
-| File | Change |
-|------|--------|
-| `src/hooks/useSquareSync.ts` | Add new `syncBidirectional` function that does pull → push in sequence |
-| `src/pages/admin/Products.tsx` | Add "Sync with Square" button with loading state |
+### Category Showcase on Homepage (Before → After)
 
----
+| Current | New |
+|---------|-----|
+| Bikinis | **Tops** - "Mix & match your style" |
+| One-Pieces | **Bottoms** - "Complete your look" |
+| Cover-ups | **One-Pieces** - "Elegant & sophisticated" |
 
-### Technical Details
+Optional: Add a 4th card for **Mix & Match** to showcase the feature prominently.
 
-**New bidirectional sync function in `useSquareSync.ts`:**
+### Footer Shop Links (Before → After)
 
-```typescript
-const syncBidirectional = useCallback(async (): Promise<{
-  pullResult: SyncResult | null;
-  pushResult: SyncResult | null;
-}> => {
-  // Step 1: Pull from Square first (get latest products)
-  const pullResult = await pullFromSquare();
-  
-  // Step 2: Push local changes to Square
-  const pushResult = await pushToSquare();
-  
-  return { pullResult, pushResult };
-}, [pullFromSquare, pushToSquare]);
-```
-
-**New button in Products.tsx toolbar:**
-
-```tsx
-<Button
-  variant="outline"
-  onClick={async () => {
-    const { pullResult, pushResult } = await syncBidirectional();
-    if (pullResult?.success || pushResult?.success) {
-      await fetchProducts(); // Refresh the product list
-    }
-  }}
-  disabled={isSyncing || settings.posProvider !== 'square'}
->
-  {isSyncing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-  Sync with Square
-</Button>
-```
+| Current | New |
+|---------|-----|
+| All Products | All Products |
+| Bikinis | **Tops** |
+| One-Pieces | **Bottoms** |
+| Cover-ups | **One-Pieces** |
 
 ---
 
-### User Experience
+## Files to Update
 
-1. Click "Sync with Square" on the Products page
-2. See loading spinner while syncing
-3. Get toast notifications:
-   - "Synced X products from Square" (pull result)
-   - "Pushed X inventory updates to Square" (push result)
-4. Product list automatically refreshes with latest data
+### 1. Header Navigation
+**File:** `src/components/Header.tsx`
+- Update `navLinks` array to replace Bikinis/Cover-ups with Tops/Bottoms/One-Pieces
+
+### 2. Category Showcase Component
+**File:** `src/components/CategoryShowcase.tsx`
+- Replace the 3 categories (Bikinis, One-Pieces, Cover-ups) with Tops, Bottoms, One-Pieces
+- Update descriptions and links to match
+
+### 3. Footer Links
+**File:** `src/components/Footer.tsx`
+- Update the `shop` array to use Tops, Bottoms, One-Pieces instead of Bikinis/Cover-ups
+
+### 4. Shop Page Category Titles
+**File:** `src/pages/Shop.tsx`
+- Update the `categoryTitles` mapping to handle `tops`, `bottoms`, and `one-pieces` URL params
+
+### 5. Product Filtering (useProducts hook)
+**File:** `src/hooks/useProducts.ts`
+- Update the query filter to match products by their `category` field (Top, Bottom, One-Piece) rather than text matching
 
 ---
 
-### Requirements
+## Technical Details
 
-- Square must be configured as POS provider in Settings
-- Square Access Token must be saved (stored securely in backend)
-- Button will be disabled if Square is not configured
+The admin dashboard already uses the correct categories internally (`Top`, `Bottom`, `Top & Bottom`, `One-Piece`, `Other`). The changes needed are purely on the customer-facing side to align navigation with how products are actually categorized in the database.
+
+The **Mix & Match** page already correctly filters products by `category === 'Top'` and `category === 'Bottom'`, so Tops and Bottoms will automatically appear there while also having their own dedicated shop pages.
+
+---
+
+## No Database Changes Required
+The product `category` field in the database already supports: Top, Bottom, Top & Bottom, One-Piece, Other - no schema updates needed.
 
