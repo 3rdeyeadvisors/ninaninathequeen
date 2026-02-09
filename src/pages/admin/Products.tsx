@@ -872,13 +872,18 @@ export default function AdminProducts() {
                             <Input
                               type="number"
                               value={editingProduct.sizeInventory?.[size] ?? 0}
+                              onFocus={(e) => e.target.select()}
                               onChange={(e) => {
-                                const val = parseInt(e.target.value) || 0;
+                                const valStr = e.target.value;
+                                // Use 0 for empty input but don't prevent typing
+                                const val = valStr === '' ? 0 : parseInt(valStr);
+                                if (isNaN(val) && valStr !== '') return;
+
                                 const newSizeInventory = {
                                   ...(editingProduct.sizeInventory || {}),
-                                  [size]: val
+                                  [size]: isNaN(val) ? 0 : val
                                 };
-                                const newTotal = Object.values(newSizeInventory).reduce((acc, v) => acc + v, 0);
+                                const newTotal = Object.values(newSizeInventory).reduce((acc, v) => acc + (v as number), 0);
                                 setEditingProduct({
                                   ...editingProduct,
                                   sizeInventory: newSizeInventory,

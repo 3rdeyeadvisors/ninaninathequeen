@@ -418,7 +418,7 @@ Deno.serve(async (req) => {
           status: 'Active',
           product_type: productType,
           category: productType,
-          sizes: ['XS', 'S', 'M', 'L', 'XL'],
+          sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'],
           is_deleted: false,
           updated_at: new Date().toISOString()
         }
