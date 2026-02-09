@@ -3,6 +3,14 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { hashPassword } from '@/lib/security';
 import { useAdminStore } from './adminStore';
 
+/**
+ * @deprecated This auth store is DEPRECATED and kept only for backward compatibility.
+ * Use useCloudAuthStore from '@/stores/cloudAuthStore' for all new authentication.
+ * 
+ * SECURITY WARNING: This store previously stored password hashes in localStorage,
+ * which is a security risk. Password storage has been removed.
+ */
+
 export interface User {
   name: string;
   email: string;
@@ -13,18 +21,22 @@ export interface User {
   preferredSize?: string;
 }
 
+// AuthUser no longer includes password - passwords are NOT stored client-side
 interface AuthUser extends User {
-  password?: string;
+  // Password field removed for security - use Cloud Auth instead
 }
 
 interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
   users: AuthUser[];
+  /** @deprecated Use cloudAuthStore.signInWithEmail instead */
   login: (email: string, password: string) => Promise<boolean>;
+  /** @deprecated Use cloudAuthStore.signUpWithEmail instead */
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   resetPassword: (email: string) => boolean;
   deleteAccount: (email: string) => boolean;
+  /** @deprecated Use cloudAuthStore.signOut instead */
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
   updateUserRole: (email: string, role: string) => void;
@@ -33,14 +45,15 @@ interface AuthStore {
 
 /**
  * SECURITY NOTE: The owner/admin email for Lydia.
- * In production, admin privileges should be managed via backend roles.
+ * Admin privileges are now managed via database roles (user_roles table).
+ * This constant is kept for UI display purposes only.
  */
 export const ADMIN_EMAIL = 'lydia@ninaarmend.co.site';
 
 const DEFAULT_ADMIN: AuthUser = {
   name: 'Lydia',
   email: ADMIN_EMAIL,
-  password: '1028fa031c3f91f18519a2a997a00579efcdcf64b3b4a96ac65143e30811ca43', // Hash of "Bossqueen26!"
+  // Password removed - authentication handled by Cloud Auth
   avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
   points: 0,
   referralCode: 'NINA-LYD-2025',
@@ -56,75 +69,39 @@ export const useAuthStore = create<AuthStore>()(
 
       login: async (email, password) => {
         /**
-         * SECURITY NOTE: This is a mock implementation for demonstration.
-         * In production, NEVER store plain text passwords in the frontend or localStorage.
-         * Use a secure backend, industry-standard password hashing (like Argon2 or bcrypt),
-         * and secure token-based authentication (JWT/OAuth).
+         * @deprecated This login method is deprecated.
+         * Use useCloudAuthStore().signInWithEmail() for secure authentication.
          */
-        const { users } = get();
-        const trimmedEmail = email.trim();
-        const foundUser = users.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase());
-
-        if (foundUser) {
-          const hashedInput = await hashPassword(password);
-          if (foundUser.password === hashedInput) {
-            const { password: _, ...userWithoutPassword } = foundUser;
-            // Normalize email to lowercase in the session user object
-            const normalizedUser = { ...userWithoutPassword, email: foundUser.email.toLowerCase() };
-            set({ user: normalizedUser, isAuthenticated: true });
-            return true;
-          }
-        }
+        console.warn(
+          '[DEPRECATED] useAuthStore.login() is deprecated. ' +
+          'Use useCloudAuthStore().signInWithEmail() for secure authentication.'
+        );
+        
+        // Legacy login is disabled for security
+        // All authentication should go through Cloud Auth (Supabase)
         return false;
       },
 
       signup: async (name, email, password) => {
-        const { users } = get();
-        const trimmedEmail = email.trim();
-        if (users.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase())) {
-          return false;
-        }
-
-        const hashedPassword = await hashPassword(password);
-        const newUser: AuthUser = {
-          name,
-          email: trimmedEmail.toLowerCase(),
-          password: hashedPassword,
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-          points: 250, // Welcome points
-          referralCode: `NINA-${name.substring(0, 3).toUpperCase()}-${Math.floor(Math.random() * 1000)}`
-        };
-
-        set({ users: [...users, newUser] });
-
-        // Add to Admin Customer Audience
-        useAdminStore.getState().addCustomer({
-          id: `cust-${Date.now()}`,
-          name: newUser.name,
-          email: newUser.email,
-          totalSpent: '0.00',
-          orderCount: 0,
-          joinDate: new Date().toISOString().split('T')[0]
-        });
-
-        // Log in the user automatically after signup
-        const { password: _, ...userWithoutPassword } = newUser;
-        set({ user: userWithoutPassword, isAuthenticated: true });
-        return true;
+        /**
+         * @deprecated This signup method is deprecated.
+         * Use useCloudAuthStore().signUpWithEmail() for secure authentication.
+         */
+        console.warn(
+          '[DEPRECATED] useAuthStore.signup() is deprecated. ' +
+          'Use useCloudAuthStore().signUpWithEmail() for secure authentication.'
+        );
+        
+        // Legacy signup is disabled for security
+        // All authentication should go through Cloud Auth (Supabase)
+        return false;
       },
 
       resetPassword: (email) => {
-        const { users } = get();
-        const trimmedEmail = email.trim();
-        const foundUser = users.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase());
-
-        if (foundUser) {
-          /**
-           * MOCK IMPLEMENTATION: In a real app, this would send an email.
-           * For this demo, we'll just return true to simulate success.
-           */
-          return true;
-        }
+        console.warn(
+          '[DEPRECATED] useAuthStore.resetPassword() is deprecated. ' +
+          'Use Supabase password reset functionality.'
+        );
         return false;
       },
 
@@ -134,7 +111,6 @@ export const useAuthStore = create<AuthStore>()(
         const updatedUsers = users.filter(u => u.email.toLowerCase() !== trimmedEmail.toLowerCase());
 
         if (updatedUsers.length < users.length) {
-          // If the deleted user was the currently logged in user, log them out
           if (user?.email.toLowerCase() === trimmedEmail.toLowerCase()) {
             set({ user: null, isAuthenticated: false, users: updatedUsers });
           } else {
@@ -145,7 +121,13 @@ export const useAuthStore = create<AuthStore>()(
         return false;
       },
 
-      logout: () => set({ user: null, isAuthenticated: false }),
+      logout: () => {
+        console.warn(
+          '[DEPRECATED] useAuthStore.logout() is deprecated. ' +
+          'Use useCloudAuthStore().signOut() instead.'
+        );
+        set({ user: null, isAuthenticated: false });
+      },
 
       updateProfile: (updates) => set((state) => {
         if (!state.user) return state;
@@ -161,7 +143,6 @@ export const useAuthStore = create<AuthStore>()(
           u.email.toLowerCase() === email.toLowerCase() ? { ...u, role } : u
         );
 
-        // Also update the current user if they are the one being changed
         const updatedUser = state.user?.email.toLowerCase() === email.toLowerCase()
           ? { ...state.user, role }
           : state.user;
@@ -177,8 +158,18 @@ export const useAuthStore = create<AuthStore>()(
       }),
     }),
     {
-      name: 'nina-armend-auth-v5',
+      name: 'nina-armend-auth-v6', // Bumped version to trigger migration
       storage: createJSONStorage(() => localStorage),
+      // Migration to strip any existing password data from localStorage
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as { users?: Array<{ password?: string }> };
+        if (state?.users) {
+          // Remove password field from all stored users
+          state.users = state.users.map(({ password, ...user }) => user);
+        }
+        return state as AuthStore;
+      },
+      version: 1,
     }
   )
 );
