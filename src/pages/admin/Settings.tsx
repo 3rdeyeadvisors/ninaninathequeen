@@ -8,25 +8,35 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore } from '@/stores/adminStore';
+import { useSettingsDb } from '@/hooks/useSettingsDb';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Store, Globe, Bell, Shield, Save, CreditCard, Key, ExternalLink, CheckCircle } from 'lucide-react';
+import { Store, Globe, Bell, Shield, Save, CreditCard, Key, ExternalLink, CheckCircle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function AdminSettings() {
   const { settings, updateSettings } = useAdminStore();
+  const { updateSettingsDb } = useSettingsDb();
   const [localSettings, setLocalSettings] = useState(settings);
   const [isEditingToken, setIsEditingToken] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Mask the token for display
   const maskedToken = localSettings.squareApiKey 
     ? `${localSettings.squareApiKey.slice(0, 4)}...${localSettings.squareApiKey.slice(-4)}` 
     : '';
 
-  const handleSave = () => {
-    updateSettings(localSettings);
-    setIsEditingToken(false);
-    toast.success("Store settings updated successfully!");
+  const handleSave = async () => {
+    setIsSaving(true);
+    const success = await updateSettingsDb(localSettings);
+    if (success) {
+      updateSettings(localSettings);
+      setIsEditingToken(false);
+      toast.success("Store settings saved!");
+    } else {
+      toast.error("Failed to save settings");
+    }
+    setIsSaving(false);
   };
 
   return (
@@ -120,20 +130,13 @@ export default function AdminSettings() {
                     <div className="grid gap-4 p-4 bg-secondary/20 rounded-xl border border-primary/10">
                       <div className="grid gap-2">
                         <Label>Payment Provider</Label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="flex justify-center">
                           <Button
                             variant={localSettings.posProvider === 'square' ? 'default' : 'outline'}
-                            className="capitalize font-sans text-[10px] tracking-widest h-10"
+                            className="capitalize font-sans text-[10px] tracking-widest h-10 w-full max-w-xs"
                             onClick={() => setLocalSettings({...localSettings, posProvider: 'square'})}
                           >
                             Square
-                          </Button>
-                          <Button
-                            variant={localSettings.posProvider === 'none' ? 'default' : 'outline'}
-                            className="capitalize font-sans text-[10px] tracking-widest h-10"
-                            onClick={() => setLocalSettings({...localSettings, posProvider: 'none'})}
-                          >
-                            None
                           </Button>
                         </div>
                       </div>
@@ -181,12 +184,6 @@ export default function AdminSettings() {
                           )}
                         </div>
                       )}
-
-                      {localSettings.posProvider === 'none' && (
-                        <p className="text-xs text-center py-4 text-muted-foreground italic">
-                          Select Square to enable automated sync between your physical store and online inventory.
-                        </p>
-                      )}
                     </div>
 
                     <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
@@ -197,7 +194,6 @@ export default function AdminSettings() {
                       <Switch
                         checked={localSettings.autoSync}
                         onCheckedChange={(checked) => setLocalSettings({...localSettings, autoSync: checked})}
-                        disabled={localSettings.posProvider === 'none'}
                       />
                     </div>
                   </CardContent>
@@ -211,9 +207,9 @@ export default function AdminSettings() {
                     <CardDescription>Ensure your store configurations are persisted.</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Button className="w-full bg-primary py-6" onClick={handleSave}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Configuration
+                    <Button className="w-full bg-primary py-6" onClick={handleSave} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      {isSaving ? 'Saving...' : 'Save Configuration'}
                     </Button>
                   </CardContent>
                 </Card>
