@@ -129,7 +129,7 @@ export function useSpreadsheetSync() {
               baseTitle,
               id: row.id ? String(row.id) : `sync-${slug || Math.random().toString(36).substring(7)}`,
               price: row.price ? String(row.price).replace(/[^0-9.]/g, '') : '0.00',
-              productType: row.producttype || 'Bikini',
+              productType: row.producttype || '',
               collection: collection,
               status: row.status || 'Active',
               sizeInventory: {},
@@ -188,9 +188,10 @@ export function useSpreadsheetSync() {
           // Normalize status to match database constraints
           let status = product.status || 'Active';
           if (!['Active', 'Inactive', 'Draft'].includes(status)) {
-            if (status.toLowerCase().includes('active') || status.toLowerCase().includes('stock')) {
+            const statusLower = status.toLowerCase();
+            if (statusLower.includes('active') || statusLower.includes('stock') || statusLower.includes('order')) {
               status = 'Active';
-            } else if (status.toLowerCase().includes('draft')) {
+            } else if (statusLower.includes('draft')) {
               status = 'Draft';
             } else {
               status = 'Inactive';

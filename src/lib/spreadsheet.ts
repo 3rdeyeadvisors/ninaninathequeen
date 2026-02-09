@@ -25,7 +25,8 @@ export function parseSpreadsheet(data: ArrayBuffer): any[] {
       if (['type', 'product type', 'producttype', 'category'].includes(normalizedKey)) {
         normalizedKey = 'producttype';
       }
-      if (['price per unit', 'unit price', 'price', 'cost'].includes(normalizedKey)) {
+      // Only map "Price" column - ignore "Price Per Unit" (that's cost, not selling price)
+      if (normalizedKey === 'price') {
         normalizedKey = 'price';
       }
       if (['stock', 'qty', 'quantity', 'inventory'].includes(normalizedKey)) {
