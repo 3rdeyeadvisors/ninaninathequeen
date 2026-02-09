@@ -14,10 +14,10 @@ import { useProducts, type Product } from '@/hooks/useProducts';
 
 const navLinks = [
   { name: 'Shop All', href: '/shop' },
-  { name: 'Mix & Match', href: '/mix-and-match' },
   { name: 'Tops', href: '/shop?category=tops' },
   { name: 'Bottoms', href: '/shop?category=bottoms' },
   { name: 'One-Pieces', href: '/shop?category=one-pieces' },
+  { name: 'Mix & Match', href: '/mix-and-match' },
   { name: 'Fitting Room', href: '/fitting-room' },
 ];
 
