@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { toast } from 'sonner';
 
 /**
@@ -55,7 +56,10 @@ export function useProductsDb() {
   // Internal helper for syncing via edge function (includes auto-push to Square)
   const syncWithEdgeFunction = async (products: ProductOverride | ProductOverride[]) => {
     try {
-      const userEmail = useAuthStore.getState().user?.email;
+      // Check both legacy and cloud auth systems
+      const legacyEmail = useAuthStore.getState().user?.email;
+      const cloudEmail = useCloudAuthStore.getState().user?.email;
+      const userEmail = legacyEmail || cloudEmail;
 
       if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         console.error('Admin access required to sync products');
