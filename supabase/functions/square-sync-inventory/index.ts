@@ -237,6 +237,40 @@ Deno.serve(async (req) => {
         })
       }
 
+      // Fetch Square Catalog to establish mapping (ID or SKU)
+      const catalogResponse = await fetch('https://connect.squareup.com/v2/catalog/list?types=ITEM', {
+        headers: {
+          'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Square-Version': '2024-01-18'
+        }
+      })
+
+      let squareCatalog: SquareCatalogItem[] = []
+      if (catalogResponse.ok) {
+        const catalogData = await catalogResponse.json()
+        squareCatalog = catalogData.objects || []
+        console.log('[SquareSync] PUSH: Square catalog fetched for mapping, items:', squareCatalog.length)
+      } else {
+        console.warn('[SquareSync] PUSH: Could not fetch Square catalog for mapping, proceeding with raw IDs')
+      }
+
+      // Create mapping from SKU -> Square ID and Square ID -> Square ID
+      const squareMapping = new Map<string, string>()
+      for (const item of squareCatalog) {
+        // Map by ID
+        squareMapping.set(item.id, item.id)
+
+        // Map by SKU (if variation exists)
+        const variations = item.item_data?.variations || []
+        for (const v of variations) {
+          squareMapping.set(v.id, v.id)
+          if (v.item_variation_data?.sku) {
+            squareMapping.set(v.item_variation_data.sku, v.id)
+          }
+        }
+      }
+
       // Get locations from Square
       const locationsResponse = await fetch('https://connect.squareup.com/v2/locations', {
         headers: {
@@ -255,24 +289,37 @@ Deno.serve(async (req) => {
       const locationsData = await locationsResponse.json()
       const locationId = locationsData.locations?.[0]?.id
 
-      console.log('[SquareSync] Using location:', locationId)
-
       if (!locationId) {
         throw new Error('No Square location found')
       }
 
-      // Update inventory counts in Square
-      const inventoryChanges = products.map((product) => ({
-        type: 'ADJUSTMENT',
-        adjustment: {
-          catalog_object_id: product.id,
-          location_id: locationId,
-          quantity: String(product.inventory || 0),
-          from_state: 'NONE',
-          to_state: 'IN_STOCK',
-          occurred_at: new Date().toISOString()
-        }
-      }))
+      // Update inventory counts in Square using the mapping
+      const inventoryChanges = products
+        .map((product) => {
+          // Try to find Square ID via mapping (either by product ID or SKU/item_number)
+          const squareId = squareMapping.get(product.id) ||
+                          (product.item_number ? squareMapping.get(product.item_number) : null);
+
+          if (!squareId) {
+            console.warn(`[SquareSync] No Square mapping found for product: ${product.title} (ID: ${product.id}, SKU: ${product.item_number})`);
+            return null;
+          }
+
+          return {
+            type: 'ADJUSTMENT',
+            adjustment: {
+              catalog_object_id: squareId,
+              location_id: locationId,
+              quantity: String(product.inventory || 0),
+              from_state: 'NONE',
+              to_state: 'IN_STOCK',
+              occurred_at: new Date().toISOString()
+            }
+          }
+        })
+        .filter(change => change !== null);
+
+      console.log(`[SquareSync] Mapped ${inventoryChanges.length} products to Square catalog objects`);
 
       // Square batch limit is 100
       const batches = []
@@ -297,7 +344,6 @@ Deno.serve(async (req) => {
 
         if (batchResponse.ok) {
           totalSynced += batch.length
-          console.log('[SquareSync] Batch pushed successfully:', batch.length, 'items')
         } else {
           const errorText = await batchResponse.text()
           console.error('[SquareSync] Square batch error:', errorText)
@@ -308,7 +354,9 @@ Deno.serve(async (req) => {
         success: true, 
         action: 'push',
         synced: totalSynced,
-        message: `Pushed ${totalSynced} inventory updates to Square`
+        totalAttempted: products.length,
+        mappedCount: inventoryChanges.length,
+        message: `Pushed ${totalSynced} inventory updates to Square (from ${products.length} products total)`
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })

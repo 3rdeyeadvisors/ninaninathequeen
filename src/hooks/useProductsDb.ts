@@ -71,27 +71,29 @@ export function useProductsDb() {
       });
 
       if (error) {
-        console.error('Database sync failed:', error);
+        console.error('[useProductsDb] Database sync failed:', error);
         // Include more details if available in the error object
-        if (typeof error === 'object' && error !== null) {
-          try {
-            const errorDetails = JSON.stringify(error);
-            console.error('Sync error details:', errorDetails);
-          } catch (e) {
-            console.error('Could not stringify sync error');
-          }
+        try {
+          const errorBody = await (error as any).response?.json();
+          console.error('[useProductsDb] Sync error body:', errorBody);
+          toast.error(`Database sync failed: ${errorBody?.error || error.message || 'Unknown error'}`);
+        } catch (e) {
+          console.error('[useProductsDb] Could not parse error body:', error);
+          toast.error(`Database sync failed: ${error.message || 'Unknown error'}`);
         }
         return false;
       }
 
       // Auto-sync to Square after successful database sync
-      try {
-        await supabase.functions.invoke('square-sync-inventory', {
-          body: { action: 'push' }
-        });
-        console.log('[useProductsDb] Auto-synced to Square');
-      } catch (squareErr) {
-        console.warn('[useProductsDb] Square auto-sync failed (non-blocking):', squareErr);
+      const { data: squareData, error: squareError } = await supabase.functions.invoke('square-sync-inventory', {
+        body: { action: 'push' }
+      });
+
+      if (squareError) {
+        console.warn('[useProductsDb] Square auto-sync failed (non-blocking):', squareError);
+        toast.warning('Database updated, but Square sync failed. Check your Square API token.');
+      } else {
+        console.log('[useProductsDb] Auto-synced to Square:', squareData);
       }
 
       return true;

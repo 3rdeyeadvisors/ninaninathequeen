@@ -43,6 +43,9 @@ export function parseSpreadsheet(data: ArrayBuffer): any[] {
       if (['color', 'colors', 'color code', 'colorcodes', 'hex', 'color hex'].includes(normalizedKey)) {
         normalizedKey = 'colors';
       }
+      if (['size', 'sizes', 'sizing', 'variant', 'variation'].includes(normalizedKey)) {
+        normalizedKey = 'size';
+      }
 
       normalizedRow[normalizedKey] = row[key];
     });

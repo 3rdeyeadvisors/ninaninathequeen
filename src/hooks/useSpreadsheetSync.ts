@@ -107,19 +107,27 @@ export function useSpreadsheetSync() {
 
           const normalizedTitle = normalizeTitle(title);
           const sizeMatch = normalizedTitle.match(/\(([^)]+)\)$/);
-          const size = sizeMatch ? sizeMatch[1].toUpperCase() : null;
+          const titleSize = sizeMatch ? sizeMatch[1].toUpperCase() : null;
           const baseTitle = sizeMatch 
             ? normalizedTitle.replace(/\s*\([^)]+\)$/, '').trim() 
             : normalizedTitle;
           
+          // Use size from dedicated column if available, otherwise from title
+          const size = (row.size ? String(row.size).toUpperCase().trim() : titleSize) || 'ONE_SIZE';
+
           const collection = row.collection || '';
           // Group by ID if available, otherwise by Title + Collection
           const groupKey = row.id ? String(row.id) : `${baseTitle}-${collection}`;
           
           if (!productGroups[groupKey]) {
+            const slug = baseTitle.toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '');
+
             productGroups[groupKey] = {
               baseTitle,
-              id: row.id ? String(row.id) : `sync-${Object.keys(productGroups).length}`,
+              id: row.id ? String(row.id) : `sync-${slug || Math.random().toString(36).substring(7)}`,
               price: row.price ? String(row.price).replace(/[^0-9.]/g, '') : '0.00',
               productType: row.producttype || 'Bikini',
               collection: collection,
@@ -132,15 +140,9 @@ export function useSpreadsheetSync() {
             };
           }
 
-          if (size) {
-            const stock = row.inventory !== undefined ? parseInt(row.inventory) || 0 : 0;
-            productGroups[groupKey].sizeInventory[size] = 
-              (productGroups[groupKey].sizeInventory[size] || 0) + stock;
-          } else {
-            const stock = row.inventory !== undefined ? parseInt(row.inventory) || 0 : 0;
-            productGroups[groupKey].sizeInventory['ONE_SIZE'] = 
-              (productGroups[groupKey].sizeInventory['ONE_SIZE'] || 0) + stock;
-          }
+          const stock = row.inventory !== undefined ? parseInt(row.inventory) || 0 : 0;
+          productGroups[groupKey].sizeInventory[size] =
+            (productGroups[groupKey].sizeInventory[size] || 0) + stock;
         });
 
         const productsToSync: ProductOverride[] = [];

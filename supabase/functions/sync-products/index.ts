@@ -65,23 +65,43 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Prepare products for upsert
-    const rows = productList.map((p: any) => ({
-      id: p.id,
-      title: p.title || '',
-      price: p.price || '0.00',
-      inventory: p.inventory !== undefined ? p.inventory : 0,
-      size_inventory: p.size_inventory || p.sizeInventory || {},
-      image: p.image || '',
-      description: p.description || '',
-      product_type: p.product_type || p.productType || 'Other',
-      collection: p.collection || '',
-      category: p.category || 'Other',
-      status: p.status || 'Active',
-      item_number: p.item_number || p.itemNumber || null,
-      color_codes: p.color_codes || p.colorCodes || [],
-      sizes: p.sizes || [],
-      is_deleted: p.is_deleted !== undefined ? p.is_deleted : (p.isDeleted !== undefined ? p.isDeleted : false),
-    }));
+    const rows = productList.map((p: any) => {
+      // Ensure ID is a string and not empty
+      const id = String(p.id || '').trim();
+      if (!id) {
+        console.error('[sync-products] Missing ID for product:', p.title);
+      }
+
+      // Normalize size_inventory to ensure it's a valid object
+      let sizeInventory = p.size_inventory || p.sizeInventory || {};
+      if (typeof sizeInventory === 'string') {
+        try {
+          sizeInventory = JSON.parse(sizeInventory);
+        } catch (e) {
+          console.error('[sync-products] Failed to parse size_inventory for:', id);
+          sizeInventory = {};
+        }
+      }
+
+      return {
+        id,
+        title: String(p.title || '').trim(),
+        price: String(p.price || '0.00'),
+        inventory: Number(p.inventory) || 0,
+        size_inventory: sizeInventory,
+        image: String(p.image || ''),
+        description: String(p.description || ''),
+        product_type: String(p.product_type || p.productType || 'Other'),
+        collection: String(p.collection || ''),
+        category: String(p.category || p.productType || 'Other'),
+        status: String(p.status || 'Active'),
+        item_number: p.item_number || p.itemNumber || null,
+        color_codes: Array.isArray(p.color_codes || p.colorCodes) ? (p.color_codes || p.colorCodes) : [],
+        sizes: Array.isArray(p.sizes) ? p.sizes : [],
+        is_deleted: Boolean(p.is_deleted ?? p.isDeleted ?? false),
+        updated_at: new Date().toISOString()
+      };
+    }).filter(row => row.id); // Remove rows with missing IDs
 
     // Deduplicate rows by ID to prevent Postgres upsert collisions
     const uniqueRows = rows.filter((row: any, index: number, self: any[]) =>

@@ -22,4 +22,22 @@ describe('parseSpreadsheet', () => {
     const rows = parseSpreadsheet(arrayBuffer);
     expect(rows[0]).toHaveProperty('inventory', 50);
   });
+
+  it('should support size column', () => {
+    const csvContent = "Id,Title,Inventory,Size\n1,Test Product,10,XL";
+    const workbook = XLSX.read(csvContent, { type: 'string' });
+    const arrayBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+
+    const rows = parseSpreadsheet(arrayBuffer);
+    expect(rows[0]).toHaveProperty('size', 'XL');
+  });
+
+  it('should map various size headers to size', () => {
+    const csvContent = "Id,Title,Inventory,Variant\n1,Test Product,10,M";
+    const workbook = XLSX.read(csvContent, { type: 'string' });
+    const arrayBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+
+    const rows = parseSpreadsheet(arrayBuffer);
+    expect(rows[0]).toHaveProperty('size', 'M');
+  });
 });
