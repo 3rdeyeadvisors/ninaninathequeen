@@ -1,55 +1,66 @@
 
-## Fix Product Delete Failing Due to Invalid Status Values
 
-### What's Happening
+## Speed Up Product Deletion
 
-When you try to delete products, the system is failing because some products in your local store have invalid `status` values like "In stock" or "Ordered". The database only accepts `Active`, `Inactive`, or `Draft`.
+### Current Problem
 
-When deleting:
-1. The code tries to save the full product data with `isDeleted: true`
-2. The database rejects it because the status is invalid
-3. This triggers an error toast for each product
+Deleting products is extremely slow because:
 
-This is why you're seeing "endless messages" - one error toast per product that fails to delete.
-
----
+1. **Sequential processing** - Each product waits for the previous one to finish
+2. **Double API calls per product** - Every delete triggers both a database sync AND a Square sync
+3. **No batching** - 10 products = 20 network requests in sequence
 
 ### The Fix
 
-I'll update the edge function to automatically normalize invalid status values before saving to the database.
-
 | File | Change |
 |------|--------|
-| `supabase/functions/sync-products/index.ts` | Add status normalization logic |
-
----
+| `src/hooks/useProductsDb.ts` | Add `bulkDeleteProducts` function that batches all deletions into a single API call |
+| `src/pages/admin/Products.tsx` | Use the new bulk delete function instead of looping |
+| `supabase/functions/sync-products/index.ts` | Ensure batch upserts handle deletions efficiently |
 
 ### Technical Details
 
-In the edge function, I'll add validation that converts any non-standard status to a valid one:
-
+**New bulk delete function:**
 ```typescript
-// Normalize status to match database constraints
-let status = String(p.status || 'Active');
-if (!['Active', 'Inactive', 'Draft'].includes(status)) {
-  const statusLower = status.toLowerCase();
-  if (statusLower.includes('active') || statusLower.includes('stock') || statusLower.includes('order')) {
-    status = 'Active';
-  } else if (statusLower.includes('draft')) {
-    status = 'Draft';
-  } else {
-    status = 'Inactive';
-  }
-}
+const bulkDeleteProducts = useCallback(async (productIds: string[]) => {
+  // Get all products to delete with isDeleted: true
+  const productsToDelete = productIds.map(id => {
+    const existingOverride = useAdminStore.getState().productOverrides[id];
+    return existingOverride
+      ? { ...existingOverride, isDeleted: true }
+      : { id, isDeleted: true };
+  });
+  
+  // Single API call for all products
+  return await syncWithEdgeFunction(productsToDelete as ProductOverride[]);
+}, []);
 ```
 
-This matches the normalization already done in the spreadsheet sync, ensuring consistency.
+**Updated bulk delete in Products.tsx:**
+```typescript
+const bulkDelete = async () => {
+  setIsSyncing(true);
+  const success = await bulkDeleteProducts(Array.from(selectedProducts));
+  if (success) {
+    selectedProducts.forEach(id => deleteProduct(id));
+    toast.success(`${selectedProducts.size} products deleted`);
+  }
+  setSelectedProducts(new Set());
+  setShowBulkDeleteConfirm(false);
+  setIsSyncing(false);
+};
+```
 
----
+### Performance Improvement
+
+| Before | After |
+|--------|-------|
+| 10 products = 20 API calls (sequential) | 10 products = 2 API calls (batched) |
+| ~20-30 seconds for 10 products | ~2-3 seconds for 10 products |
 
 ### After the Fix
 
-1. Delete operations will work for all products
-2. No more endless error messages
-3. Invalid statuses will be automatically corrected when saving
+1. Bulk deletes will be nearly instant
+2. Single product deletes will also be faster (no unnecessary Square sync if not configured)
+3. No more waiting forever when managing inventory
 
