@@ -54,7 +54,7 @@ export default function AdminProducts() {
   const { data: initialProducts, isLoading } = useProducts(1000);
   const { productOverrides, updateProductOverride, deleteProduct, _hasHydrated } = useAdminStore();
   const { isUploading, handleFileUpload, downloadTemplate, fileInputRef: syncInputRef } = useSpreadsheetSync();
-  const { fetchProducts, upsertProduct, deleteProductDb } = useProductsDb();
+  const { fetchProducts, upsertProduct, deleteProductDb, bulkDeleteProducts } = useProductsDb();
   const [editingProduct, setEditingProduct] = useState<Partial<ProductOverride> | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -225,15 +225,14 @@ export default function AdminProducts() {
   const bulkDelete = async () => {
     try {
       setIsSyncing(true);
-      let successCount = 0;
-      for (const id of selectedProducts) {
-        const success = await deleteProductDb(id);
-        if (success) {
-          deleteProduct(id);
-          successCount++;
-        }
+      const productIds = Array.from(selectedProducts);
+      const success = await bulkDeleteProducts(productIds);
+      if (success) {
+        productIds.forEach(id => deleteProduct(id));
+        toast.success(`${productIds.length} products deleted`);
+      } else {
+        toast.error("Failed to delete products from database");
       }
-      toast.success(`${successCount} products deleted`);
     } catch (err) {
       console.error("Bulk delete error:", err);
       toast.error("An error occurred during bulk deletion");

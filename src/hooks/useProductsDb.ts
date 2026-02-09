@@ -145,6 +145,20 @@ export function useProductsDb() {
     return await syncWithEdgeFunction(productData as ProductOverride);
   }, []);
 
+  // Bulk delete products - batches all deletions into a single API call
+  const bulkDeleteProducts = useCallback(async (productIds: string[]) => {
+    if (productIds.length === 0) return true;
+    
+    const productsToDelete = productIds.map(id => {
+      const existingOverride = useAdminStore.getState().productOverrides[id];
+      return existingOverride
+        ? { ...existingOverride, isDeleted: true }
+        : { id, isDeleted: true };
+    });
+    
+    return await syncWithEdgeFunction(productsToDelete as ProductOverride[]);
+  }, []);
+
   // Load products from database on mount
   useEffect(() => {
     fetchProducts();
@@ -155,5 +169,6 @@ export function useProductsDb() {
     upsertProduct,
     bulkUpsertProducts,
     deleteProductDb,
+    bulkDeleteProducts,
   };
 }
