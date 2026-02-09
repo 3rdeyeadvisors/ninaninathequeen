@@ -28,7 +28,7 @@ export const CartDrawer = () => {
     addAdminOrder({
       id: `#ORD-${Math.floor(Math.random() * 9000) + 1000}`,
       customerName: user?.name || 'Guest Customer',
-      customerEmail: user?.email || 'guest@example.com',
+      customerEmail: user?.email || null,
       date: new Date().toISOString().split('T')[0],
       total: totalPrice.toFixed(2),
       status: 'Pending',

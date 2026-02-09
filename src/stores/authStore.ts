@@ -54,7 +54,7 @@ const DEFAULT_ADMIN: AuthUser = {
   name: 'Lydia',
   email: ADMIN_EMAIL,
   // Password removed - authentication handled by Cloud Auth
-  avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
+  avatar: undefined,
   points: 0,
   referralCode: 'NINA-LYD-2025',
   role: 'Founder & Owner'

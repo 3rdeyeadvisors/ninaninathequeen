@@ -3,7 +3,6 @@ import { Hero } from '@/components/Hero';
 import { ProductGrid } from '@/components/ProductGrid';
 import { CategoryShowcase } from '@/components/CategoryShowcase';
 import { Features } from '@/components/Features';
-import { Testimonials } from '@/components/Testimonials';
 import { Footer } from '@/components/Footer';
 
 const Index = () => {
@@ -19,7 +18,6 @@ const Index = () => {
           limit={8} 
         />
         <CategoryShowcase />
-        <Testimonials />
       </main>
       <Footer />
     </div>
