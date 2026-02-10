@@ -25,7 +25,7 @@ export function useSettingsDb() {
       }
 
       if (data) {
-        const settingsData = data as typeof data & { auto_sync?: boolean };
+        const settingsData = data as any;
         updateSettings({
           storeName: settingsData.store_name || 'NINA ARMEND',
           currency: settingsData.currency || 'USD',
@@ -33,9 +33,17 @@ export function useSettingsDb() {
           lowStockThreshold: settingsData.low_stock_threshold || 10,
           posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
           squareApiKey: settingsData.square_api_key || '',
-          squareApplicationId: (settingsData as { square_application_id?: string }).square_application_id || '',
-          squareLocationId: (settingsData as { square_location_id?: string }).square_location_id || '',
+          squareApplicationId: settingsData.square_application_id || '',
+          squareLocationId: settingsData.square_location_id || '',
           autoSync: settingsData.auto_sync ?? true,
+          seoTitle: settingsData.seo_title || '',
+          seoDescription: settingsData.seo_description || '',
+          instagramUrl: settingsData.instagram_url || '',
+          facebookUrl: settingsData.facebook_url || '',
+          tiktokUrl: settingsData.tiktok_url || '',
+          contactEmail: settingsData.contact_email || '',
+          contactPhone: settingsData.contact_phone || '',
+          isMaintenanceMode: settingsData.is_maintenance_mode ?? false,
         });
       }
     } catch (err) {
@@ -71,6 +79,14 @@ export function useSettingsDb() {
           square_application_id: (newSettings as AdminSettings).squareApplicationId,
           square_location_id: (newSettings as AdminSettings).squareLocationId,
           auto_sync: newSettings.autoSync,
+          seo_title: newSettings.seoTitle,
+          seo_description: newSettings.seoDescription,
+          instagram_url: newSettings.instagramUrl,
+          facebook_url: newSettings.facebookUrl,
+          tiktok_url: newSettings.tiktokUrl,
+          contact_email: newSettings.contactEmail,
+          contact_phone: newSettings.contactPhone,
+          is_maintenance_mode: newSettings.isMaintenanceMode,
         })
         .eq('id', existing.id);
 

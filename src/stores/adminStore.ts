@@ -57,6 +57,15 @@ export interface AdminSettings {
   squareApplicationId: string;
   squareLocationId: string;
   autoSync: boolean;
+  // New settings
+  seoTitle?: string;
+  seoDescription?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  tiktokUrl?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  isMaintenanceMode?: boolean;
 }
 
 interface AdminStore {
@@ -85,7 +94,15 @@ const INITIAL_SETTINGS: AdminSettings = {
   squareApiKey: '',
   squareApplicationId: '',
   squareLocationId: '',
-  autoSync: true
+  autoSync: true,
+  seoTitle: 'Nina Armend | Luxury Brazilian Swimwear',
+  seoDescription: 'Discover our exclusive collection of premium Brazilian swimwear, handcrafted with the finest Italian fabrics.',
+  instagramUrl: 'https://instagram.com/ninaarmend',
+  facebookUrl: '',
+  tiktokUrl: '',
+  contactEmail: 'hello@ninaarmend.com',
+  contactPhone: '',
+  isMaintenanceMode: false
 };
 
 export const useAdminStore = create<AdminStore>()(

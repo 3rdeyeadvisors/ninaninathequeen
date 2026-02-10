@@ -11,8 +11,9 @@ import { useAdminStore } from '@/stores/adminStore';
 import { useSettingsDb } from '@/hooks/useSettingsDb';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Store, Globe, Bell, Shield, Save, CreditCard, Key, ExternalLink, CheckCircle, Loader2 } from 'lucide-react';
+import { Store, Globe, Bell, Shield, Save, CreditCard, Key, ExternalLink, CheckCircle, Loader2, Search, Share2, Mail, Phone, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function AdminSettings() {
   const { settings, updateSettings } = useAdminStore();
@@ -118,105 +119,92 @@ export default function AdminSettings() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-primary/20 shadow-gold">
+                <Card>
                   <CardHeader>
                     <div className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5 text-primary" />
-                      <CardTitle className="font-serif">Point of Sale Integration</CardTitle>
+                      <Search className="h-5 w-5 text-primary" />
+                      <CardTitle className="font-serif">SEO & Search Discovery</CardTitle>
                     </div>
-                    <CardDescription>Configure your in-person payment processing system</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid gap-4 p-4 bg-secondary/20 rounded-xl border border-primary/10">
-                      <div className="grid gap-2">
-                        <Label>Payment Provider</Label>
-                        <div className="flex justify-center">
-                          <Button
-                            variant={localSettings.posProvider === 'square' ? 'default' : 'outline'}
-                            className="capitalize font-sans text-[10px] tracking-widest h-10 w-full max-w-xs"
-                            onClick={() => setLocalSettings({...localSettings, posProvider: 'square'})}
-                          >
-                            Square
-                          </Button>
-                        </div>
-                      </div>
-
-                      {localSettings.posProvider === 'square' && (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                          {localSettings.squareApiKey && !isEditingToken ? (
-                            <div className="grid gap-2">
-                              <Label className="flex items-center gap-2">
-                                <Key className="h-3 w-3" /> Square Access Token
-                              </Label>
-                              <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg border border-primary/10">
-                                <Badge variant="secondary" className="bg-green-500/10 text-green-600 border-green-500/20">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Connected
-                                </Badge>
-                                <span className="font-mono text-xs text-muted-foreground">{maskedToken}</span>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  className="ml-auto font-sans text-[10px] uppercase tracking-widest"
-                                  onClick={() => setIsEditingToken(true)}
-                                >
-                                  Edit
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="grid gap-2">
-                              <Label htmlFor="squareKey" className="flex items-center gap-2">
-                                <Key className="h-3 w-3" /> Square Access Token
-                              </Label>
-                              <Input
-                                id="squareKey"
-                                type="password"
-                                placeholder="EAAA..."
-                                value={localSettings.squareApiKey}
-                                onChange={(e) => setLocalSettings({...localSettings, squareApiKey: e.target.value})}
-                                className="font-mono text-xs"
-                              />
-                              <p className="text-[10px] text-muted-foreground">
-                                Generate this in your Square Developer Dashboard.
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                              <Label htmlFor="squareAppId">Square Application ID</Label>
-                              <Input
-                                id="squareAppId"
-                                placeholder="sq0idp-..."
-                                value={localSettings.squareApplicationId}
-                                onChange={(e) => setLocalSettings({...localSettings, squareApplicationId: e.target.value})}
-                                className="font-mono text-xs"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label htmlFor="squareLocationId">Square Location ID</Label>
-                              <Input
-                                id="squareLocationId"
-                                placeholder="L..."
-                                value={localSettings.squareLocationId}
-                                onChange={(e) => setLocalSettings({...localSettings, squareLocationId: e.target.value})}
-                                className="font-mono text-xs"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="seoTitle">Page Title Pattern</Label>
+                      <Input
+                        id="seoTitle"
+                        value={localSettings.seoTitle}
+                        onChange={(e) => setLocalSettings({...localSettings, seoTitle: e.target.value})}
+                      />
                     </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="seoDesc">Meta Description</Label>
+                      <Textarea
+                        id="seoDesc"
+                        value={localSettings.seoDescription}
+                        onChange={(e) => setLocalSettings({...localSettings, seoDescription: e.target.value})}
+                        className="h-24 resize-none"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
-                    <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
-                      <div className="space-y-0.5">
-                        <Label className="text-sm">Automated Inventory Sync</Label>
-                        <p className="text-[10px] text-muted-foreground">Keep Storefront and POS stock levels synchronized in real-time</p>
-                      </div>
-                      <Switch
-                        checked={localSettings.autoSync}
-                        onCheckedChange={(checked) => setLocalSettings({...localSettings, autoSync: checked})}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Share2 className="h-5 w-5 text-primary" />
+                      <CardTitle className="font-serif">Social Media Presence</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="instagram">Instagram URL</Label>
+                      <Input
+                        id="instagram"
+                        value={localSettings.instagramUrl}
+                        onChange={(e) => setLocalSettings({...localSettings, instagramUrl: e.target.value})}
+                        placeholder="https://instagram.com/..."
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="facebook">Facebook URL</Label>
+                      <Input
+                        id="facebook"
+                        value={localSettings.facebookUrl}
+                        onChange={(e) => setLocalSettings({...localSettings, facebookUrl: e.target.value})}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="tiktok">TikTok URL</Label>
+                      <Input
+                        id="tiktok"
+                        value={localSettings.tiktokUrl}
+                        onChange={(e) => setLocalSettings({...localSettings, tiktokUrl: e.target.value})}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-primary" />
+                      <CardTitle className="font-serif">Contact Information</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="contactEmail">Customer Support Email</Label>
+                      <Input
+                        id="contactEmail"
+                        value={localSettings.contactEmail}
+                        onChange={(e) => setLocalSettings({...localSettings, contactEmail: e.target.value})}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="contactPhone">Business Phone</Label>
+                      <Input
+                        id="contactPhone"
+                        value={localSettings.contactPhone}
+                        onChange={(e) => setLocalSettings({...localSettings, contactPhone: e.target.value})}
                       />
                     </div>
                   </CardContent>
@@ -253,9 +241,26 @@ export default function AdminSettings() {
                       <Label className="text-xs">Low Stock Alerts</Label>
                       <Switch defaultChecked />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">AI Insights</Label>
-                      <Switch defaultChecked />
+                  </CardContent>
+                </Card>
+
+                <Card className="border-amber-200 bg-amber-50/50">
+                  <CardHeader>
+                    <div className="flex items-center gap-2 text-amber-600">
+                      <AlertTriangle className="h-5 w-5" />
+                      <CardTitle className="font-serif">Store Status</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between p-4 bg-background rounded-lg border border-amber-200">
+                      <div className="space-y-0.5">
+                        <Label className="text-amber-900">Maintenance Mode</Label>
+                        <p className="text-[10px] text-amber-700">Display a "Coming Soon" page to visitors</p>
+                      </div>
+                      <Switch
+                        checked={localSettings.isMaintenanceMode}
+                        onCheckedChange={(checked) => setLocalSettings({...localSettings, isMaintenanceMode: checked})}
+                      />
                     </div>
                   </CardContent>
                 </Card>

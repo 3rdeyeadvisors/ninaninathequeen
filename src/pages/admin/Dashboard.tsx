@@ -14,7 +14,6 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
 import { useProducts } from '@/hooks/useProducts';
-import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const data = [
@@ -30,7 +29,6 @@ const data = [
 export default function AdminDashboard() {
   const { data: allProducts } = useProducts(200);
   const { orders, customers, _hasHydrated } = useAdminStore();
-  const { isUploading, handleFileUpload, downloadTemplate, fileInputRef } = useSpreadsheetSync();
   
   const [chatMessages, setChatMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
     { role: 'ai', text: "Hello! How can I help you optimize your store today?" }
@@ -243,48 +241,6 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Data Integration Section */}
-              <Card className="border-dashed border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors h-full flex items-center justify-center">
-                <CardContent className="flex flex-col items-center justify-center text-center py-8">
-                  <div className="p-3 bg-background rounded-full mb-3 shadow-sm">
-                    <Upload className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="font-serif text-lg mb-1.5">Spreadsheet Sync</h3>
-                  <p className="text-muted-foreground text-[13px] mb-5 max-w-xs text-center">
-                    Sync your product inventory with a CSV or Excel file. AI-powered optimization included.
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      multiple
-                      accept=".csv, .xlsx, .xls, image/*"
-                      onChange={handleFileUpload}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="font-sans text-[10px] uppercase tracking-widest h-9"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
-                    >
-                      {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Upload className="h-3 w-3 mr-2" />}
-                      {isUploading ? 'Analyzing...' : 'Sync Spreadsheet'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary font-sans text-[10px] uppercase tracking-widest h-9"
-                      onClick={downloadTemplate}
-                    >
-                      <Download className="h-3 w-3 mr-2" />
-                      Template
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* Quick Actions / Store Status */}
               <Card className="border-primary/10 bg-secondary/5 h-full">
                 <CardHeader className="pb-2">
@@ -315,6 +271,38 @@ export default function AdminDashboard() {
                        <span className="text-[10px] uppercase tracking-widest">Settings</span>
                      </Link>
                    </Button>
+                </CardContent>
+              </Card>
+
+              {/* Recent Orders Summary */}
+              <Card className="border-primary/10 bg-background h-full overflow-hidden">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="font-serif text-lg">Recent Orders</CardTitle>
+                  <Button variant="ghost" size="sm" className="text-[10px] uppercase tracking-widest" asChild>
+                    <Link to="/admin/orders">View All</Link>
+                  </Button>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="space-y-4">
+                    {orders.length > 0 ? (
+                      orders.slice(0, 3).map((order) => (
+                        <div key={order.id} className="flex items-center justify-between text-sm">
+                          <div className="flex flex-col">
+                            <span className="font-sans font-medium">{order.customerName}</span>
+                            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{order.id} • {order.date}</span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="font-serif">${parseFloat(order.total).toFixed(2)}</span>
+                            <Badge variant="outline" className="text-[8px] h-4 uppercase px-1">{order.status}</Badge>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground text-sm font-sans italic">
+                        No recent orders found
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
