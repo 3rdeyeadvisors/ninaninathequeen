@@ -97,6 +97,65 @@ export default function AdminSettings() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-primary" />
+                      <CardTitle className="font-serif">Payment Gateway (Square)</CardTitle>
+                    </div>
+                    <CardDescription>Configure your Square integration for payments</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="squareAppId">Application ID</Label>
+                      <Input
+                        id="squareAppId"
+                        value={localSettings.squareApplicationId}
+                        onChange={(e) => setLocalSettings({...localSettings, squareApplicationId: e.target.value})}
+                        placeholder="sq0idp-..."
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="squareLocId">Location ID</Label>
+                      <Input
+                        id="squareLocId"
+                        value={localSettings.squareLocationId}
+                        onChange={(e) => setLocalSettings({...localSettings, squareLocationId: e.target.value})}
+                        placeholder="L..."
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="squareApiKey">API Key (Access Token)</Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-[10px] uppercase tracking-widest text-muted-foreground"
+                          onClick={() => setIsEditingToken(!isEditingToken)}
+                        >
+                          {isEditingToken ? 'Cancel' : 'Change'}
+                        </Button>
+                      </div>
+                      {isEditingToken ? (
+                        <Input
+                          id="squareApiKey"
+                          type="password"
+                          value={localSettings.squareApiKey}
+                          onChange={(e) => setLocalSettings({...localSettings, squareApiKey: e.target.value})}
+                          placeholder="EAAA..."
+                        />
+                      ) : (
+                        <Input
+                          id="squareApiKey"
+                          value={maskedToken}
+                          disabled
+                          className="bg-secondary/20"
+                        />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
                       <Globe className="h-5 w-5 text-primary" />
                       <CardTitle className="font-serif">Regional & Shipping</CardTitle>
                     </div>
