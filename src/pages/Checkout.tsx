@@ -13,16 +13,31 @@ import { toast } from 'sonner';
 import { Loader2, ShieldCheck, Truck, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+interface SquareTokenizeResult {
+  status: string;
+  token: string;
+  errors?: Array<{ message: string }>;
+}
+
+interface SquarePaymentMethod {
+  attach: (selector: string) => Promise<void>;
+  tokenize: () => Promise<SquareTokenizeResult>;
+  destroy: () => Promise<void>;
+  addEventListener: (event: string, callback: (event: any) => void) => void;
+}
+
+interface SquarePayments {
+  card: () => Promise<SquarePaymentMethod>;
+  applePay: (paymentRequest: any) => Promise<SquarePaymentMethod>;
+  googlePay: (paymentRequest: any) => Promise<SquarePaymentMethod>;
+  cashAppPay: (paymentRequest: any, options?: any) => Promise<SquarePaymentMethod>;
+  paymentRequest: (options: any) => any;
+}
+
 declare global {
   interface Window {
     Square: {
-      payments: (appId: string, locationId: string) => {
-        card: () => Promise<{
-          attach: (selector: string) => Promise<void>;
-          tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;
-          destroy: () => Promise<void>;
-        }>;
-      };
+      payments: (appId: string, locationId: string) => SquarePayments;
     };
   }
 }
@@ -32,10 +47,7 @@ export default function Checkout() {
   const { items, getTotal, clearCart } = useCartStore();
   const { settings } = useAdminStore();
   const [isProcessing, setIsProcessing] = useState(false);
-  const cardRef = useRef<{
-    tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;
-    destroy: () => Promise<void>;
-  } | null>(null);
+  const cardRef = useRef<SquarePaymentMethod | null>(null);
 
   // Shipping form state
   const [formData, setFormData] = useState({
@@ -60,7 +72,72 @@ export default function Checkout() {
   const taxAmount = subtotal * taxRate;
   const total = subtotal + shippingCost + taxAmount;
 
-  const handlePayment = async () => {
+  const processPayment = async (token: string) => {
+    if (!formData.email || !formData.address || !formData.firstName || !formData.lastName) {
+      toast.error('Please fill in all shipping details first');
+      return false;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const supabase = getSupabase();
+      const orderId = `#ORD-${Math.floor(Math.random() * 9000) + 1000}`;
+      const orderDetails = {
+        id: orderId,
+        customerName: `${formData.firstName} ${formData.lastName}`,
+        customerEmail: formData.email,
+        items: items.map(item => ({
+          productId: item.product.id,
+          variantId: item.variantId,
+          title: item.product.title,
+          quantity: item.quantity,
+          price: item.price.amount,
+          image: item.product.images[0]?.url || '',
+          size: item.selectedOptions.find(o => o.name.toLowerCase() === 'size')?.value || item.variantTitle
+        })),
+        shippingCost: shippingCost.toFixed(2),
+        itemCost: (subtotal * 0.3).toFixed(2), // Mock 30% COGS
+      };
+
+      const { data, error } = await supabase.functions.invoke('process-payment', {
+        body: {
+          sourceId: token,
+          amount: total.toFixed(2),
+          currency: items[0]?.price.currencyCode || 'USD',
+          locationId: settings.squareLocationId,
+          orderDetails
+        }
+      });
+
+      if (error || !data.success) {
+        throw new Error(error?.message || data?.error || 'Payment failed');
+      }
+
+      toast.success('Payment successful!');
+      clearCart();
+      navigate('/checkout/success');
+      return true;
+    } catch (err: unknown) {
+      console.error('Payment error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during payment';
+      toast.error(errorMessage);
+      return false;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePaymentResponse = async (result: SquareTokenizeResult) => {
+    if (result.status === 'OK') {
+      await processPayment(result.token);
+    } else {
+      console.error('Tokenization failed:', result.errors);
+      toast.error(result.errors?.[0]?.message || 'Payment tokenization failed');
+    }
+  };
+
+  const handleCardPayment = async () => {
     if (!cardRef.current) {
       toast.error('Payment form not ready');
       return;
@@ -71,58 +148,8 @@ export default function Checkout() {
       return;
     }
 
-    setIsProcessing(true);
-
-    try {
-      const result = await cardRef.current.tokenize();
-      if (result.status === 'OK') {
-        const supabase = getSupabase();
-
-        const orderId = `#ORD-${Math.floor(Math.random() * 9000) + 1000}`;
-        const orderDetails = {
-          id: orderId,
-          customerName: `${formData.firstName} ${formData.lastName}`,
-          customerEmail: formData.email,
-          items: items.map(item => ({
-            productId: item.product.id,
-            variantId: item.variantId,
-            title: item.product.title,
-            quantity: item.quantity,
-            price: item.price.amount,
-            image: item.product.images[0]?.url || '',
-            size: item.selectedOptions.find(o => o.name.toLowerCase() === 'size')?.value || item.variantTitle
-          })),
-          shippingCost: shippingCost.toFixed(2),
-          itemCost: (subtotal * 0.3).toFixed(2), // Mock 30% COGS
-        };
-
-        const { data, error } = await supabase.functions.invoke('process-payment', {
-          body: {
-            sourceId: result.token,
-            amount: total.toFixed(2),
-            currency: items[0]?.price.currencyCode || 'USD',
-            locationId: settings.squareLocationId,
-            orderDetails
-          }
-        });
-
-        if (error || !data.success) {
-          throw new Error(error?.message || data?.error || 'Payment failed');
-        }
-
-        toast.success('Payment successful!');
-        clearCart();
-        navigate('/checkout/success');
-      } else {
-        throw new Error(result.errors?.[0]?.message || 'Tokenization failed');
-      }
-    } catch (err: unknown) {
-      console.error('Payment error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred during payment';
-      toast.error(errorMessage);
-    } finally {
-      setIsProcessing(false);
-    }
+    const result = await cardRef.current.tokenize();
+    await handlePaymentResponse(result);
   };
 
   useEffect(() => {
@@ -131,7 +158,7 @@ export default function Checkout() {
     }
 
     let isMounted = true;
-    let cardInstance: { destroy: () => Promise<void> } | null = null;
+    const instances: SquarePaymentMethod[] = [];
 
     const initializePayments = async () => {
       // Poll for Square SDK availability (up to 5 seconds)
@@ -151,21 +178,77 @@ export default function Checkout() {
 
       try {
         const payments = window.Square.payments(settings.squareApplicationId, settings.squareLocationId);
+
+        // Create payment request for digital wallets
+        const paymentRequest = payments.paymentRequest({
+          countryCode: 'US',
+          currencyCode: 'USD',
+          total: {
+            amount: total.toFixed(2),
+            label: 'Total',
+          },
+        });
+
+        // Initialize Card
         const card = await payments.card();
         await card.attach('#card-container');
-
         if (isMounted) {
           cardRef.current = card;
-          cardInstance = card;
-
+          instances.push(card);
           const container = document.getElementById('card-container');
-          if (container) {
-            const p = container.querySelector('p');
-            if (p) p.remove();
-          }
+          if (container && container.querySelector('p')) container.querySelector('p')?.remove();
         } else {
           card.destroy();
         }
+
+        // Initialize Apple Pay
+        try {
+          const applePay = await payments.applePay(paymentRequest);
+          const applePayContainer = document.getElementById('apple-pay-container');
+          if (applePayContainer) {
+            await applePay.attach('#apple-pay-container');
+            instances.push(applePay);
+            applePay.addEventListener('tokenization', (event: { detail: SquareTokenizeResult }) => {
+              handlePaymentResponse(event.detail);
+            });
+          }
+        } catch (e) {
+          console.log('Apple Pay not supported or failed to load:', e);
+        }
+
+        // Initialize Google Pay
+        try {
+          const googlePay = await payments.googlePay(paymentRequest);
+          const googlePayContainer = document.getElementById('google-pay-container');
+          if (googlePayContainer) {
+            await googlePay.attach('#google-pay-container');
+            instances.push(googlePay);
+            googlePay.addEventListener('tokenization', (event: { detail: SquareTokenizeResult }) => {
+              handlePaymentResponse(event.detail);
+            });
+          }
+        } catch (e) {
+          console.log('Google Pay not supported or failed to load:', e);
+        }
+
+        // Initialize Cash App Pay
+        try {
+          const cashAppPay = await payments.cashAppPay(paymentRequest, {
+            redirectURL: window.location.href,
+            referenceId: `REF-${Math.floor(Math.random() * 90000) + 10000}`
+          });
+          const cashAppContainer = document.getElementById('cash-app-pay-container');
+          if (cashAppContainer) {
+            await cashAppPay.attach('#cash-app-pay-container');
+            instances.push(cashAppPay);
+            cashAppPay.addEventListener('tokenization', (event: { detail: SquareTokenizeResult }) => {
+              handlePaymentResponse(event.detail);
+            });
+          }
+        } catch (e) {
+          console.log('Cash App Pay not supported or failed to load:', e);
+        }
+
       } catch (e) {
         console.error('Failed to initialize Square:', e);
         if (isMounted) {
@@ -178,11 +261,11 @@ export default function Checkout() {
 
     return () => {
       isMounted = false;
-      if (cardInstance) {
-        cardInstance.destroy().catch(console.error);
-      }
+      instances.forEach(instance => {
+        if (instance.destroy) instance.destroy().catch(console.error);
+      });
     };
-  }, [settings.squareApplicationId, settings.squareLocationId]);
+  }, [settings.squareApplicationId, settings.squareLocationId, total]);
 
   if (items.length === 0) {
     return (
@@ -326,6 +409,21 @@ export default function Checkout() {
                     <CardTitle className="font-serif text-2xl">Payment Method</CardTitle>
                   </CardHeader>
                   <CardContent className="p-6">
+                    <div className="space-y-4 mb-6">
+                      <div id="apple-pay-container"></div>
+                      <div id="google-pay-container"></div>
+                      <div id="cash-app-pay-container"></div>
+                    </div>
+
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border/50" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase tracking-widest">
+                        <span className="bg-background px-2 text-muted-foreground">Or pay with card</span>
+                      </div>
+                    </div>
+
                     <div id="card-container" className="min-h-[150px] flex items-center justify-center bg-secondary/20 rounded-lg border border-border/50">
                       {/* Square Payment Form will be mounted here */}
                       <p className="text-muted-foreground text-sm font-sans">Initialising secure payment gateway...</p>
@@ -401,7 +499,7 @@ export default function Checkout() {
                       id="card-button"
                       className="w-full h-14 bg-primary text-primary-foreground font-sans uppercase tracking-widest text-xs shadow-lg group relative overflow-hidden"
                       disabled={isProcessing}
-                      onClick={handlePayment}
+                      onClick={handleCardPayment}
                     >
                       {isProcessing ? (
                         <div className="flex items-center gap-2">
