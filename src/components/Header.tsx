@@ -12,20 +12,16 @@ import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { Input } from '@/components/ui/input';
 import { useProducts, type Product } from '@/hooks/useProducts';
 
-const leftLinks = [
-  { name: 'Shop All', href: '/shop' },
+const allLinks = [
   { name: 'Tops', href: '/shop?category=tops' },
   { name: 'Bottoms', href: '/shop?category=bottoms' },
   { name: 'One-Pieces', href: '/shop?category=one-pieces' },
-];
-
-const rightLinks = [
-  { name: 'Our Story', href: '/about' },
+  { name: 'Mix & Match', href: '/mix-and-match' },
+  { name: 'Shop All', href: '/shop' },
   { name: 'Size Guide', href: '/size-quiz' },
   { name: 'Fitting Room', href: '/fitting-room' },
+  { name: 'Our Story', href: '/about' },
 ];
-
-const allLinks = [...leftLinks, ...rightLinks, { name: 'Mix & Match', href: '/mix-and-match' }];
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
