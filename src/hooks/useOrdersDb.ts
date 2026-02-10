@@ -7,7 +7,7 @@ import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
  * Fetches orders on mount and provides functions to upsert.
  */
 export function useOrdersDb() {
-  const { orders, addOrder, updateOrder } = useAdminStore();
+  const { setOrders, updateOrder } = useAdminStore();
 
   // Fetch all orders from database on mount
   const fetchOrders = useCallback(async () => {
@@ -23,33 +23,26 @@ export function useOrdersDb() {
         return;
       }
 
-      if (data && data.length > 0) {
-        // Clear existing orders and load from DB
-        const store = useAdminStore.getState();
+      if (data) {
+        const formattedOrders: AdminOrder[] = data.map((order) => ({
+          id: order.id,
+          customerName: order.customer_name,
+          customerEmail: order.customer_email,
+          date: order.date,
+          total: order.total,
+          shippingCost: order.shipping_cost || undefined,
+          itemCost: order.item_cost || undefined,
+          status: order.status as AdminOrder['status'],
+          trackingNumber: order.tracking_number || '',
+          items: (order.items as AdminOrder['items']) || [],
+        }));
         
-        // Only replace if we have DB data
-        data.forEach((order) => {
-          const existingOrder = store.orders.find(o => o.id === order.id);
-          if (!existingOrder) {
-            addOrder({
-              id: order.id,
-              customerName: order.customer_name,
-              customerEmail: order.customer_email,
-              date: order.date,
-              total: order.total,
-              shippingCost: order.shipping_cost || undefined,
-              itemCost: order.item_cost || undefined,
-              status: order.status as AdminOrder['status'],
-              trackingNumber: order.tracking_number || '',
-              items: (order.items as AdminOrder['items']) || [],
-            });
-          }
-        });
+        setOrders(formattedOrders);
       }
     } catch (err) {
       console.error('Failed to fetch orders:', err);
     }
-  }, [addOrder]);
+  }, [setOrders]);
 
   // Upsert an order to the database
   const upsertOrder = useCallback(async (order: AdminOrder) => {

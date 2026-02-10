@@ -29,15 +29,27 @@ export default function AdminSettings() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    const success = await updateSettingsDb(localSettings);
-    if (success) {
-      updateSettings(localSettings);
-      setIsEditingToken(false);
-      toast.success("Store settings saved!");
-    } else {
-      toast.error("Failed to save settings");
+
+    const savePromise = updateSettingsDb(localSettings);
+
+    toast.promise(savePromise, {
+      loading: 'Saving store settings...',
+      success: (success) => {
+        if (success) {
+          updateSettings(localSettings);
+          setIsEditingToken(false);
+          return "Store settings saved!";
+        }
+        return "Failed to save settings to database.";
+      },
+      error: "An error occurred while saving."
+    });
+
+    try {
+      await savePromise;
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   return (

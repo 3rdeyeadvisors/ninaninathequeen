@@ -13,7 +13,7 @@ import { toast } from 'sonner';
  * by the Supabase client when the user is logged in.
  */
 export function useProductsDb() {
-  const { updateProductOverride } = useAdminStore();
+  const { updateProductOverride, setProductOverrides } = useAdminStore();
 
   // Fetch all products from database on mount
   const fetchProducts = useCallback(async () => {
@@ -30,9 +30,10 @@ export function useProductsDb() {
       }
 
       if (data) {
-        // Update local store with database products
+        // Update local store with database products in bulk
+        const overrides: Record<string, ProductOverride> = {};
         data.forEach((product) => {
-          updateProductOverride(product.id, {
+          overrides[product.id] = {
             id: product.id,
             title: product.title,
             price: product.price,
@@ -48,13 +49,14 @@ export function useProductsDb() {
             colorCodes: product.color_codes || [],
             sizes: product.sizes || [],
             isDeleted: product.is_deleted || false,
-          });
+          };
         });
+        setProductOverrides(overrides);
       }
     } catch (err) {
       console.error('Failed to fetch products:', err);
     }
-  }, [updateProductOverride]);
+  }, [setProductOverrides]);
 
   // Internal helper for syncing via edge function (includes auto-push to Square)
   // SECURITY: No longer passes adminEmail - server validates JWT instead

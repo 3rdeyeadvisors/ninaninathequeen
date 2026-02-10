@@ -78,17 +78,26 @@ export default function AdminOrders() {
 
   const saveOrderChanges = async () => {
     if (selectedOrder) {
-      const success = await updateOrderDb(selectedOrder.id, {
+      const savePromise = updateOrderDb(selectedOrder.id, {
         status: editStatus,
         trackingNumber: editTracking,
         shippingCost: editShippingCost,
         itemCost: editItemCost
       });
 
-      if (success) {
-        toast.success(`Order ${selectedOrder.id} updated successfully`);
-        setIsEditing(false);
-      }
+      toast.promise(savePromise, {
+        loading: `Updating order ${selectedOrder.id}...`,
+        success: (success) => {
+          if (success) {
+            setIsEditing(false);
+            return `Order ${selectedOrder.id} updated successfully`;
+          }
+          return `Failed to update order ${selectedOrder.id}`;
+        },
+        error: "An error occurred while updating the order"
+      });
+
+      await savePromise;
     }
   };
 

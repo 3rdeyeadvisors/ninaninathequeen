@@ -81,7 +81,10 @@ interface AdminStore {
   decrementInventory: (productId: string, size: string, quantity: number) => void;
   deleteProduct: (id: string) => void;
   addCustomer: (customer: AdminCustomer) => void;
+  setCustomers: (customers: AdminCustomer[]) => void;
   deleteCustomer: (id: string) => void;
+  setOrders: (orders: AdminOrder[]) => void;
+  setProductOverrides: (overrides: Record<string, ProductOverride>) => void;
   updateSettings: (settings: Partial<AdminSettings>) => void;
 }
 
@@ -180,6 +183,12 @@ export const useAdminStore = create<AdminStore>()(
       deleteCustomer: (id) => set((state) => ({
         customers: state.customers.filter(c => c.id !== id)
       })),
+
+      setCustomers: (customers) => set({ customers }),
+
+      setOrders: (orders) => set({ orders }),
+
+      setProductOverrides: (productOverrides) => set({ productOverrides }),
 
       updateSettings: (newSettings) => set((state) => ({
         settings: { ...state.settings, ...newSettings }
