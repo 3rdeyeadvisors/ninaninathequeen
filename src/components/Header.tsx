@@ -16,15 +16,17 @@ const leftLinks = [
   { name: 'Shop All', href: '/shop' },
   { name: 'Tops', href: '/shop?category=tops' },
   { name: 'Bottoms', href: '/shop?category=bottoms' },
+  { name: 'One-Pieces', href: '/shop?category=one-pieces' },
 ];
 
 const rightLinks = [
-  { name: 'One-Pieces', href: '/shop?category=one-pieces' },
-  { name: 'Mix & Match', href: '/mix-and-match' },
   { name: 'Our Story', href: '/about' },
+  { name: 'Size Guide', href: '/size-quiz' },
+  { name: 'Fitting Room', href: '/fitting-room' },
+  { name: 'Contact', href: '/contact' },
 ];
 
-const allLinks = [...leftLinks, ...rightLinks, { name: 'Fitting Room', href: '/fitting-room' }];
+const allLinks = [...leftLinks, ...rightLinks, { name: 'Mix & Match', href: '/mix-and-match' }];
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
