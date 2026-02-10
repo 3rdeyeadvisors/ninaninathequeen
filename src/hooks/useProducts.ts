@@ -56,7 +56,7 @@ function overrideToProduct(override: ProductOverride): Product {
       id: `${override.id}-${size.toLowerCase()}`,
       title: size,
       price: { amount: override.price || '0.00', currencyCode: 'USD' },
-      availableForSale: true,
+      availableForSale: (override.sizeInventory?.[size] ?? 0) > 0,
       selectedOptions: [{ name: 'Size', value: size }],
     })),
     options: [{ name: 'Size', values: sizes }],

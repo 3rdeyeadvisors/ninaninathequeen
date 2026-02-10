@@ -26,6 +26,7 @@ interface SquareCatalogItem {
     variations?: Array<{
       id: string
       updated_at?: string
+      version?: number
       item_variation_data?: {
         sku?: string
         name?: string
@@ -778,7 +779,64 @@ Deno.serve(async (req) => {
           totalSynced += batch.length
         } else {
           const errorText = await batchResponse.text()
-          console.error('[SquareSync] Square batch error:', errorText)
+          console.error('[SquareSync] Square inventory batch error:', errorText)
+        }
+      }
+
+      // Sync Prices to Square Catalog
+      console.log('[SquareSync] Starting Price PUSH to Square...')
+      const priceUpdates = products.flatMap((product) => {
+        const squareItemId = squareMapping.get(product.id) ||
+                        (product.item_number ? squareMapping.get(product.item_number) : null);
+        if (!squareItemId) return [];
+
+        const squareItem = squareCatalog.find(item => item.id === squareItemId);
+        if (!squareItem) return [];
+
+        const variations = squareItem.item_data?.variations || [];
+        const localPriceCents = Math.round(parseFloat(product.price || '0') * 100);
+
+        return variations
+          .filter(v => v.item_variation_data?.price_money?.amount !== localPriceCents)
+          .map(v => ({
+            type: 'ITEM_VARIATION',
+            id: v.id,
+            version: v.version,
+            item_variation_data: {
+              ...v.item_variation_data,
+              price_money: {
+                amount: localPriceCents,
+                currency: 'USD'
+              }
+            }
+          }));
+      });
+
+      let pricesSynced = 0;
+      if (priceUpdates.length > 0) {
+        console.log(`[SquareSync] Syncing ${priceUpdates.length} prices to Square...`);
+        // Batch upsert catalog objects (limit 100)
+        for (let i = 0; i < priceUpdates.length; i += 100) {
+          const batch = priceUpdates.slice(i, i + 100);
+          const catalogResponse = await fetch('https://connect.squareup.com/v2/catalog/batch-upsert', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
+              'Content-Type': 'application/json',
+              'Square-Version': '2024-01-18'
+            },
+            body: JSON.stringify({
+              idempotency_key: crypto.randomUUID(),
+              batches: [{ objects: batch }]
+            })
+          });
+
+          if (catalogResponse.ok) {
+            pricesSynced += batch.length;
+          } else {
+            const errorText = await catalogResponse.text();
+            console.error('[SquareSync] Square catalog price update error:', errorText);
+          }
         }
       }
 
@@ -786,10 +844,11 @@ Deno.serve(async (req) => {
         success: true, 
         action: 'push',
         synced: totalSynced,
+        pricesSynced: pricesSynced,
         imagesUploaded: imagesUploaded,
         totalAttempted: products.length,
         mappedCount: inventoryChanges.length,
-        message: `Pushed ${totalSynced} inventory updates to Square${imagesUploaded > 0 ? ` (${imagesUploaded} images uploaded)` : ''}`
+        message: `Pushed ${totalSynced} inventory and ${pricesSynced} price updates to Square${imagesUploaded > 0 ? ` (${imagesUploaded} images uploaded)` : ''}`
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
