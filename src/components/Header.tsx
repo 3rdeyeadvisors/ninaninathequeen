@@ -75,121 +75,105 @@ export function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-[100] glass border-b border-border/30">
       <AnnouncementBar />
-      <nav className="mx-auto px-4 md:px-8 relative h-16 md:h-24 max-w-[1920px]">
-        {/* Mobile menu button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden absolute left-4 top-1/2 -translate-y-1/2 z-50"
-          onClick={() => {
-            setMobileMenuOpen(!mobileMenuOpen);
-            setSearchOpen(false);
-          }}
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-
-        {/* Desktop Navigation */}
-        <div className="hidden lg:flex items-center justify-between h-full w-full">
-          {/* Left Navigation */}
-          <div className="flex-1 flex items-center justify-end gap-3 xl:gap-5 2xl:gap-7">
-            {leftLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.href}
-                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.15em] xl:tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
-              >
-                {link.name}
-              </Link>
-            ))}
-          </div>
-
-          {/* Logo Container - Perfectly Centered */}
-          <div className="flex-none flex items-center justify-center px-8 xl:px-12 2xl:px-16">
-            <Link to="/" className="flex flex-col items-center scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
-              <Logo />
+      <nav className="mx-auto px-4 md:px-8 relative h-16 md:h-24 max-w-[1920px] flex items-center">
+        {/* Desktop Layout */}
+        <div className="hidden lg:flex items-center justify-between w-full h-full">
+          {/* Logo & Navigation Combined */}
+          <div className="flex items-center gap-6 xl:gap-10 2xl:gap-14">
+            <Link to="/" className="flex flex-col items-start scale-[0.6] xl:scale-[0.75] 2xl:scale-[0.85] transition-all duration-300">
+              <Logo className="!items-start !text-left" />
             </Link>
-          </div>
 
-          {/* Right Navigation + Icons */}
-          <div className="flex-1 flex items-center justify-start gap-3 xl:gap-5 2xl:gap-7">
-            {rightLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.href}
-                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.15em] xl:tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
-              >
-                {link.name}
-              </Link>
-            ))}
-
-            <div className="h-4 w-px bg-border/40" />
-
-            <div className="flex items-center gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 transition-colors"
-                onClick={() => {
-                  setSearchOpen(!searchOpen);
-                  setMobileMenuOpen(false);
-                }}
-                aria-label="Toggle search"
-              >
-                {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-              </Button>
-
-              <Link to="/wishlist">
-                <Button variant="ghost" size="icon" className="h-8 w-8 relative transition-colors">
-                  <Heart className="h-4 w-4 text-foreground" />
-                  {wishlistItems.length > 0 && (
-                    <span className="absolute top-0.5 right-0.5 bg-primary text-primary-foreground text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold shadow-sm ring-1 ring-background">
-                      {wishlistItems.length}
-                    </span>
-                  )}
-                </Button>
-              </Link>
-
-              <Link to="/account">
-                <Button variant="ghost" size="icon" className="h-8 w-8 transition-colors">
-                  <User className="h-4 w-4" />
-                </Button>
-              </Link>
-
-              <CartDrawer />
-
-              {isAdmin && (
-                <Link to="/admin">
-                  <Button variant="outline" size="icon" className="h-8 w-8 border-primary/20 text-primary hover:bg-primary/5 shadow-sm ml-0.5">
-                    <LayoutDashboard className="h-3.5 w-3.5" />
-                  </Button>
+            <div className="flex items-center gap-3 xl:gap-5 2xl:gap-7">
+              {allLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.href}
+                  className="text-[10px] xl:text-[11px] 2xl:text-[12px] font-sans tracking-[0.1em] xl:tracking-[0.15em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                >
+                  {link.name}
                 </Link>
-              )}
+              ))}
             </div>
           </div>
+
+          {/* Right Icons */}
+          <div className="flex items-center gap-1 xl:gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 transition-colors"
+              onClick={() => {
+                setSearchOpen(!searchOpen);
+                setMobileMenuOpen(false);
+              }}
+              aria-label="Toggle search"
+            >
+              {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+            </Button>
+
+            <Link to="/wishlist">
+              <Button variant="ghost" size="icon" className="h-8 w-8 relative transition-colors">
+                <Heart className="h-4 w-4 text-foreground" />
+                {wishlistItems.length > 0 && (
+                  <span className="absolute top-0.5 right-0.5 bg-primary text-primary-foreground text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold shadow-sm ring-1 ring-background">
+                    {wishlistItems.length}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
+            <Link to="/account">
+              <Button variant="ghost" size="icon" className="h-8 w-8 transition-colors">
+                <User className="h-4 w-4" />
+              </Button>
+            </Link>
+
+            <CartDrawer />
+
+            {isAdmin && (
+              <Link to="/admin">
+                <Button variant="outline" size="icon" className="h-8 w-8 border-primary/20 text-primary hover:bg-primary/5 shadow-sm ml-0.5">
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
-        {/* Mobile Logo & Cart (for < lg) */}
-        <div className="lg:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Link to="/" className="flex flex-col items-center scale-75">
-            <Logo />
+        {/* Mobile Layout */}
+        <div className="lg:hidden flex items-center justify-between w-full h-full">
+          <Link to="/" className="scale-75 origin-left transition-transform duration-300">
+            <Logo className="!items-start !text-left" />
           </Link>
-        </div>
 
-        <div className="lg:hidden absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Toggle search"
-            onClick={() => {
-              setSearchOpen(!searchOpen);
-              setMobileMenuOpen(false);
-            }}
-          >
-            <Search className="h-5 w-5" />
-          </Button>
-          <CartDrawer />
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setSearchOpen(!searchOpen);
+                setMobileMenuOpen(false);
+              }}
+              aria-label="Toggle search"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+
+            <CartDrawer />
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setMobileMenuOpen(!mobileMenuOpen);
+                setSearchOpen(false);
+              }}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
 
         {/* Search Bar - Slide Down */}
