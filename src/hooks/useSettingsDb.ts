@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminSettings } from '@/stores/adminStore';
 
@@ -8,6 +8,7 @@ import { useAdminStore, type AdminSettings } from '@/stores/adminStore';
  */
 export function useSettingsDb() {
   const { settings, updateSettings } = useAdminStore();
+  const settingsIdRef = useRef<string | null>(null);
 
   // Fetch settings from database on mount
   const fetchSettings = useCallback(async () => {
@@ -26,6 +27,7 @@ export function useSettingsDb() {
 
       if (data) {
         const settingsData = data as Record<string, unknown>;
+        settingsIdRef.current = settingsData.id as string;
         updateSettings({
           storeName: (settingsData.store_name as string) || 'NINA ARMEND',
           currency: (settingsData.currency as string) || 'USD',
@@ -55,22 +57,26 @@ export function useSettingsDb() {
   const updateSettingsDb = useCallback(async (newSettings: Partial<AdminSettings>) => {
     try {
       const supabase = getSupabase();
-      // First get the existing settings row ID
-      const { data: existing } = await supabase
-        .from('store_settings')
-        .select('id')
-        .limit(1)
-        .maybeSingle();
 
-      if (!existing) {
-        console.error('No settings row found');
-        return false;
+      // Use cached ID if available, otherwise fetch it
+      let targetId = settingsIdRef.current;
+
+      if (!targetId) {
+        const { data: existing } = await supabase
+          .from('store_settings')
+          .select('id')
+          .limit(1)
+          .maybeSingle();
+
+        if (existing) {
+          targetId = existing.id;
+          settingsIdRef.current = targetId;
+        }
       }
 
-      const { error } = await supabase
-        .from('store_settings')
-        .update({
-          store_name: newSettings.storeName,
+      // Prepare data for upsert/update
+      const updateData = {
+        store_name: newSettings.storeName,
           currency: newSettings.currency,
           tax_rate: newSettings.taxRate,
           low_stock_threshold: newSettings.lowStockThreshold,
@@ -85,10 +91,31 @@ export function useSettingsDb() {
           facebook_url: newSettings.facebookUrl,
           tiktok_url: newSettings.tiktokUrl,
           contact_email: newSettings.contactEmail,
-          contact_phone: newSettings.contactPhone,
-          is_maintenance_mode: newSettings.isMaintenanceMode,
-        })
-        .eq('id', existing.id);
+        contact_phone: newSettings.contactPhone,
+        is_maintenance_mode: newSettings.isMaintenanceMode,
+      };
+
+      let error;
+      if (targetId) {
+        // Update existing row
+        const { error: updateError } = await supabase
+          .from('store_settings')
+          .update(updateData)
+          .eq('id', targetId);
+        error = updateError;
+      } else {
+        // Create new row (upsert with new ID if none exists)
+        const { data: inserted, error: insertError } = await supabase
+          .from('store_settings')
+          .insert(updateData)
+          .select('id')
+          .single();
+
+        if (inserted) {
+          settingsIdRef.current = inserted.id;
+        }
+        error = insertError;
+      }
 
       if (error) {
         console.error('Error updating settings:', error);
