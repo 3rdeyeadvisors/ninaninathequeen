@@ -80,24 +80,24 @@ export function useProductsDb() {
 
       if (data?.success && data.products) {
         // Update local store with the actual data from database
-        const returnedProducts = Array.isArray(data.products) ? data.products : [data.products];
-        returnedProducts.forEach((product: any) => {
-          updateProductOverride(product.id, {
-            id: product.id,
-            title: product.title,
-            price: product.price,
-            inventory: product.inventory,
+        const returnedProducts = (Array.isArray(data.products) ? data.products : [data.products]) as Record<string, unknown>[];
+        returnedProducts.forEach((product) => {
+          updateProductOverride(product.id as string, {
+            id: product.id as string,
+            title: product.title as string,
+            price: product.price as string,
+            inventory: product.inventory as number,
             sizeInventory: (product.size_inventory as Record<string, number>) || {},
-            image: product.image || '',
-            description: product.description || '',
-            productType: product.product_type || 'Bikini',
-            collection: product.collection || '',
-            category: product.category || 'Other',
+            image: (product.image as string) || '',
+            description: (product.description as string) || '',
+            productType: (product.product_type as string) || 'Bikini',
+            collection: (product.collection as string) || '',
+            category: (product.category as string) || 'Other',
             status: product.status as 'Active' | 'Inactive' | 'Draft',
-            itemNumber: product.item_number || '',
-            colorCodes: product.color_codes || [],
-            sizes: product.sizes || [],
-            isDeleted: product.is_deleted || false,
+            itemNumber: (product.item_number as string) || '',
+            colorCodes: (product.color_codes as string[]) || [],
+            sizes: (product.sizes as string[]) || [],
+            isDeleted: (product.is_deleted as boolean) || false,
           });
         });
       }

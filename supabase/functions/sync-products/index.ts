@@ -28,7 +28,7 @@ interface ProductData {
 async function syncToSquare(
   supabaseUrl: string,
   authHeader: string,
-  updatedProducts: any[]
+  updatedProducts: Record<string, unknown>[]
 ): Promise<void> {
   try {
     // Call the Square sync edge function to push changes

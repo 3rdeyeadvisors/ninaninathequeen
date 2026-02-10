@@ -436,7 +436,7 @@ Deno.serve(async (req) => {
         
         // Timestamp-based conflict resolution for total inventory
         let finalInventory = totalSquareInventory
-        let finalSizeInventory = sizeInventory
+        const finalSizeInventory = sizeInventory
         
         if (localProduct && squareUpdatedAt) {
           const squareTime = new Date(squareUpdatedAt).getTime()
@@ -560,7 +560,7 @@ Deno.serve(async (req) => {
       }
 
       // Fetch Square Catalog to establish mapping (ID or SKU) and check existing images
-      let squareCatalog: SquareCatalogItem[] = []
+      const squareCatalog: SquareCatalogItem[] = []
       const squareItemImages = new Map<string, string[]>() // itemId -> imageIds
       
       try {
