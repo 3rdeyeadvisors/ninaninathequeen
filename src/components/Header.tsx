@@ -12,15 +12,19 @@ import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { Input } from '@/components/ui/input';
 import { useProducts, type Product } from '@/hooks/useProducts';
 
-const navLinks = [
+const leftLinks = [
   { name: 'Shop All', href: '/shop' },
   { name: 'Tops', href: '/shop?category=tops' },
   { name: 'Bottoms', href: '/shop?category=bottoms' },
+];
+
+const rightLinks = [
   { name: 'One-Pieces', href: '/shop?category=one-pieces' },
   { name: 'Mix & Match', href: '/mix-and-match' },
-  { name: 'Fitting Room', href: '/fitting-room' },
   { name: 'Our Story', href: '/about' },
 ];
+
+const allLinks = [...leftLinks, ...rightLinks, { name: 'Fitting Room', href: '/fitting-room' }];
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -84,87 +88,87 @@ export function Header() {
           {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
 
-        {/* Desktop Navigation - Flex Container */}
-        <div className="hidden lg:flex items-center h-full w-full">
-          {/* Left Navigation - 3 links */}
-          <div className="flex items-center gap-3 xl:gap-5 2xl:gap-8 flex-1 justify-start">
-            {navLinks.slice(0, 3).map((link) => (
+        {/* Desktop Navigation - 3-column grid for perfect centering */}
+        <div className="hidden lg:grid grid-cols-[1fr_auto_1fr] items-center h-full w-full">
+          {/* Left Navigation */}
+          <div className="flex items-center gap-4 xl:gap-6 2xl:gap-8">
+            {leftLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.href}
-                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.1em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                className="text-[9px] xl:text-[10px] 2xl:text-[11px] font-sans tracking-[0.15em] xl:tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
               >
                 {link.name}
               </Link>
             ))}
           </div>
 
-          {/* Center - Flexible space for logo */}
-          <div className="w-[200px] xl:w-[250px] 2xl:w-[300px]" />
+          {/* Center Logo */}
+          <div className="px-6 xl:px-10 2xl:px-14">
+            <Link to="/" className="flex flex-col items-center scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
+              <Logo />
+            </Link>
+          </div>
 
-          {/* Right Navigation - 4 links */}
-          <div className="flex items-center gap-3 xl:gap-5 2xl:gap-8 flex-1 justify-end">
-            {navLinks.slice(3).map((link) => (
+          {/* Right Navigation + Icons */}
+          <div className="flex items-center justify-end gap-4 xl:gap-6 2xl:gap-8">
+            {rightLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.href}
-                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.1em] xl:tracking-[0.2em] 2xl:tracking-[0.3em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                className="text-[9px] xl:text-[10px] 2xl:text-[11px] font-sans tracking-[0.15em] xl:tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
               >
                 {link.name}
               </Link>
             ))}
-          </div>
 
-          {/* Icons Group - Fixed position after right nav */}
-          <div className="flex items-center gap-1 xl:gap-2 ml-4 xl:ml-6 2xl:ml-8 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 xl:h-10 xl:w-10 transition-colors"
-              onClick={() => {
-                setSearchOpen(!searchOpen);
-                setMobileMenuOpen(false);
-              }}
-              aria-label="Toggle search"
-            >
-              {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
-            </Button>
+            {/* Separator */}
+            <div className="h-4 w-px bg-border/40 hidden xl:block" />
 
-            <Link to="/wishlist">
-              <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 relative transition-colors">
-                <Heart className="h-5 w-5 text-foreground" />
-                {wishlistItems.length > 0 && (
-                  <span className="absolute top-1 right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold shadow-sm ring-1 ring-background">
-                    {wishlistItems.length}
-                  </span>
-                )}
+            {/* Icons */}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 xl:h-9 xl:w-9 transition-colors"
+                onClick={() => {
+                  setSearchOpen(!searchOpen);
+                  setMobileMenuOpen(false);
+                }}
+                aria-label="Toggle search"
+              >
+                {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
               </Button>
-            </Link>
 
-            <Link to="/account">
-              <Button variant="ghost" size="icon" className="h-9 w-9 xl:h-10 xl:w-10 transition-colors">
-                <User className="h-5 w-5" />
-              </Button>
-            </Link>
-
-            <CartDrawer />
-
-            {isAdmin && (
-              <Link to="/admin">
-                <Button variant="outline" size="sm" className="flex gap-2 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[9px] 2xl:text-[10px] uppercase tracking-widest shadow-sm px-2 2xl:px-4 h-9 ml-2">
-                  <LayoutDashboard className="h-4 w-4" />
-                  <span className="hidden 2xl:inline">Admin</span>
+              <Link to="/wishlist">
+                <Button variant="ghost" size="icon" className="h-8 w-8 xl:h-9 xl:w-9 relative transition-colors">
+                  <Heart className="h-4 w-4 text-foreground" />
+                  {wishlistItems.length > 0 && (
+                    <span className="absolute top-0.5 right-0.5 bg-primary text-primary-foreground text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold shadow-sm ring-1 ring-background">
+                      {wishlistItems.length}
+                    </span>
+                  )}
                 </Button>
               </Link>
-            )}
-          </div>
-        </div>
 
-        {/* Logo - Guaranteed Perfect Center via Absolute Positioning */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden lg:block">
-          <Link to="/" className="flex flex-col items-center pointer-events-auto scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
-            <Logo />
-          </Link>
+              <Link to="/account">
+                <Button variant="ghost" size="icon" className="h-8 w-8 xl:h-9 xl:w-9 transition-colors">
+                  <User className="h-4 w-4" />
+                </Button>
+              </Link>
+
+              <CartDrawer />
+
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button variant="outline" size="sm" className="flex gap-1.5 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[8px] 2xl:text-[9px] uppercase tracking-widest shadow-sm px-2 h-8 ml-1">
+                    <LayoutDashboard className="h-3.5 w-3.5" />
+                    <span className="hidden 2xl:inline">Admin</span>
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Mobile Logo & Cart (for < lg) */}
@@ -304,7 +308,7 @@ export function Header() {
                   </Link>
                 )}
 
-                {navLinks.map((link) => (
+                {allLinks.map((link) => (
                   <Link
                     key={link.name}
                     to={link.href}
