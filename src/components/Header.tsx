@@ -19,6 +19,7 @@ const navLinks = [
   { name: 'One-Pieces', href: '/shop?category=one-pieces' },
   { name: 'Mix & Match', href: '/mix-and-match' },
   { name: 'Fitting Room', href: '/fitting-room' },
+  { name: 'Our Story', href: '/about' },
 ];
 
 export function Header() {
@@ -103,7 +104,7 @@ export function Header() {
 
           {/* Right Navigation - 2 links */}
           <div className="flex items-center gap-3 xl:gap-5 2xl:gap-8 w-[200px] xl:w-[240px] 2xl:w-[300px] justify-end">
-            {navLinks.slice(4).map((link) => (
+            {navLinks.slice(4, 6).map((link) => (
               <Link
                 key={link.name}
                 to={link.href}
@@ -159,11 +160,19 @@ export function Header() {
           </div>
         </div>
 
-        {/* Logo - Guaranteed Perfect Center via Absolute Positioning */}
+        {/* Logo & Our Story Link - Guaranteed Perfect Center via Absolute Positioning */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden lg:block">
-          <Link to="/" className="flex flex-col items-center pointer-events-auto scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
-            <Logo />
-          </Link>
+          <div className="flex items-center relative">
+            <Link
+              to="/about"
+              className="pointer-events-auto text-[10px] font-sans tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap absolute right-[calc(100%+3rem)] xl:right-[calc(100%+4rem)] 2xl:right-[calc(100%+6rem)] top-1/2 -translate-y-1/2"
+            >
+              Our Story
+            </Link>
+            <Link to="/" className="flex flex-col items-center pointer-events-auto scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
+              <Logo />
+            </Link>
+          </div>
         </div>
 
         {/* Mobile Logo & Cart (for < lg) */}
