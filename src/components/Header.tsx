@@ -23,7 +23,6 @@ const rightLinks = [
   { name: 'Our Story', href: '/about' },
   { name: 'Size Guide', href: '/size-quiz' },
   { name: 'Fitting Room', href: '/fitting-room' },
-  { name: 'Contact', href: '/contact' },
 ];
 
 const allLinks = [...leftLinks, ...rightLinks, { name: 'Mix & Match', href: '/mix-and-match' }];
@@ -80,8 +79,8 @@ export function Header() {
         <div className="hidden lg:flex items-center justify-between w-full h-full">
           {/* Logo & Navigation Combined */}
           <div className="flex items-center gap-6 xl:gap-10 2xl:gap-14">
-            <Link to="/" className="flex flex-col items-start scale-[0.6] xl:scale-[0.75] 2xl:scale-[0.85] transition-all duration-300">
-              <Logo className="!items-start !text-left" />
+            <Link to="/" className="flex flex-col items-center scale-[0.6] xl:scale-[0.75] 2xl:scale-[0.85] transition-all duration-300">
+              <Logo />
             </Link>
 
             <div className="flex items-center gap-3 xl:gap-5 2xl:gap-7">
@@ -142,12 +141,28 @@ export function Header() {
         </div>
 
         {/* Mobile Layout */}
-        <div className="lg:hidden flex items-center justify-between w-full h-full">
-          <Link to="/" className="scale-75 origin-left transition-transform duration-300">
-            <Logo className="!items-start !text-left" />
-          </Link>
+        <div className="lg:hidden flex items-center justify-between w-full h-full px-4">
+          <div className="flex-1 flex items-center z-20">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setMobileMenuOpen(!mobileMenuOpen);
+                setSearchOpen(false);
+              }}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
 
-          <div className="flex items-center gap-0.5">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+            <Link to="/" className="scale-75 transition-transform duration-300 origin-center">
+              <Logo />
+            </Link>
+          </div>
+
+          <div className="flex-1 flex items-center justify-end gap-0.5 z-20">
             <Button
               variant="ghost"
               size="icon"
@@ -161,18 +176,6 @@ export function Header() {
             </Button>
 
             <CartDrawer />
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setMobileMenuOpen(!mobileMenuOpen);
-                setSearchOpen(false);
-              }}
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
           </div>
         </div>
 

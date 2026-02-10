@@ -25,25 +25,25 @@ export function useSettingsDb() {
       }
 
       if (data) {
-        const settingsData = data as any;
+        const settingsData = data as Record<string, unknown>;
         updateSettings({
-          storeName: settingsData.store_name || 'NINA ARMEND',
-          currency: settingsData.currency || 'USD',
+          storeName: (settingsData.store_name as string) || 'NINA ARMEND',
+          currency: (settingsData.currency as string) || 'USD',
           taxRate: Number(settingsData.tax_rate) || 7.5,
-          lowStockThreshold: settingsData.low_stock_threshold || 10,
+          lowStockThreshold: (settingsData.low_stock_threshold as number) || 10,
           posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
-          squareApiKey: settingsData.square_api_key || '',
-          squareApplicationId: settingsData.square_application_id || '',
-          squareLocationId: settingsData.square_location_id || '',
-          autoSync: settingsData.auto_sync ?? true,
-          seoTitle: settingsData.seo_title || '',
-          seoDescription: settingsData.seo_description || '',
-          instagramUrl: settingsData.instagram_url || '',
-          facebookUrl: settingsData.facebook_url || '',
-          tiktokUrl: settingsData.tiktok_url || '',
-          contactEmail: settingsData.contact_email || '',
-          contactPhone: settingsData.contact_phone || '',
-          isMaintenanceMode: settingsData.is_maintenance_mode ?? false,
+          squareApiKey: (settingsData.square_api_key as string) || '',
+          squareApplicationId: (settingsData.square_application_id as string) || '',
+          squareLocationId: (settingsData.square_location_id as string) || '',
+          autoSync: (settingsData.auto_sync as boolean) ?? true,
+          seoTitle: (settingsData.seo_title as string) || '',
+          seoDescription: (settingsData.seo_description as string) || '',
+          instagramUrl: (settingsData.instagram_url as string) || '',
+          facebookUrl: (settingsData.facebook_url as string) || '',
+          tiktokUrl: (settingsData.tiktok_url as string) || '',
+          contactEmail: (settingsData.contact_email as string) || '',
+          contactPhone: (settingsData.contact_phone as string) || '',
+          isMaintenanceMode: (settingsData.is_maintenance_mode as boolean) ?? false,
         });
       }
     } catch (err) {

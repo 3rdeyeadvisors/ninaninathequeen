@@ -251,7 +251,11 @@ export default function AdminPOS() {
 
     if (!searchQuery) return baseProducts;
     const q = searchQuery.toLowerCase();
-    return baseProducts.filter(p => p.title.toLowerCase().includes(q) || ((p as any).sku && (p as any).sku.toLowerCase().includes(q)));
+    return baseProducts.filter(p => {
+      const titleMatch = p.title.toLowerCase().includes(q);
+      const skuMatch = (p as Record<string, unknown>).sku ? String((p as Record<string, unknown>).sku).toLowerCase().includes(q) : false;
+      return titleMatch || skuMatch;
+    });
   }, [initialProducts, productOverrides, searchQuery]);
 
   const addToCart = (product: Product) => {
