@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAdminStore } from '@/stores/adminStore';
 
 export default function Contact() {
+  const { settings } = useAdminStore();
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success("Thank you for your message. Our concierge will be in touch shortly.");
@@ -27,24 +29,28 @@ export default function Contact() {
                 <p className="text-muted-foreground mb-8">Our customer concierge team is available to assist you with sizing, styling, and order inquiries.</p>
 
                 <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-secondary p-3 rounded-full">
-                      <Mail className="h-5 w-5 text-primary" />
+                  {settings.contactEmail && (
+                    <div className="flex items-center gap-4">
+                      <div className="bg-secondary p-3 rounded-full">
+                        <Mail className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email</p>
+                        <p>{settings.contactEmail}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email</p>
-                      <p>concierge@ninaarmend.com</p>
+                  )}
+                  {settings.contactPhone && (
+                    <div className="flex items-center gap-4">
+                      <div className="bg-secondary p-3 rounded-full">
+                        <Phone className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Customer Support</p>
+                        <p>{settings.contactPhone}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="bg-secondary p-3 rounded-full">
-                      <Phone className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-sans tracking-widest uppercase text-muted-foreground">WhatsApp</p>
-                      <p>+55 (21) 99876-5432</p>
-                    </div>
-                  </div>
+                  )}
                   <div className="flex items-center gap-4">
                     <div className="bg-secondary p-3 rounded-full">
                       <MapPin className="h-5 w-5 text-primary" />

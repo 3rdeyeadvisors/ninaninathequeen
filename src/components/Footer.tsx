@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Instagram, Facebook, Mail, MapPin, Phone } from 'lucide-react';
+import { Instagram, Facebook, Mail, MapPin, Phone, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { useAdminStore } from '@/stores/adminStore';
 
 const footerLinks = {
   shop: [
@@ -25,6 +26,8 @@ const footerLinks = {
 };
 
 export function Footer() {
+  const { settings } = useAdminStore();
+
   return (
     <footer className="bg-card border-t border-border">
       {/* Newsletter section */}
@@ -92,21 +95,34 @@ export function Footer() {
               Collections designed to flatter every body type with high-quality, eco-conscious fabrics.
             </p>
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
-                <a href="https://instagram.com/nina_armend" target="_blank" rel="noopener noreferrer">
-                  <Instagram className="h-5 w-5" />
-                </a>
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
-                <a href="https://facebook.com/ninaarmend" target="_blank" rel="noopener noreferrer">
-                  <Facebook className="h-5 w-5" />
-                </a>
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
-                <a href="mailto:contact@ninaarmend.co.site">
-                  <Mail className="h-5 w-5" />
-                </a>
-              </Button>
+              {settings.instagramUrl && (
+                <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
+                  <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer">
+                    <Instagram className="h-5 w-5" />
+                  </a>
+                </Button>
+              )}
+              {settings.facebookUrl && (
+                <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
+                  <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer">
+                    <Facebook className="h-5 w-5" />
+                  </a>
+                </Button>
+              )}
+              {settings.tiktokUrl && (
+                <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
+                  <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="h-5 w-5" />
+                  </a>
+                </Button>
+              )}
+              {settings.contactEmail && (
+                <Button variant="ghost" size="icon" className="hover:text-primary" asChild>
+                  <a href={`mailto:${settings.contactEmail}`}>
+                    <Mail className="h-5 w-5" />
+                  </a>
+                </Button>
+              )}
             </div>
           </div>
 

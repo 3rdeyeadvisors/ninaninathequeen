@@ -3,6 +3,7 @@ import { ProductGrid } from '@/components/ProductGrid';
 import { Footer } from '@/components/Footer';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { SEO } from '@/components/SEO';
 
 const Shop = () => {
   const [searchParams] = useSearchParams();
@@ -18,6 +19,7 @@ const Shop = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title={title} />
       <Header />
       <main className="pt-32 md:pt-40">
         {/* Page header */}

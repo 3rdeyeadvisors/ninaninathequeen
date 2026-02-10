@@ -84,11 +84,13 @@ export default function Checkout() {
           customerName: `${formData.firstName} ${formData.lastName}`,
           customerEmail: formData.email,
           items: items.map(item => ({
+            productId: item.product.id,
+            variantId: item.variantId,
             title: item.product.title,
             quantity: item.quantity,
             price: item.price.amount,
             image: item.product.images[0]?.url || '',
-            size: item.variantTitle
+            size: item.selectedOptions.find(o => o.name.toLowerCase() === 'size')?.value || item.variantTitle
           })),
           shippingCost: shippingCost.toFixed(2),
           itemCost: (subtotal * 0.3).toFixed(2), // Mock 30% COGS

@@ -164,6 +164,14 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
           squareApplicationId: (data.square_application_id as string) || '',
           squareLocationId: (data.square_location_id as string) || '',
           autoSync: (data.auto_sync as boolean) ?? true,
+          seoTitle: (data.seo_title as string) || '',
+          seoDescription: (data.seo_description as string) || '',
+          instagramUrl: (data.instagram_url as string) || '',
+          facebookUrl: (data.facebook_url as string) || '',
+          tiktokUrl: (data.tiktok_url as string) || '',
+          contactEmail: (data.contact_email as string) || '',
+          contactPhone: (data.contact_phone as string) || '',
+          isMaintenanceMode: (data.is_maintenance_mode as boolean) ?? false,
         });
       };
 

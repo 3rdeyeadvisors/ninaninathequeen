@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3 } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
+import { useOrdersDb } from '@/hooks/useOrdersDb';
 import { useState } from 'react';
 import {
   Dialog,
@@ -27,7 +28,8 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminOrders() {
-  const { orders, updateOrder, _hasHydrated } = useAdminStore();
+  const { orders, _hasHydrated } = useAdminStore();
+  const { updateOrderDb } = useOrdersDb();
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isViewing, setIsViewing] = useState(false);
@@ -74,16 +76,19 @@ export default function AdminOrders() {
     setIsViewing(true);
   };
 
-  const saveOrderChanges = () => {
+  const saveOrderChanges = async () => {
     if (selectedOrder) {
-      updateOrder(selectedOrder.id, {
+      const success = await updateOrderDb(selectedOrder.id, {
         status: editStatus,
         trackingNumber: editTracking,
         shippingCost: editShippingCost,
         itemCost: editItemCost
       });
-      toast.success(`Order ${selectedOrder.id} updated successfully`);
-      setIsEditing(false);
+
+      if (success) {
+        toast.success(`Order ${selectedOrder.id} updated successfully`);
+        setIsEditing(false);
+      }
     }
   };
 
