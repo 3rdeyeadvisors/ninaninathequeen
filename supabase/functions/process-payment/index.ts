@@ -92,6 +92,43 @@ Deno.serve(async (req) => {
         console.error('[ProcessPayment] Order creation error:', orderError)
         // We don't fail the response here because the payment was already successful
       }
+
+      // Decrement inventory in Supabase
+      if (orderDetails.items && Array.isArray(orderDetails.items)) {
+        for (const item of orderDetails.items) {
+          try {
+            // Fetch current product to get its size_inventory
+            const { data: product, error: fetchError } = await supabase
+              .from('products')
+              .select('id, inventory, size_inventory')
+              .eq('id', item.productId)
+              .single();
+
+            if (!fetchError && product) {
+              const currentTotal = product.inventory || 0;
+              const newTotal = Math.max(0, currentTotal - item.quantity);
+
+              const sizeInventory = { ...(product.size_inventory as Record<string, number> || {}) };
+              // Match size key case-insensitively
+              const sizeKey = Object.keys(sizeInventory).find(k => k.toLowerCase() === item.size.toLowerCase()) || item.size;
+              const currentSizeStock = sizeInventory[sizeKey] || 0;
+              sizeInventory[sizeKey] = Math.max(0, currentSizeStock - item.quantity);
+
+              await supabase
+                .from('products')
+                .update({
+                  inventory: newTotal,
+                  size_inventory: sizeInventory
+                })
+                .eq('id', item.productId);
+
+              console.log(`[ProcessPayment] Updated inventory for product ${item.productId}: ${currentTotal} -> ${newTotal}`);
+            }
+          } catch (invErr) {
+            console.error('[ProcessPayment] Inventory update error:', invErr);
+          }
+        }
+      }
     }
 
     return new Response(JSON.stringify({

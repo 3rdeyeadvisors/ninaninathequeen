@@ -81,6 +81,36 @@ export function useOrdersDb() {
     }
   }, []);
 
+  // Update an order in the database
+  const updateOrderDb = useCallback(async (orderId: string, updates: Partial<AdminOrder>) => {
+    try {
+      const supabase = getSupabase();
+
+      const dbUpdates: any = {};
+      if (updates.status) dbUpdates.status = updates.status;
+      if (updates.trackingNumber !== undefined) dbUpdates.tracking_number = updates.trackingNumber;
+      if (updates.shippingCost !== undefined) dbUpdates.shipping_cost = updates.shippingCost;
+      if (updates.itemCost !== undefined) dbUpdates.item_cost = updates.itemCost;
+
+      const { error } = await supabase
+        .from('orders')
+        .update(dbUpdates)
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Error updating order in DB:', error);
+        return false;
+      }
+
+      // Update local store
+      updateOrder(orderId, updates);
+      return true;
+    } catch (err) {
+      console.error('Failed to update order:', err);
+      return false;
+    }
+  }, [updateOrder]);
+
   // Load orders from database on mount
   useEffect(() => {
     fetchOrders();
@@ -89,5 +119,6 @@ export function useOrdersDb() {
   return {
     fetchOrders,
     upsertOrder,
+    updateOrderDb
   };
 }

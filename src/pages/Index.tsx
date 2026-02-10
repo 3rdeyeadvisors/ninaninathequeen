@@ -4,10 +4,12 @@ import { ProductGrid } from '@/components/ProductGrid';
 import { CategoryShowcase } from '@/components/CategoryShowcase';
 import { Features } from '@/components/Features';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
+      <SEO />
       <Header />
       <main>
         <Hero />

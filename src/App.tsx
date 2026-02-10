@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCloudAuthStore } from "@/stores/cloudAuthStore";
+import { useAdminStore } from "@/stores/adminStore";
+import { ADMIN_EMAIL } from "@/stores/authStore";
 import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -34,9 +36,22 @@ import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";
 import Account from "./pages/Account";
 import Demo from "./pages/Demo";
+import Maintenance from "./pages/Maintenance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+function MaintenanceGuard({ children }: { children: React.ReactNode }) {
+  const { settings } = useAdminStore();
+  const { user } = useCloudAuthStore();
+  const isAdmin = user?.isAdmin || user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  if (settings.isMaintenanceMode && !isAdmin) {
+    return <Maintenance />;
+  }
+
+  return <>{children}</>;
+}
 
 function AppContent() {
   useCartSync();
@@ -49,7 +64,8 @@ function AppContent() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <Routes>
+      <MaintenanceGuard>
+        <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/product/:handle" element={<ProductPage />} />
@@ -105,6 +121,7 @@ function AppContent() {
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </MaintenanceGuard>
     </BrowserRouter>
   );
 }
