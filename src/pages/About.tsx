@@ -20,81 +20,101 @@ export default function About() {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-24 items-center mb-32">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
+              className="text-center md:text-left order-2 md:order-1"
             >
-              <h2 className="font-serif text-3xl mb-6">The Nina Armend Vision</h2>
-              <p className="text-muted-foreground mb-4 leading-relaxed">
-                Founded with a mission to celebrate the diverse beauty of women, Nina Armend combines
-                authentic Brazilian craftsmanship with exotic, luxurious silhouettes. Every piece
-                is thoughtfully selected to flatter every body type, ensuring high quality and eco-conscious production.
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                Our designs focus on the perfect fit, utilizing high-quality Brazilian fabrics that set
-                the standard and innovative construction techniques that honor the body's natural curves.
-              </p>
+              <h2 className="font-serif text-3xl md:text-5xl mb-8">The Nina Armend Vision</h2>
+              <div className="space-y-6">
+                <p className="text-muted-foreground leading-relaxed text-lg">
+                  Founded with a mission to celebrate the diverse beauty of women, Nina Armend combines
+                  authentic Brazilian craftsmanship with exotic, luxurious silhouettes. Every piece
+                  is thoughtfully selected to flatter every body type, ensuring high quality and eco-conscious production.
+                </p>
+                <p className="text-muted-foreground leading-relaxed text-lg">
+                  Our designs focus on the perfect fit, utilizing high-quality Brazilian fabrics that set
+                  the standard and innovative construction techniques that honor the body's natural curves.
+                </p>
+              </div>
             </motion.div>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="aspect-[4/5] bg-secondary rounded-2xl overflow-hidden"
+              className="flex justify-center order-1 md:order-2"
             >
-              <img
-                src="https://images.unsplash.com/photo-1590650213165-c1fef80648c4?auto=format&fit=crop&q=80&w=800"
-                alt="Nina Armend Vision"
-                className="w-full h-full object-cover"
-              />
+              <div className="aspect-square w-full max-w-[320px] lg:max-w-[420px] bg-secondary rounded-full overflow-hidden border-8 border-secondary/20 shadow-elegant relative group">
+                <div className="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors duration-500 z-10" />
+                <img
+                  src="https://images.unsplash.com/photo-1590650213165-c1fef80648c4?auto=format&fit=crop&q=80&w=800"
+                  alt="Nina Armend Vision"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+              </div>
             </motion.div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center mb-20 flex-row-reverse">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-24 items-center mb-32">
              <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="md:order-2"
+              className="md:order-2 text-center md:text-left"
             >
-              <h2 className="font-serif text-3xl mb-2">Meet the Founder</h2>
-              <p className="text-primary font-sans tracking-[0.2em] uppercase text-[10px] font-bold mb-6">Lydia — Founder & Owner</p>
-              <p className="text-muted-foreground mb-4 leading-relaxed">
-                Lydia founded Nina Armend with a clear vision: to bring the authentic soul of Brazilian beach culture to the global luxury market. Her background in fashion design and her deep connection to the coastal lifestyle of Rio de Janeiro drive the brand's creative direction.
-              </p>
-              <p className="text-muted-foreground leading-relaxed italic">
-                "Nina Armend is a tribute to the confident, effortless elegance of the modern woman. We don't just make bikinis; we create memories of sun-kissed days and endless summers."
-              </p>
+              <h2 className="font-serif text-3xl md:text-5xl mb-4">Meet the Founder</h2>
+              <p className="text-primary font-sans tracking-[0.3em] uppercase text-[10px] md:text-xs font-bold mb-10">Lydia — Founder & Owner</p>
+              <div className="space-y-8">
+                <p className="text-muted-foreground leading-relaxed text-lg">
+                  Lydia founded Nina Armend with a clear vision: to bring the authentic soul of Brazilian beach culture to the global luxury market. Her background in fashion design and her deep connection to the coastal lifestyle of Rio de Janeiro drive the brand's creative direction.
+                </p>
+                <p className="text-foreground leading-relaxed italic border-l-2 border-primary/40 pl-8 py-4 bg-secondary/10 rounded-r-xl text-lg">
+                  "Nina Armend is a tribute to the confident, effortless elegance of the modern woman. We don't just make bikinis; we create memories of sun-kissed days and endless summers."
+                </p>
+              </div>
             </motion.div>
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="aspect-[4/5] bg-secondary rounded-2xl overflow-hidden md:order-1"
+              className="md:order-1 flex justify-center"
             >
-              <img
-                src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=800"
-                alt="Lydia - Founder & Owner"
-                className="w-full h-full object-cover"
-              />
+              <div className="aspect-square w-full max-w-[320px] lg:max-w-[420px] bg-secondary rounded-full overflow-hidden border-8 border-secondary/20 shadow-elegant relative group">
+                <div className="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors duration-500 z-10" />
+                <img
+                  src="/assets/lydia.jpeg"
+                  alt="Lydia - Founder & Owner"
+                  className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-110"
+                />
+              </div>
             </motion.div>
           </div>
 
-          <div className="bg-secondary/30 rounded-3xl p-12 md:p-20 text-center">
-            <h2 className="font-serif text-3xl mb-8">Uncompromising Craftsmanship</h2>
-            <div className="grid md:grid-cols-3 gap-12">
-              <div>
-                <h3 className="font-sans font-bold tracking-widest uppercase text-sm mb-4">Premium Fabrics</h3>
-                <p className="text-sm text-muted-foreground">We source only the finest double-lined Brazilian fabrics that set the industry standard, ensuring longevity, comfort, and a perfect fit.</p>
+          <div className="bg-secondary/20 rounded-[3rem] p-12 md:p-24 text-center border border-primary/10 shadow-gold mb-20">
+            <h2 className="font-serif text-3xl md:text-5xl mb-16">Uncompromising Craftsmanship</h2>
+            <div className="grid md:grid-cols-3 gap-16">
+              <div className="space-y-4">
+                <div className="h-12 w-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="h-2 w-2 bg-primary rounded-full" />
+                </div>
+                <h3 className="font-sans font-bold tracking-[0.2em] uppercase text-xs mb-4">Premium Fabrics</h3>
+                <p className="text-muted-foreground leading-relaxed">We source only the finest double-lined Brazilian fabrics that set the industry standard, ensuring longevity, comfort, and a perfect fit.</p>
               </div>
-              <div>
-                <h3 className="font-sans font-bold tracking-widest uppercase text-sm mb-4">Ethical Production</h3>
-                <p className="text-sm text-muted-foreground">Our pieces are handcrafted in small batches in Brazil, supporting local artisans and ethical labor practices.</p>
+              <div className="space-y-4">
+                <div className="h-12 w-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="h-2 w-2 bg-primary rounded-full" />
+                </div>
+                <h3 className="font-sans font-bold tracking-[0.2em] uppercase text-xs mb-4">Ethical Production</h3>
+                <p className="text-muted-foreground leading-relaxed">Our pieces are handcrafted in small batches in Brazil, supporting local artisans and ethical labor practices.</p>
               </div>
-              <div>
-                <h3 className="font-sans font-bold tracking-widest uppercase text-sm mb-4">Timeless Design</h3>
-                <p className="text-sm text-muted-foreground">We create investment pieces that transcend seasons, blending contemporary trends with classic elegance.</p>
+              <div className="space-y-4">
+                <div className="h-12 w-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="h-2 w-2 bg-primary rounded-full" />
+                </div>
+                <h3 className="font-sans font-bold tracking-[0.2em] uppercase text-xs mb-4">Timeless Design</h3>
+                <p className="text-muted-foreground leading-relaxed">We create investment pieces that transcend seasons, blending contemporary trends with classic elegance.</p>
               </div>
             </div>
           </div>
