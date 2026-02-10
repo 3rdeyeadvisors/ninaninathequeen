@@ -24,6 +24,14 @@ const normalizeTitle = (title: string): string => {
     .trim();
 };
 
+// Normalize size strings for consistency
+const normalizeSize = (size: string): string => {
+  const s = size.trim().toUpperCase();
+  if (s === '2X-LARGE' || s === '2X LARGE' || s === 'DOUBLE XL') return '2XL';
+  if (s === 'XXL') return 'XXL'; // Keep XXL if explicitly provided, but we could also map to 2XL
+  return s;
+};
+
 export function useSpreadsheetSync() {
   const { data: allProducts } = useProducts(1000);
   const { updateProductOverride } = useAdminStore();
@@ -113,7 +121,8 @@ export function useSpreadsheetSync() {
             : normalizedTitle;
           
           // Use size from dedicated column if available, otherwise from title
-          const size = (row.size ? String(row.size).toUpperCase().trim() : titleSize) || 'ONE_SIZE';
+          const rawSize = (row.size ? String(row.size).toUpperCase().trim() : titleSize) || 'ONE_SIZE';
+          const size = normalizeSize(rawSize);
 
           const collection = row.collection || '';
           // Group by Title + Collection to merge variants from spreadsheet

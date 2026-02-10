@@ -232,6 +232,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         count: data?.length || 0,
+        products: data,
         autoSynced: autoSyncEnabled && posProvider === 'square'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

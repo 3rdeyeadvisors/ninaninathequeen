@@ -78,6 +78,30 @@ export function useProductsDb() {
         body: { products },
       });
 
+      if (data?.success && data.products) {
+        // Update local store with the actual data from database
+        const returnedProducts = Array.isArray(data.products) ? data.products : [data.products];
+        returnedProducts.forEach((product: any) => {
+          updateProductOverride(product.id, {
+            id: product.id,
+            title: product.title,
+            price: product.price,
+            inventory: product.inventory,
+            sizeInventory: (product.size_inventory as Record<string, number>) || {},
+            image: product.image || '',
+            description: product.description || '',
+            productType: product.product_type || 'Bikini',
+            collection: product.collection || '',
+            category: product.category || 'Other',
+            status: product.status as 'Active' | 'Inactive' | 'Draft',
+            itemNumber: product.item_number || '',
+            colorCodes: product.color_codes || [],
+            sizes: product.sizes || [],
+            isDeleted: product.is_deleted || false,
+          });
+        });
+      }
+
       if (error) {
         console.error('[useProductsDb] Database sync failed:', error);
         // Handle specific error cases

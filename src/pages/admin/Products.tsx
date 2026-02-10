@@ -3,7 +3,7 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight, RefreshCw, Package } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
@@ -387,18 +387,26 @@ export default function AdminProducts() {
     setEditingProduct(null);
     setIsAddingProduct(false);
 
+    const savePromise = upsertProduct(productData);
+
+    toast.promise(savePromise, {
+      loading: wasAdding ? 'Adding new product...' : 'Saving changes...',
+      success: (success) => {
+        if (success) return wasAdding ? "Product added successfully!" : "Product updated successfully!";
+        return "Database sync failed. Changes saved locally.";
+      },
+      error: "An unexpected error occurred while saving."
+    });
+
     try {
       setIsSyncing(true);
-      const success = await upsertProduct(productData);
-      if (success) {
-        toast.success(wasAdding ? "Product added successfully!" : "Product updated successfully!");
-      } else {
+      const success = await savePromise;
+      if (!success) {
         await fetchProducts();
-        toast.error("Failed to save to database. Catalog refreshed.");
       }
     } catch (err) {
+      console.error("Save error:", err);
       await fetchProducts();
-      toast.error("An error occurred. Catalog refreshed.");
     } finally {
       setIsSyncing(false);
     }
@@ -732,258 +740,327 @@ export default function AdminProducts() {
                 setIsAddingProduct(false);
               }
             }}>
-              <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
-                <DialogHeader className="flex-shrink-0">
-                  <DialogTitle className="font-serif text-2xl">{isAddingProduct ? 'Add New Product' : 'Edit Product'}</DialogTitle>
-                  <DialogDescription className="font-sans text-sm text-muted-foreground">
-                    {isAddingProduct ? 'Enter the details for the new product.' : 'Make changes to your product here. Click save when you\'re done.'}
+              <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+                <DialogHeader className="p-6 pb-4 flex-shrink-0 border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Package className="h-5 w-5 text-primary" />
+                    </div>
+                    <DialogTitle className="font-serif text-3xl tracking-tight">
+                      {isAddingProduct ? 'Add New Product' : 'Edit Product'}
+                    </DialogTitle>
+                  </div>
+                  <DialogDescription className="font-sans text-sm text-muted-foreground ml-11">
+                    {isAddingProduct
+                      ? 'Create a new item for your luxury collection.'
+                      : `Updating details for "${editingProduct?.title || 'this product'}"`}
                   </DialogDescription>
                 </DialogHeader>
-                <div className="flex-1 overflow-y-auto pr-2">
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right font-sans text-[10px] uppercase tracking-widest">Name</Label>
-                    <Input
-                      id="name"
-                      value={editingProduct?.title || ""}
-                      onChange={(e) => setEditingProduct({...editingProduct, title: e.target.value})}
-                      className="col-span-3 font-sans text-sm"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="itemNumber" className="text-right font-sans text-[10px] uppercase tracking-widest">Item #</Label>
-                    <Input
-                      id="itemNumber"
-                      placeholder="e.g., LB-001"
-                      value={editingProduct?.itemNumber || ""}
-                      onChange={(e) => setEditingProduct({...editingProduct, itemNumber: e.target.value})}
-                      className="col-span-3 font-sans text-sm font-mono"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right font-sans text-[10px] uppercase tracking-widest">Category</Label>
-                    <Select
-                      value={editingProduct?.category || 'Other'}
-                      onValueChange={(value) => setEditingProduct({...editingProduct, category: value})}
-                    >
-                      <SelectTrigger className="col-span-3 font-sans text-sm bg-background">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover z-50">
-                        {CATEGORIES.filter(c => c !== 'All').map(cat => (
-                          <SelectItem key={cat} value={cat} className="text-sm font-sans">
-                            {cat}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-start gap-4">
-                    <Label className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Colors</Label>
-                    <div className="col-span-3 space-y-2">
-                      <div className="flex gap-2 flex-wrap">
-                        {editingProduct?.colorCodes?.map((color, i) => (
-                          <div key={i} className="flex items-center gap-1">
-                            <input 
-                              type="color" 
-                              value={color}
-                              onChange={(e) => {
-                                const newColors = [...(editingProduct.colorCodes || [])];
-                                newColors[i] = e.target.value;
-                                setEditingProduct({...editingProduct, colorCodes: newColors});
-                              }}
-                              className="w-8 h-8 rounded cursor-pointer border border-border"
-                            />
-                            <button 
-                              onClick={() => {
-                                const newColors = editingProduct.colorCodes?.filter((_, idx) => idx !== i) || [];
-                                setEditingProduct({...editingProduct, colorCodes: newColors});
-                              }}
-                              className="text-xs text-muted-foreground hover:text-destructive"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin scrollbar-thumb-primary/10 hover:scrollbar-thumb-primary/20 transition-all">
+                  {/* Basic Information Section */}
+                  <section className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[10px] font-sans uppercase tracking-[0.2em] text-primary font-black">Basic Information</h3>
+                      <div className="h-[1px] flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Product Name</Label>
                         <Input
-                          placeholder="Add color (e.g., #FFD700)"
-                          value={newColorInput}
-                          onChange={(e) => setNewColorInput(e.target.value)}
-                          className="text-sm font-mono"
+                          id="name"
+                          value={editingProduct?.title || ""}
+                          onChange={(e) => setEditingProduct({...editingProduct, title: e.target.value})}
+                          placeholder="e.g., Silk Summer Top"
+                          className="font-sans text-sm bg-secondary/10 border-border/50 focus:bg-background transition-all h-11"
                         />
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => {
-                            if (newColorInput.trim()) {
-                              const colorValue = newColorInput.trim().startsWith('#') 
-                                ? newColorInput.trim() 
-                                : `#${newColorInput.trim()}`;
-                              setEditingProduct({
-                                ...editingProduct, 
-                                colorCodes: [...(editingProduct?.colorCodes || []), colorValue]
-                              });
-                              setNewColorInput('');
-                            }
-                          }}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="price" className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Price (USD)</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-sans">$</span>
+                          <Input
+                            id="price"
+                            type="text"
+                            value={editingProduct?.price || ""}
+                            onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
+                            className="font-sans text-sm bg-secondary/10 border-border/50 focus:bg-background transition-all h-11 pl-7"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="itemNumber" className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Item # / SKU</Label>
+                        <Input
+                          id="itemNumber"
+                          placeholder="e.g., NA-001"
+                          value={editingProduct?.itemNumber || ""}
+                          onChange={(e) => setEditingProduct({...editingProduct, itemNumber: e.target.value})}
+                          className="font-sans text-sm font-mono bg-secondary/10 border-border/50 focus:bg-background transition-all h-11"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Category</Label>
+                        <Select
+                          value={editingProduct?.category || 'Other'}
+                          onValueChange={(value) => setEditingProduct({...editingProduct, category: value})}
                         >
-                          Add
-                        </Button>
+                          <SelectTrigger className="font-sans text-sm bg-secondary/10 border-border/50 focus:bg-background transition-all h-11">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover z-50">
+                            {CATEGORIES.filter(c => c !== 'All').map(cat => (
+                              <SelectItem key={cat} value={cat} className="text-sm font-sans">
+                                {cat}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-start gap-4">
-                    <Label className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Sizes</Label>
-                    <div className="col-span-3 flex flex-wrap gap-2">
-                      {PRODUCT_SIZES.map(size => (
-                        <button
-                          key={size}
-                          onClick={() => {
-                            const currentSizes = editingProduct?.sizes || [];
-                            const isSelected = currentSizes.includes(size);
-                            const newSizes = isSelected
-                              ? currentSizes.filter(s => s !== size)
-                              : [...currentSizes, size];
+                  </section>
 
-                            const newSizeInventory = { ...(editingProduct?.sizeInventory || {}) };
-                            if (isSelected) {
-                              delete newSizeInventory[size];
-                            } else {
-                              newSizeInventory[size] = 0;
-                            }
-
-                            const newTotal = Object.values(newSizeInventory).reduce((acc, v) => acc + (v as number), 0);
-
-                            setEditingProduct({
-                              ...editingProduct,
-                              sizes: newSizes,
-                              sizeInventory: newSizeInventory,
-                              inventory: newTotal
-                            });
-                          }}
-                          className={`px-2 py-1 text-[10px] font-sans border rounded transition-colors ${
-                            editingProduct?.sizes?.includes(size)
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          {size}
-                        </button>
-                      ))}
+                  {/* Media & Description Section */}
+                  <section className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[10px] font-sans uppercase tracking-[0.2em] text-primary font-black">Media & Description</h3>
+                      <div className="h-[1px] flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
                     </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right font-sans text-[10px] uppercase tracking-widest">Image</Label>
-                    <div className="col-span-3 flex items-center gap-4">
-                      {editingProduct?.image && (
-                        <img src={editingProduct.image} alt="Preview" className="w-16 h-20 object-cover rounded-lg border shadow-sm" />
-                      )}
-                      <div className="flex-1">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                          ref={imageInputRef}
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      <div className="lg:col-span-1 space-y-3">
+                        <Label className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Product Image</Label>
+                        <div className="relative group aspect-[3/4] rounded-2xl overflow-hidden border-2 border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 shadow-inner" onClick={() => imageInputRef.current?.click()}>
+                          {editingProduct?.image ? (
+                            <img src={editingProduct.image} alt="Preview" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          ) : (
+                            <div className="flex flex-col items-center gap-2 text-muted-foreground/40 group-hover:text-primary/60 transition-colors">
+                              <Upload className="h-8 w-8" />
+                              <span className="text-[10px] uppercase tracking-widest font-sans">Upload Image</span>
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            ref={imageInputRef}
+                          />
+                          <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-center">
+                            <span className="text-white text-[10px] uppercase tracking-widest font-sans font-bold flex items-center gap-2">
+                              <Edit2 className="h-3 w-3" /> Change Photo
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="lg:col-span-2 space-y-3 flex flex-col">
+                        <div className="flex justify-between items-center">
+                          <Label htmlFor="desc" className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Product Story / Description</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-[10px] uppercase tracking-widest font-black text-primary hover:text-primary hover:bg-primary/5 gap-2 px-3 rounded-full border border-primary/20"
+                            onClick={handleAiDescription}
+                            disabled={isAiGenerating}
+                          >
+                            {isAiGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                            Magic AI Rewrite
+                          </Button>
+                        </div>
+                        <Textarea
+                          id="desc"
+                          placeholder="Describe the elegance and craftsmanship of this piece..."
+                          value={editingProduct?.description || ""}
+                          onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
+                          className="flex-1 min-h-[180px] text-sm leading-relaxed font-sans bg-secondary/10 border-border/50 focus:bg-background transition-all resize-none p-4 rounded-xl"
                         />
-                        <Button
-                          variant="outline"
-                          className="w-full font-sans text-[10px] uppercase tracking-widest h-10"
-                          onClick={() => imageInputRef.current?.click()}
-                        >
-                          <Upload className="h-3 w-3 mr-2" />
-                          Upload
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="price" className="text-right font-sans text-[10px] uppercase tracking-widest">Price</Label>
-                    <Input
-                      id="price"
-                      type="text"
-                      value={editingProduct?.price || ""}
-                      onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
-                      className="col-span-3 font-sans text-sm"
-                    />
-                  </div>
-                  {editingProduct?.sizes && editingProduct.sizes.length > 0 && (
-                    <div className="grid grid-cols-4 items-start gap-4 py-4 border-y border-border/50">
-                      <Label className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Size Inventory</Label>
-                      <div className="col-span-3 grid grid-cols-2 gap-x-4 gap-y-2">
-                        {editingProduct.sizes.map(size => (
-                          <div key={size} className="flex items-center justify-between gap-2 bg-secondary/20 p-1.5 rounded-lg border border-border/50">
-                            <span className="text-[10px] font-bold w-8">{size}</span>
-                            <Input
-                              type="number"
-                              value={editingProduct.sizeInventory?.[size] ?? 0}
-                              onFocus={(e) => e.target.select()}
-                              onChange={(e) => {
-                                const valStr = e.target.value;
-                                // Use 0 for empty input but don't prevent typing
-                                const val = valStr === '' ? 0 : parseInt(valStr);
-                                if (isNaN(val) && valStr !== '') return;
+                  </section>
 
-                                const newSizeInventory = {
-                                  ...(editingProduct.sizeInventory || {}),
-                                  [size]: isNaN(val) ? 0 : val
-                                };
+                  {/* Inventory Section */}
+                  <section className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[10px] font-sans uppercase tracking-[0.2em] text-primary font-black">Sizes & Availability</h3>
+                      <div className="h-[1px] flex-1 bg-gradient-to-r from-primary/20 to-transparent" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-4">
+                        <Label className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Enabled Sizes</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {PRODUCT_SIZES.map(size => (
+                            <button
+                              key={size}
+                              onClick={() => {
+                                const currentSizes = editingProduct?.sizes || [];
+                                const isSelected = currentSizes.includes(size);
+                                const newSizes = isSelected
+                                  ? currentSizes.filter(s => s !== size)
+                                  : [...currentSizes, size];
+
+                                const newSizeInventory = { ...(editingProduct?.sizeInventory || {}) };
+                                if (isSelected) {
+                                  delete newSizeInventory[size];
+                                } else {
+                                  newSizeInventory[size] = 0;
+                                }
+
                                 const newTotal = Object.values(newSizeInventory).reduce((acc, v) => acc + (v as number), 0);
+
                                 setEditingProduct({
                                   ...editingProduct,
+                                  sizes: newSizes,
                                   sizeInventory: newSizeInventory,
                                   inventory: newTotal
                                 });
                               }}
-                              className="h-7 text-[10px] w-16 px-1"
-                            />
+                              className={`h-10 w-12 flex items-center justify-center text-[10px] font-sans font-bold border-2 rounded-xl transition-all ${
+                                editingProduct?.sizes?.includes(size)
+                                  ? 'bg-primary text-primary-foreground border-primary shadow-lg scale-110 z-10'
+                                  : 'border-border/40 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground'
+                              }`}
+                            >
+                              {size}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="pt-4 space-y-3">
+                          <Label className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Color Palette</Label>
+                          <div className="flex gap-2 flex-wrap min-h-[44px] items-center p-3 bg-secondary/10 rounded-xl border border-border/50">
+                            {editingProduct?.colorCodes?.map((color, i) => (
+                              <div key={i} className="flex items-center gap-1 group relative">
+                                <div
+                                  className="w-8 h-8 rounded-lg border border-white shadow-sm ring-1 ring-border cursor-pointer hover:scale-110 transition-transform"
+                                  style={{ backgroundColor: color }}
+                                  onClick={() => {
+                                    // Could open a color picker here
+                                  }}
+                                />
+                                <button
+                                  onClick={() => {
+                                    const newColors = editingProduct.colorCodes?.filter((_, idx) => idx !== i) || [];
+                                    setEditingProduct({...editingProduct, colorCodes: newColors});
+                                  }}
+                                  className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            <div className="flex gap-2 ml-auto">
+                              <Input
+                                placeholder="HEX code"
+                                value={newColorInput}
+                                onChange={(e) => setNewColorInput(e.target.value)}
+                                className="h-8 w-24 text-[10px] font-mono bg-background border-border/50"
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2 text-[10px] uppercase font-black"
+                                onClick={() => {
+                                  if (newColorInput.trim()) {
+                                    const colorValue = newColorInput.trim().startsWith('#')
+                                      ? newColorInput.trim()
+                                      : `#${newColorInput.trim()}`;
+                                    setEditingProduct({
+                                      ...editingProduct,
+                                      colorCodes: [...(editingProduct?.colorCodes || []), colorValue]
+                                    });
+                                    setNewColorInput('');
+                                  }
+                                }}
+                              >
+                                Add
+                              </Button>
+                            </div>
                           </div>
-                        ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Label className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Size-Specific Stock</Label>
+                        <div className="grid grid-cols-2 gap-3 max-h-[250px] overflow-y-auto pr-2 scrollbar-thin">
+                          {editingProduct?.sizes?.map(size => (
+                            <div key={size} className="flex flex-col gap-1.5 p-3 bg-secondary/5 rounded-xl border border-border/30 hover:border-primary/20 transition-colors">
+                              <div className="flex justify-between items-center px-1">
+                                <span className="text-[10px] font-black font-sans text-primary/80 uppercase">{size}</span>
+                                <span className={`text-[8px] font-sans font-bold uppercase ${
+                                  (editingProduct.sizeInventory?.[size] || 0) > 0 ? 'text-emerald-600' : 'text-rose-500'
+                                }`}>
+                                  {(editingProduct.sizeInventory?.[size] || 0) > 0 ? 'In Stock' : 'Sold Out'}
+                                </span>
+                              </div>
+                              <Input
+                                type="number"
+                                value={editingProduct.sizeInventory?.[size] ?? 0}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const valStr = e.target.value;
+                                  const val = valStr === '' ? 0 : parseInt(valStr);
+                                  if (isNaN(val) && valStr !== '') return;
+
+                                  const newSizeInventory = {
+                                    ...(editingProduct.sizeInventory || {}),
+                                    [size]: isNaN(val) ? 0 : val
+                                  };
+                                  const newTotal = Object.values(newSizeInventory).reduce((acc, v) => acc + (v as number), 0);
+                                  setEditingProduct({
+                                    ...editingProduct,
+                                    sizeInventory: newSizeInventory,
+                                    inventory: newTotal
+                                  });
+                                }}
+                                className="h-9 text-xs font-mono font-bold bg-background/80 border-border/30 focus:bg-background"
+                              />
+                            </div>
+                          ))}
+                          {(!editingProduct?.sizes || editingProduct.sizes.length === 0) && (
+                            <div className="col-span-2 flex flex-col items-center justify-center py-8 text-muted-foreground/40 border-2 border-dashed border-border/20 rounded-2xl">
+                              <Package className="h-6 w-6 mb-2 opacity-20" />
+                              <span className="text-[10px] uppercase tracking-widest font-sans">Enable sizes above</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-2">
+                          <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex justify-between items-center shadow-sm">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground font-bold">Total Inventory</span>
+                              <span className="text-2xl font-serif text-primary font-bold">{editingProduct?.inventory || 0} <span className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground/60 font-black ml-1">Units</span></span>
+                            </div>
+                            <div className={`p-2 rounded-full ${ (editingProduct?.inventory || 0) > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-500'}`}>
+                              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  )}
+                  </section>
+                </div>
 
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="inventory" className="text-right font-sans text-[10px] uppercase tracking-widest">Total Stock</Label>
-                    <Input
-                      id="inventory"
-                      type="number"
-                      value={editingProduct?.inventory || 0}
-                      readOnly
-                      className="col-span-3 font-sans text-sm bg-secondary/50"
-                    />
+                <DialogFooter className="p-6 pt-4 border-t bg-secondary/10 flex-shrink-0 sticky bottom-0 z-10 backdrop-blur-md">
+                  <div className="flex w-full sm:justify-end gap-3">
+                    <Button
+                      variant="outline"
+                      disabled={isSyncing}
+                      onClick={() => { setEditingProduct(null); setIsAddingProduct(false); }}
+                      className="font-sans text-[10px] uppercase tracking-widest h-11 px-8 rounded-xl border-border/60 hover:bg-background hover:text-primary transition-all"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      disabled={isSyncing}
+                      onClick={handleSave}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-sans text-[10px] uppercase tracking-widest h-11 px-10 rounded-xl shadow-gold hover:scale-105 active:scale-95 transition-all"
+                    >
+                      {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      {isAddingProduct ? 'Create Product' : 'Save Changes'}
+                    </Button>
                   </div>
-                  <div className="grid grid-cols-4 items-start gap-4 pt-4 border-t">
-                    <div className="flex flex-col items-end gap-2">
-                      <Label htmlFor="desc" className="text-right font-sans text-[10px] uppercase tracking-widest pt-2">Description</Label>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8 text-primary hover:text-primary border-primary/20 hover:bg-primary/5"
-                        onClick={handleAiDescription}
-                        disabled={isAiGenerating}
-                      >
-                        {isAiGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <Textarea
-                      id="desc"
-                      placeholder="Product description..."
-                      value={editingProduct?.description || ""}
-                      onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
-                      className="col-span-3 h-32 text-sm leading-relaxed font-sans"
-                    />
-                  </div>
-                </div>
-                </div>
-                <DialogFooter className="flex-shrink-0 border-t pt-4 mt-2">
-                  <Button variant="outline" disabled={isSyncing} onClick={() => { setEditingProduct(null); setIsAddingProduct(false); }} className="font-sans text-[10px] uppercase tracking-widest">Cancel</Button>
-                  <Button disabled={isSyncing} onClick={handleSave} className="bg-primary font-sans text-[10px] uppercase tracking-widest">
-                    {isSyncing ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
-                    Save Changes
-                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

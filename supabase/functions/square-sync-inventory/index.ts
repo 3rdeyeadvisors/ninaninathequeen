@@ -397,13 +397,14 @@ Deno.serve(async (req) => {
           } else {
             // Clean up name like "Size: M" or just "M"
             const cleaned = varName.replace(/size:?\s*/i, '').trim().toUpperCase()
-            if (['XS', 'S', 'M', 'L', 'XL', '2XL'].includes(cleaned)) {
+            if (['XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL'].includes(cleaned)) {
               size = cleaned
             } else if (cleaned === 'SMALL') size = 'S'
             else if (cleaned === 'MEDIUM') size = 'M'
             else if (cleaned === 'LARGE') size = 'L'
             else if (cleaned === 'EXTRA LARGE' || cleaned === 'XLARGE') size = 'XL'
-            else if (cleaned === 'XXL' || cleaned === '2X-LARGE') size = '2XL'
+            else if (cleaned === '2X-LARGE' || cleaned === '2X LARGE') size = '2XL'
+            else if (cleaned === 'XXLARGE' || cleaned === 'XX LARGE') size = 'XXL'
             else if (varName && varName !== 'Regular') {
               size = varName.toUpperCase()
             }
@@ -478,7 +479,7 @@ Deno.serve(async (req) => {
           status: 'Active',
           product_type: productType,
           category: productType,
-          sizes: detectedSizes.length > 0 ? detectedSizes : ['XS', 'S', 'M', 'L', 'XL', '2XL'],
+          sizes: detectedSizes.length > 0 ? detectedSizes : ['XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL'],
           is_deleted: false,
           updated_at: new Date().toISOString()
         }
