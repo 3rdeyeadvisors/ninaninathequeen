@@ -91,9 +91,9 @@ export function Header() {
         </Button>
 
         {/* Desktop Navigation */}
-        <div className="hidden lg:flex items-center h-full w-full">
+        <div className="hidden lg:flex items-center justify-between h-full w-full">
           {/* Left Navigation */}
-          <div className="flex items-center gap-3 xl:gap-5 2xl:gap-7">
+          <div className="flex-1 flex items-center justify-end gap-3 xl:gap-5 2xl:gap-7">
             {leftLinks.map((link) => (
               <Link
                 key={link.name}
@@ -105,11 +105,15 @@ export function Header() {
             ))}
           </div>
 
-          {/* Spacer pushes right content to the end */}
-          <div className="flex-1" />
+          {/* Logo Container - Perfectly Centered */}
+          <div className="flex-none flex items-center justify-center px-8 xl:px-12 2xl:px-16">
+            <Link to="/" className="flex flex-col items-center scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
+              <Logo />
+            </Link>
+          </div>
 
           {/* Right Navigation + Icons */}
-          <div className="flex items-center gap-3 xl:gap-5 2xl:gap-7">
+          <div className="flex-1 flex items-center justify-start gap-3 xl:gap-5 2xl:gap-7">
             {rightLinks.map((link) => (
               <Link
                 key={link.name}
@@ -164,13 +168,6 @@ export function Header() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Logo - ALWAYS perfectly centered via absolute positioning */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden lg:block z-10">
-          <Link to="/" className="flex flex-col items-center pointer-events-auto scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
-            <Logo />
-          </Link>
         </div>
 
         {/* Mobile Logo & Cart (for < lg) */}
