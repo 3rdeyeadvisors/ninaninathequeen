@@ -99,22 +99,8 @@ export function useProductsDb() {
         return false;
       }
 
-      // Auto-sync to Square after successful database sync - non-blocking to keep UI responsive
-      supabase.functions.invoke('square-sync-inventory', {
-        body: { action: 'push' }
-      }).then(({ data, error }) => {
-        if (error) {
-          console.warn('[useProductsDb] Square auto-sync failed:', error);
-          if (!error.message?.includes('Unauthorized') && !error.message?.includes('401')) {
-            toast.warning('Database updated, but Square sync failed. Check your Square API token.');
-          }
-        } else {
-          console.log('[useProductsDb] Auto-synced to Square:', data);
-        }
-      }).catch(err => {
-        console.error('[useProductsDb] Square auto-sync exception:', err);
-      });
-
+      // NOTE: Square sync is now handled background-style by the 'sync-products' edge function itself
+      // to reduce client-side latency and prevent redundant calls.
       return true;
     } catch (err) {
       console.error('Database sync exception:', err);
