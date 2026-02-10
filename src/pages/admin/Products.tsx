@@ -328,7 +328,8 @@ export default function AdminProducts() {
 
     try {
       setIsSyncing(true);
-      const success = await bulkUpsertProducts(productsToUpdate);
+      const results = await Promise.all(productsToUpdate.map(p => upsertProduct(p)));
+      const success = results.every(Boolean);
       if (success) {
         toast.success(`${count} products moved to ${category}`);
       } else {
