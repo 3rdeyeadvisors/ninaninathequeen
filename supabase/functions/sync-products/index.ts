@@ -27,7 +27,8 @@ interface ProductData {
 // Auto-sync inventory changes to Square
 async function syncToSquare(
   supabaseUrl: string,
-  authHeader: string
+  authHeader: string,
+  updatedProducts: any[]
 ): Promise<void> {
   try {
     // Call the Square sync edge function to push changes
@@ -37,7 +38,11 @@ async function syncToSquare(
         'Authorization': authHeader,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ action: 'push' })
+      body: JSON.stringify({
+        action: 'push',
+        products: updatedProducts,
+        uploadImages: false
+      })
     });
 
     if (response.ok) {
@@ -218,7 +223,7 @@ serve(async (req) => {
     if (autoSyncEnabled && posProvider === 'square') {
       console.log('[sync-products] Auto-sync enabled, pushing to Square...');
       // Don't await - let it run in background to not slow down the response
-      syncToSquare(supabaseUrl, authHeader).catch(err => 
+      syncToSquare(supabaseUrl, authHeader, uniqueRows).catch(err =>
         console.error('[sync-products] Background Square sync failed:', err)
       );
     }
