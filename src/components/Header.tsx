@@ -90,49 +90,43 @@ export function Header() {
           {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
 
-        {/* Desktop Navigation - 3-column grid for perfect centering */}
-        <div className="hidden lg:grid grid-cols-[1fr_auto_1fr] items-center h-full w-full">
+        {/* Desktop Navigation */}
+        <div className="hidden lg:flex items-center h-full w-full">
           {/* Left Navigation */}
-          <div className="flex items-center gap-4 xl:gap-6 2xl:gap-8">
+          <div className="flex items-center gap-3 xl:gap-5 2xl:gap-7">
             {leftLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.href}
-                className="text-[9px] xl:text-[10px] 2xl:text-[11px] font-sans tracking-[0.15em] xl:tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.15em] xl:tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
               >
                 {link.name}
               </Link>
             ))}
           </div>
 
-          {/* Center Logo */}
-          <div className="px-6 xl:px-10 2xl:px-14">
-            <Link to="/" className="flex flex-col items-center scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
-              <Logo />
-            </Link>
-          </div>
+          {/* Spacer pushes right content to the end */}
+          <div className="flex-1" />
 
           {/* Right Navigation + Icons */}
-          <div className="flex items-center justify-end gap-4 xl:gap-6 2xl:gap-8">
+          <div className="flex items-center gap-3 xl:gap-5 2xl:gap-7">
             {rightLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.href}
-                className="text-[9px] xl:text-[10px] 2xl:text-[11px] font-sans tracking-[0.15em] xl:tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
+                className="text-[8px] xl:text-[9px] 2xl:text-[10px] font-sans tracking-[0.15em] xl:tracking-[0.2em] text-foreground/70 hover:text-primary transition-colors uppercase whitespace-nowrap"
               >
                 {link.name}
               </Link>
             ))}
 
-            {/* Separator */}
-            <div className="h-4 w-px bg-border/40 hidden xl:block" />
+            <div className="h-4 w-px bg-border/40" />
 
-            {/* Icons */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 xl:h-9 xl:w-9 transition-colors"
+                className="h-8 w-8 transition-colors"
                 onClick={() => {
                   setSearchOpen(!searchOpen);
                   setMobileMenuOpen(false);
@@ -143,7 +137,7 @@ export function Header() {
               </Button>
 
               <Link to="/wishlist">
-                <Button variant="ghost" size="icon" className="h-8 w-8 xl:h-9 xl:w-9 relative transition-colors">
+                <Button variant="ghost" size="icon" className="h-8 w-8 relative transition-colors">
                   <Heart className="h-4 w-4 text-foreground" />
                   {wishlistItems.length > 0 && (
                     <span className="absolute top-0.5 right-0.5 bg-primary text-primary-foreground text-[8px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold shadow-sm ring-1 ring-background">
@@ -154,7 +148,7 @@ export function Header() {
               </Link>
 
               <Link to="/account">
-                <Button variant="ghost" size="icon" className="h-8 w-8 xl:h-9 xl:w-9 transition-colors">
+                <Button variant="ghost" size="icon" className="h-8 w-8 transition-colors">
                   <User className="h-4 w-4" />
                 </Button>
               </Link>
@@ -163,14 +157,20 @@ export function Header() {
 
               {isAdmin && (
                 <Link to="/admin">
-                  <Button variant="outline" size="sm" className="flex gap-1.5 border-primary/20 text-primary hover:bg-primary/5 font-sans text-[8px] 2xl:text-[9px] uppercase tracking-widest shadow-sm px-2 h-8 ml-1">
+                  <Button variant="outline" size="icon" className="h-8 w-8 border-primary/20 text-primary hover:bg-primary/5 shadow-sm ml-0.5">
                     <LayoutDashboard className="h-3.5 w-3.5" />
-                    <span className="hidden 2xl:inline">Admin</span>
                   </Button>
                 </Link>
               )}
             </div>
           </div>
+        </div>
+
+        {/* Logo - ALWAYS perfectly centered via absolute positioning */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden lg:block z-10">
+          <Link to="/" className="flex flex-col items-center pointer-events-auto scale-[0.65] xl:scale-[0.85] 2xl:scale-100 transition-all duration-300">
+            <Logo />
+          </Link>
         </div>
 
         {/* Mobile Logo & Cart (for < lg) */}
