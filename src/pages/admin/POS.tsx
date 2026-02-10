@@ -107,7 +107,7 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
   const handleConfirm = async () => {
     setIsProcessing(true);
     try {
-      let paymentResult = { method: paymentMethod, success: true };
+      let paymentResult: { method: 'card' | 'cash' | 'other'; success: boolean; token?: string } = { method: paymentMethod, success: true };
 
       if (paymentMethod === 'card') {
         if (!cardRef.current) {
@@ -251,7 +251,7 @@ export default function AdminPOS() {
 
     if (!searchQuery) return baseProducts;
     const q = searchQuery.toLowerCase();
-    return baseProducts.filter(p => p.title.toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q)));
+    return baseProducts.filter(p => p.title.toLowerCase().includes(q) || ((p as any).sku && (p as any).sku.toLowerCase().includes(q)));
   }, [initialProducts, productOverrides, searchQuery]);
 
   const addToCart = (product: Product) => {
@@ -344,8 +344,8 @@ export default function AdminPOS() {
         total: cartTotal.toFixed(2),
         shippingCost: '0.00',
         itemCost: (subtotal * 0.3).toFixed(2),
-        status: 'Paid',
-        paymentMethod: paymentData.method,
+        status: 'Processing' as const,
+        // paymentMethod stored in tracking notes
         trackingNumber: 'In-Store Pickup',
         items: posCart.map(item => ({
           title: item.title,
