@@ -186,21 +186,28 @@ export default function AdminProducts() {
 
   const confirmDelete = async () => {
     if (productToDelete) {
+      // Optimistic update
+      const idToDelete = productToDelete;
+      deleteProduct(idToDelete);
+      setProductToDelete(null);
+
       try {
         setIsSyncing(true);
-        const success = await deleteProductDb(productToDelete);
+        const success = await deleteProductDb(idToDelete);
         if (success) {
-          deleteProduct(productToDelete);
           toast.success("Product deleted successfully");
         } else {
-          toast.error("Failed to delete product from database");
+          // Rollback not easily possible with current store structure without refetching
+          // so we just fetch to be sure
+          await fetchProducts();
+          toast.error("Failed to delete product from database. Catalog refreshed.");
         }
       } catch (err) {
         console.error("Delete error:", err);
-        toast.error("An unexpected error occurred during deletion");
+        await fetchProducts();
+        toast.error("An unexpected error occurred. Catalog refreshed.");
       } finally {
         setIsSyncing(false);
-        setProductToDelete(null);
       }
     }
   };
@@ -224,64 +231,79 @@ export default function AdminProducts() {
   };
 
   const bulkDelete = async () => {
+    const productIds = Array.from(selectedProducts);
+    if (productIds.length === 0) return;
+
+    // Optimistic update
+    productIds.forEach(id => deleteProduct(id));
+    setSelectedProducts(new Set());
+    setShowBulkDeleteConfirm(false);
+
     try {
       setIsSyncing(true);
-      const productIds = Array.from(selectedProducts);
       const success = await bulkDeleteProducts(productIds);
       if (success) {
-        productIds.forEach(id => deleteProduct(id));
         toast.success(`${productIds.length} products deleted`);
       } else {
-        toast.error("Failed to delete products from database");
+        await fetchProducts();
+        toast.error("Failed to delete products from database. Catalog refreshed.");
       }
     } catch (err) {
       console.error("Bulk delete error:", err);
-      toast.error("An error occurred during bulk deletion");
+      await fetchProducts();
+      toast.error("An error occurred. Catalog refreshed.");
     } finally {
-      setSelectedProducts(new Set());
-      setShowBulkDeleteConfirm(false);
       setIsSyncing(false);
     }
   };
 
   const moveProductToCategory = async (productId: string, category: string) => {
-    setIsSyncing(true);
     const product = products.find(p => p.id === productId);
-    if (product) {
-      const existingOverride = productOverrides[productId];
-      const newOverride: Partial<ProductOverride> = existingOverride
-        ? { ...existingOverride, category }
-        : {
-            id: productId,
-            title: product.title,
-            price: product.price.amount,
-            image: product.images[0]?.url || '',
-            description: product.description || '',
-            productType: product.productType,
-            inventory: 0,
-            category,
-          };
+    if (!product) return;
 
-      const success = await upsertProduct(newOverride as ProductOverride);
+    const existingOverride = productOverrides[productId];
+    const newOverride: ProductOverride = existingOverride
+      ? { ...existingOverride, category } as ProductOverride
+      : {
+          id: productId,
+          title: product.title,
+          price: product.price.amount,
+          image: product.images[0]?.url || '',
+          description: product.description || '',
+          productType: product.productType,
+          inventory: 0,
+          category,
+        } as ProductOverride;
+
+    // Optimistic update
+    updateProductOverride(productId, newOverride);
+
+    try {
+      setIsSyncing(true);
+      const success = await upsertProduct(newOverride);
       if (success) {
-        updateProductOverride(productId, newOverride);
         toast.success(`Product moved to ${category}`);
       } else {
-        toast.error("Failed to update category in database");
+        await fetchProducts();
+        toast.error("Failed to update database. Catalog refreshed.");
       }
+    } catch (err) {
+      await fetchProducts();
+      toast.error("An error occurred. Catalog refreshed.");
+    } finally {
+      setIsSyncing(false);
     }
-    setIsSyncing(false);
   };
 
   const bulkMoveToCategory = async (category: string) => {
-    setIsSyncing(true);
-    let successCount = 0;
+    const productsToUpdate: ProductOverride[] = [];
+
     for (const id of selectedProducts) {
       const product = products.find(p => p.id === id);
       if (product) {
         const existingOverride = productOverrides[id];
-        const newOverride: Partial<ProductOverride> = existingOverride
-          ? { ...existingOverride, category }
+        const newOverride: ProductOverride = existingOverride
+          ? { ...existingOverride, category } as ProductOverride
           : {
               id: id,
               title: product.title,
@@ -291,18 +313,34 @@ export default function AdminProducts() {
               productType: product.productType,
               inventory: 0,
               category,
-            };
+            } as ProductOverride;
 
-        const success = await upsertProduct(newOverride as ProductOverride);
-        if (success) {
-          updateProductOverride(id, newOverride);
-          successCount++;
-        }
+        productsToUpdate.push(newOverride);
       }
     }
-    toast.success(`${successCount} products moved to ${category}`);
+
+    if (productsToUpdate.length === 0) return;
+
+    // Optimistic update
+    productsToUpdate.forEach(p => updateProductOverride(p.id, p));
+    const count = productsToUpdate.length;
     setSelectedProducts(new Set());
-    setIsSyncing(false);
+
+    try {
+      setIsSyncing(true);
+      const success = await bulkUpsertProducts(productsToUpdate);
+      if (success) {
+        toast.success(`${count} products moved to ${category}`);
+      } else {
+        await fetchProducts();
+        toast.error("Failed to update database. Catalog refreshed.");
+      }
+    } catch (err) {
+      await fetchProducts();
+      toast.error("An error occurred. Catalog refreshed.");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleAiDescription = () => {
@@ -342,17 +380,28 @@ export default function AdminProducts() {
       return;
     }
     
-    setIsSyncing(true);
-    const success = await upsertProduct(editingProduct as ProductOverride);
-    if (success) {
-      updateProductOverride(editingProduct.id, editingProduct);
-      toast.success(isAddingProduct ? "Product added successfully!" : "Product updated successfully!");
-      setEditingProduct(null);
-      setIsAddingProduct(false);
-    } else {
-      toast.error("Failed to save product to database");
+    // Optimistic update
+    const productData = editingProduct as ProductOverride;
+    updateProductOverride(productData.id, productData);
+    const wasAdding = isAddingProduct;
+    setEditingProduct(null);
+    setIsAddingProduct(false);
+
+    try {
+      setIsSyncing(true);
+      const success = await upsertProduct(productData);
+      if (success) {
+        toast.success(wasAdding ? "Product added successfully!" : "Product updated successfully!");
+      } else {
+        await fetchProducts();
+        toast.error("Failed to save to database. Catalog refreshed.");
+      }
+    } catch (err) {
+      await fetchProducts();
+      toast.error("An error occurred. Catalog refreshed.");
+    } finally {
+      setIsSyncing(false);
     }
-    setIsSyncing(false);
   };
 
   const startAdding = () => {

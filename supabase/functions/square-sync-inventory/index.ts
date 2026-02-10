@@ -364,30 +364,77 @@ Deno.serve(async (req) => {
       const skippedCount = 0
 
       for (const item of items) {
-        const variation = item.item_data?.variations?.[0]
-        const variantId = variation?.id || item.id
-        const squareInventory = inventoryMap.get(variantId) || 0
-        const priceAmount = variation?.item_variation_data?.price_money?.amount || 0
+        const variations = item.item_data?.variations || []
         const name = item.item_data?.name || 'Unknown Product'
         
-        // Get Square's updated_at timestamp
-        const squareUpdatedAt = item.updated_at || variation?.updated_at
+        // Process variations to build size inventory
+        const sizeInventory: Record<string, number> = {}
+        const detectedSizes: string[] = []
+        let totalPrice = 0
+        let priceCount = 0
+        let mainSku: string | null = null
+
+        for (const v of variations) {
+          const varName = v.item_variation_data?.name || ''
+          // Try to extract size from variation name (e.g., "(L)", "Size: XL", "Large")
+          let size = 'ONE_SIZE'
+
+          const sizeMatch = varName.match(/\(([^)]+)\)$/)
+          if (sizeMatch) {
+            size = sizeMatch[1].toUpperCase()
+          } else {
+            // Clean up name like "Size: M" or just "M"
+            const cleaned = varName.replace(/size:?\s*/i, '').trim().toUpperCase()
+            if (['XS', 'S', 'M', 'L', 'XL', '2XL'].includes(cleaned)) {
+              size = cleaned
+            } else if (cleaned === 'SMALL') size = 'S'
+            else if (cleaned === 'MEDIUM') size = 'M'
+            else if (cleaned === 'LARGE') size = 'L'
+            else if (cleaned === 'EXTRA LARGE' || cleaned === 'XLARGE') size = 'XL'
+            else if (cleaned === 'XXL' || cleaned === '2X-LARGE') size = '2XL'
+            else if (varName && varName !== 'Regular') {
+              size = varName.toUpperCase()
+            }
+          }
+
+          const stock = inventoryMap.get(v.id) || 0
+          sizeInventory[size] = (sizeInventory[size] || 0) + stock
+          if (size !== 'ONE_SIZE' && !detectedSizes.includes(size)) {
+            detectedSizes.push(size)
+          }
+
+          if (v.item_variation_data?.price_money?.amount) {
+            totalPrice += v.item_variation_data.price_money.amount
+            priceCount++
+          }
+
+          if (!mainSku && v.item_variation_data?.sku) {
+            mainSku = v.item_variation_data.sku
+          }
+        }
+
+        const avgPrice = priceCount > 0 ? (totalPrice / priceCount / 100).toFixed(2) : "0.00"
+        const totalSquareInventory = Object.values(sizeInventory).reduce((a, b) => a + b, 0)
+
+        // Get Square's updated_at timestamp (use item's updated_at)
+        const squareUpdatedAt = item.updated_at
         const localProduct = localProductMap.get(item.id)
         
-        // Timestamp-based conflict resolution
-        const shouldUpdateFromSquare = true
-        let finalInventory = squareInventory
+        // Timestamp-based conflict resolution for total inventory
+        let finalInventory = totalSquareInventory
+        let finalSizeInventory = sizeInventory
         
         if (localProduct && squareUpdatedAt) {
           const squareTime = new Date(squareUpdatedAt).getTime()
           const localTime = new Date(localProduct.updated_at).getTime()
           
           if (localTime > squareTime) {
-            // Local is newer - keep local inventory, but still update other fields from Square
+            // Local is newer - keep local inventory
             finalInventory = localProduct.inventory
+            // We keep the square size inventory but it might be out of sync with total if we do this
+            // For now, let's prioritize Square for size distribution if it's newer,
+            // but if local is newer, we have to trust local total.
             console.log(`[SquareSync] ${name}: Local is newer (${localProduct.updated_at} > ${squareUpdatedAt}), keeping local inventory: ${finalInventory}`)
-          } else {
-            console.log(`[SquareSync] ${name}: Square is newer, using Square inventory: ${finalInventory}`)
           }
         }
         
@@ -412,13 +459,14 @@ Deno.serve(async (req) => {
           id: item.id,
           title: name,
           description: item.item_data?.description || `${name} from Square catalog`,
-          item_number: variation?.item_variation_data?.sku || null,
-          price: (priceAmount / 100).toFixed(2),
+          item_number: mainSku,
+          price: avgPrice,
           inventory: finalInventory,
+          size_inventory: finalSizeInventory,
           status: 'Active',
           product_type: productType,
           category: productType,
-          sizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'],
+          sizes: detectedSizes.length > 0 ? detectedSizes : ['XS', 'S', 'M', 'L', 'XL', '2XL'],
           is_deleted: false,
           updated_at: new Date().toISOString()
         }

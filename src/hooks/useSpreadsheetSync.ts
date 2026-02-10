@@ -116,8 +116,9 @@ export function useSpreadsheetSync() {
           const size = (row.size ? String(row.size).toUpperCase().trim() : titleSize) || 'ONE_SIZE';
 
           const collection = row.collection || '';
-          // Group by ID if available, otherwise by Title + Collection
-          const groupKey = row.id ? String(row.id) : `${baseTitle}-${collection}`;
+          // Group by Title + Collection to merge variants from spreadsheet
+          // We no longer group primarily by ID if the goal is to merge rows with same name
+          const groupKey = `${baseTitle}-${collection}`;
           
           if (!productGroups[groupKey]) {
             const slug = baseTitle.toLowerCase()
@@ -125,9 +126,17 @@ export function useSpreadsheetSync() {
               .replace(/-+/g, '-')
               .replace(/^-|-$/g, '');
 
+            // Use row ID if available, otherwise generate slug-based ID
+            let productId = row.id ? String(row.id) : `sync-${slug || Math.random().toString(36).substring(7)}`;
+
+            // If it's a "sync-" ID, try to make it more stable by using the slug
+            if (productId.startsWith('sync-') && slug) {
+              productId = `sync-${slug}`;
+            }
+
             productGroups[groupKey] = {
               baseTitle,
-              id: row.id ? String(row.id) : `sync-${slug || Math.random().toString(36).substring(7)}`,
+              id: productId,
               price: row.price ? String(row.price).replace(/[^0-9.]/g, '') : '0.00',
               productType: row.producttype || '',
               collection: collection,

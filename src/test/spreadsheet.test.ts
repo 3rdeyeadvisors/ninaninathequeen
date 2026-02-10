@@ -40,4 +40,22 @@ describe('parseSpreadsheet', () => {
     const rows = parseSpreadsheet(arrayBuffer);
     expect(rows[0]).toHaveProperty('size', 'M');
   });
+
+  it('should map Price Per Unit to price', () => {
+    const csvContent = "Id,Title,Price Per Unit,Stock\n1,Test Product,85.00,10";
+    const workbook = XLSX.read(csvContent, { type: 'string' });
+    const arrayBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+
+    const rows = parseSpreadsheet(arrayBuffer);
+    expect(rows[0]).toHaveProperty('price', 85.00);
+  });
+
+  it('should map Stock Amount to inventory', () => {
+    const csvContent = "Id,Title,Price,Stock Amount\n1,Test Product,85.00,25";
+    const workbook = XLSX.read(csvContent, { type: 'string' });
+    const arrayBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
+
+    const rows = parseSpreadsheet(arrayBuffer);
+    expect(rows[0]).toHaveProperty('inventory', 25);
+  });
 });
