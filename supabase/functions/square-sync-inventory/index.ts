@@ -211,8 +211,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body - apiKey from client is only used as fallback if env var is not set
-    const { action, apiKey } = await req.json()
+    // Parse request body
+    const { action, apiKey, products: requestProducts, uploadImages = false } = await req.json()
     
     // Prefer environment variable over client-provided key for security
     const FINAL_SQUARE_TOKEN = SQUARE_ACCESS_TOKEN || apiKey
@@ -231,22 +231,34 @@ Deno.serve(async (req) => {
       console.log('[SquareSync] Starting PULL from Square...')
       
       // Get catalog items from Square (include IMAGE type to get image objects)
-      const catalogResponse = await fetch('https://connect.squareup.com/v2/catalog/list?types=ITEM,IMAGE', {
-        headers: {
-          'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Square-Version': '2024-01-18'
+      const allObjects = []
+      let cursor = null
+
+      do {
+        const url = new URL('https://connect.squareup.com/v2/catalog/list')
+        url.searchParams.append('types', 'ITEM,IMAGE')
+        if (cursor) url.searchParams.append('cursor', cursor)
+
+        const catalogResponse = await fetch(url.toString(), {
+          headers: {
+            'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
+            'Content-Type': 'application/json',
+            'Square-Version': '2024-01-18'
+          }
+        })
+
+        if (!catalogResponse.ok) {
+          const errorText = await catalogResponse.text()
+          console.error('[SquareSync] Square catalog API error:', catalogResponse.status, errorText)
+          throw new Error(`Square catalog API error: ${catalogResponse.status} - ${errorText}`)
         }
-      })
 
-      if (!catalogResponse.ok) {
-        const errorText = await catalogResponse.text()
-        console.error('[SquareSync] Square catalog API error:', catalogResponse.status, errorText)
-        throw new Error(`Square catalog API error: ${catalogResponse.status} - ${errorText}`)
-      }
-
-      const catalogData = await catalogResponse.json()
-      const allObjects = catalogData.objects || []
+        const catalogData = await catalogResponse.json()
+        if (catalogData.objects) {
+          allObjects.push(...catalogData.objects)
+        }
+        cursor = catalogData.cursor
+      } while (cursor)
       
       // Separate items and images
       const items: SquareCatalogItem[] = allObjects.filter((obj: { type: string }) => obj.type === 'ITEM')
@@ -515,18 +527,24 @@ Deno.serve(async (req) => {
       // Push local inventory changes to Square
       console.log('[SquareSync] Starting PUSH to Square...')
 
-      // Get all products from database (now including image)
-      const { data: products, error: fetchError } = await supabase
-        .from('products')
-        .select('id, title, inventory, item_number, image')
-        .not('is_deleted', 'eq', true)
+      // Use products from request if provided, otherwise fetch from database
+      let products = []
+      if (requestProducts && Array.isArray(requestProducts)) {
+        products = requestProducts
+        console.log('[SquareSync] Using provided products for PUSH:', products.length)
+      } else {
+        const { data: dbProducts, error: fetchError } = await supabase
+          .from('products')
+          .select('id, title, inventory, item_number, image, size_inventory, sizes')
+          .not('is_deleted', 'eq', true)
 
-      if (fetchError) {
-        console.error('[SquareSync] Fetch error:', fetchError)
-        throw new Error(`Failed to fetch products: ${fetchError.message}`)
+        if (fetchError) {
+          console.error('[SquareSync] Fetch error:', fetchError)
+          throw new Error(`Failed to fetch products: ${fetchError.message}`)
+        }
+        products = dbProducts
+        console.log('[SquareSync] Products fetched from database for PUSH:', products?.length || 0)
       }
-
-      console.log('[SquareSync] Products fetched from database:', products?.length || 0)
 
       if (!products || products.length === 0) {
         return new Response(JSON.stringify({ 
@@ -540,20 +558,35 @@ Deno.serve(async (req) => {
       }
 
       // Fetch Square Catalog to establish mapping (ID or SKU) and check existing images
-      const catalogResponse = await fetch('https://connect.squareup.com/v2/catalog/list?types=ITEM', {
-        headers: {
-          'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
-          'Content-Type': 'application/json',
-          'Square-Version': '2024-01-18'
-        }
-      })
-
       let squareCatalog: SquareCatalogItem[] = []
       const squareItemImages = new Map<string, string[]>() // itemId -> imageIds
       
-      if (catalogResponse.ok) {
-        const catalogData = await catalogResponse.json()
-        squareCatalog = catalogData.objects || []
+      try {
+        let cursor = null
+        do {
+          const url = new URL('https://connect.squareup.com/v2/catalog/list')
+          url.searchParams.append('types', 'ITEM')
+          if (cursor) url.searchParams.append('cursor', cursor)
+
+          const catalogResponse = await fetch(url.toString(), {
+            headers: {
+              'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
+              'Content-Type': 'application/json',
+              'Square-Version': '2024-01-18'
+            }
+          })
+
+          if (catalogResponse.ok) {
+            const catalogData = await catalogResponse.json()
+            const objects = catalogData.objects || []
+            squareCatalog.push(...objects)
+            cursor = catalogData.cursor
+          } else {
+            console.warn('[SquareSync] PUSH: Could not fetch Square catalog page for mapping')
+            cursor = null
+          }
+        } while (cursor)
+
         console.log('[SquareSync] PUSH: Square catalog fetched for mapping, items:', squareCatalog.length)
         
         // Track existing images per item
@@ -563,8 +596,8 @@ Deno.serve(async (req) => {
             squareItemImages.set(item.id, imageIds)
           }
         }
-      } else {
-        console.warn('[SquareSync] PUSH: Could not fetch Square catalog for mapping, proceeding with raw IDs')
+      } catch (err) {
+        console.warn('[SquareSync] PUSH: Error fetching Square catalog for mapping:', err)
       }
 
       // Create mapping from SKU -> Square ID and Square ID -> Square ID
@@ -607,49 +640,115 @@ Deno.serve(async (req) => {
 
       // Upload images for products that have images but Square doesn't have them yet
       let imagesUploaded = 0
-      for (const product of products) {
-        const squareItemId = squareMapping.get(product.id)
-        if (!squareItemId) continue
-        
-        // Check if product has an image and Square item doesn't have images
-        const existingImages = squareItemImages.get(squareItemId) || []
-        if (product.image && existingImages.length === 0) {
-          // Only upload if the image is a URL (not already a Square URL)
-          if (product.image.startsWith('http') && !product.image.includes('squarecdn.com')) {
-            console.log(`[SquareSync] Uploading image for ${product.title}...`)
-            const imageId = await uploadImageToSquare(product.image, squareItemId, FINAL_SQUARE_TOKEN)
-            if (imageId) {
-              imagesUploaded++
+      if (uploadImages) {
+        console.log('[SquareSync] Image synchronization enabled, checking products...')
+        const uploadPromises = products.map(async (product) => {
+          const squareItemId = squareMapping.get(product.id)
+          if (!squareItemId) return null
+
+          // Check if product has an image and Square item doesn't have images
+          const existingImages = squareItemImages.get(squareItemId) || []
+          if (product.image && existingImages.length === 0) {
+            // Only upload if the image is a URL (not already a Square URL)
+            if (product.image.startsWith('http') && !product.image.includes('squarecdn.com')) {
+              console.log(`[SquareSync] Uploading image for ${product.title}...`)
+              return await uploadImageToSquare(product.image, squareItemId, FINAL_SQUARE_TOKEN)
             }
           }
-        }
+          return null
+        })
+
+        const uploadedResults = await Promise.all(uploadPromises)
+        imagesUploaded = uploadedResults.filter(id => id !== null).length
       }
 
       // Update inventory counts in Square using the mapping
       const inventoryChanges = products
-        .map((product) => {
+        .flatMap((product) => {
           // Try to find Square ID via mapping (either by product ID or SKU/item_number)
-          const squareId = squareMapping.get(product.id) ||
+          const squareItemId = squareMapping.get(product.id) ||
                           (product.item_number ? squareMapping.get(product.item_number) : null);
 
-          if (!squareId) {
+          if (!squareItemId) {
             console.warn(`[SquareSync] No Square mapping found for product: ${product.title} (ID: ${product.id}, SKU: ${product.item_number})`);
-            return null;
+            return [];
           }
 
-          return {
-            type: 'ADJUSTMENT',
-            adjustment: {
-              catalog_object_id: squareId,
-              location_id: locationId,
-              quantity: String(product.inventory || 0),
-              from_state: 'NONE',
-              to_state: 'IN_STOCK',
-              occurred_at: new Date().toISOString()
-            }
+          // Find the item in squareCatalog to get its variations
+          const squareItem = squareCatalog.find(item => item.id === squareItemId);
+
+          if (!squareItem) {
+            // Case 1: squareItemId is already a Variation ID (mapped via SKU or direct ID)
+            return [{
+              type: 'ADJUSTMENT',
+              adjustment: {
+                catalog_object_id: squareItemId,
+                location_id: locationId,
+                quantity: String(product.inventory || 0),
+                from_state: 'NONE',
+                to_state: 'IN_STOCK',
+                occurred_at: new Date().toISOString()
+              }
+            }];
           }
-        })
-        .filter(change => change !== null);
+
+          // Case 2: squareItem is an ITEM with variations
+          const variations = squareItem.item_data?.variations || [];
+          if (variations.length === 0) return [];
+
+          // If only one variation, just push the total inventory to it
+          if (variations.length === 1) {
+            return [{
+              type: 'ADJUSTMENT',
+              adjustment: {
+                catalog_object_id: variations[0].id,
+                location_id: locationId,
+                quantity: String(product.inventory || 0),
+                from_state: 'NONE',
+                to_state: 'IN_STOCK',
+                occurred_at: new Date().toISOString()
+              }
+            }];
+          }
+
+          // Multiple variations: map by size
+          const sizeInventory = product.size_inventory || {};
+          return variations.map(v => {
+            const varName = v.item_variation_data?.name || '';
+            let size = 'ONE_SIZE';
+            const sizeMatch = varName.match(/\(([^)]+)\)$/)
+            if (sizeMatch) {
+              size = sizeMatch[1].toUpperCase()
+            } else {
+              const cleaned = varName.replace(/size:?\s*/i, '').trim().toUpperCase()
+              if (['XS', 'S', 'M', 'L', 'XL', '2XL'].includes(cleaned)) {
+                size = cleaned
+              } else if (cleaned === 'SMALL') size = 'S'
+              else if (cleaned === 'MEDIUM') size = 'M'
+              else if (cleaned === 'LARGE') size = 'L'
+              else if (cleaned === 'EXTRA LARGE' || cleaned === 'XLARGE') size = 'XL'
+              else if (cleaned === 'XXL' || cleaned === '2X-LARGE') size = '2XL'
+              else if (varName && varName !== 'Regular') {
+                size = varName.toUpperCase()
+              }
+            }
+
+            // Use per-size inventory, or default to 0
+            const quantity = sizeInventory[size] ?? 0;
+
+            return {
+              type: 'ADJUSTMENT',
+              adjustment: {
+                catalog_object_id: v.id,
+                location_id: locationId,
+                quantity: String(quantity),
+                from_state: 'NONE',
+                to_state: 'IN_STOCK',
+                occurred_at: new Date().toISOString()
+              }
+            };
+          });
+        });
 
       console.log(`[SquareSync] Mapped ${inventoryChanges.length} products to Square catalog objects`);
 

@@ -51,14 +51,14 @@ export function useSquareSync() {
     }
   }, []);
 
-  const pushToSquare = useCallback(async (): Promise<SyncResult | null> => {
+  const pushToSquare = useCallback(async (uploadImages: boolean = false): Promise<SyncResult | null> => {
     setIsPushing(true);
     try {
       const supabase = getSupabase();
       const apiKey = useAdminStore.getState().settings.squareApiKey;
 
       const { data, error } = await supabase.functions.invoke('square-sync-inventory', {
-        body: { action: 'push', apiKey }
+        body: { action: 'push', apiKey, uploadImages }
       });
 
       if (error) {
@@ -91,7 +91,8 @@ export function useSquareSync() {
     const pullResult = await pullFromSquare();
     
     // Step 2: Push local changes to Square
-    const pushResult = await pushToSquare();
+    // Manual sync includes images
+    const pushResult = await pushToSquare(true);
     
     return { pullResult, pushResult };
   }, [pullFromSquare, pushToSquare]);
