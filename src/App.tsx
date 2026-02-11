@@ -10,7 +10,7 @@ import { ADMIN_EMAIL } from "@/stores/authStore";
 import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import { DbSyncProvider } from "@/providers/DbSyncProvider";
+import { DbSyncProvider, useDbSync } from "@/providers/DbSyncProvider";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import ProductPage from "./pages/ProductPage";
@@ -43,8 +43,20 @@ const queryClient = new QueryClient();
 
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const { settings } = useAdminStore();
+  const { isInitialized } = useDbSync();
   const { user } = useCloudAuthStore();
   const isAdmin = user?.isAdmin || user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  // Wait for initial database sync to complete before determining maintenance state
+  // This ensures that isMaintenanceMode, seoTitle, and social links are correctly
+  // hydrated from the database before the UI is rendered.
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <div className="animate-pulse font-serif text-2xl tracking-[0.3em] text-primary/40">NINA ARMEND</div>
+      </div>
+    );
+  }
 
   if (settings.isMaintenanceMode && !isAdmin) {
     return <Maintenance />;
