@@ -59,14 +59,6 @@ export function useSettingsDb() {
       const supabase = getSupabase();
       console.log('[Settings] Starting save...');
 
-      // Check auth session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.error('[Settings] No auth session - cannot save');
-        return false;
-      }
-      console.log('[Settings] Auth OK, user:', session.user.id);
-
       // Use cached ID if available, otherwise fetch it
       let targetId = settingsIdRef.current;
 
