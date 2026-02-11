@@ -1,77 +1,54 @@
 
 
-# Category Restructuring Plan
+# Fix Build Errors and Store Square Credentials
 
-## Summary
-Reorganize the customer-facing navigation categories to focus on **Tops**, **Bottoms**, **One-Pieces**, and **Mix & Match** rather than Bikinis and Cover-ups.
+## Overview
+Fix the TypeScript build errors in POS.tsx caused by `window.Square` not being typed, and the unsafe `Record<string, unknown>` cast. Then securely store your three Square credentials (Access Token, Application ID, and Location ID) so the POS payment flow works.
 
-## What Will Change
+## Step 1: Fix TypeScript build errors in POS.tsx
 
-### Navigation Structure (Before → After)
+**Problem**: `window.Square` is not recognized by TypeScript.
 
-| Current | New |
-|---------|-----|
-| Shop All | Shop All |
-| Mix & Match | Mix & Match |
-| Fitting Room | Fitting Room |
-| Bikinis | **Tops** |
-| One-Pieces | **Bottoms** |
-| Cover-ups | **One-Pieces** |
+**Solution**: Add a type declaration at the top of `POS.tsx`:
+```typescript
+declare global {
+  interface Window {
+    Square?: {
+      payments: (appId: string, locationId: string) => {
+        card: () => Promise<{
+          attach: (selector: string) => Promise<void>;
+          tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;
+          destroy: () => Promise<void>;
+        }>;
+      };
+    };
+  }
+}
+```
 
-### Category Showcase on Homepage (Before → After)
+**Problem**: Casting `Product` to `Record<string, unknown>` fails.
 
-| Current | New |
-|---------|-----|
-| Bikinis | **Tops** - "Mix & match your style" |
-| One-Pieces | **Bottoms** - "Complete your look" |
-| Cover-ups | **One-Pieces** - "Elegant & sophisticated" |
+**Solution**: Cast through `unknown` first: `(p as unknown as Record<string, unknown>).sku`
 
-Optional: Add a 4th card for **Mix & Match** to showcase the feature prominently.
+## Step 2: Store Square credentials as secrets
 
-### Footer Shop Links (Before → After)
+Three secrets will be securely stored:
+1. **SQUARE_ACCESS_TOKEN** -- already exists, will be updated with your production token
+2. **SQUARE_APPLICATION_ID** -- new secret for the Web Payments SDK app ID
+3. **SQUARE_LOCATION_ID** -- new secret for your Square location
 
-| Current | New |
-|---------|-----|
-| All Products | All Products |
-| Bikinis | **Tops** |
-| One-Pieces | **Bottoms** |
-| Cover-ups | **One-Pieces** |
+## Step 3: Update edge functions to use the new secrets
 
----
+Update `process-payment/index.ts` and `create-square-checkout/index.ts` to read `SQUARE_APPLICATION_ID` and `SQUARE_LOCATION_ID` from environment secrets instead of relying on client-provided values.
 
-## Files to Update
+## Step 4: Load Square Web Payments SDK
 
-### 1. Header Navigation
-**File:** `src/components/Header.tsx`
-- Update `navLinks` array to replace Bikinis/Cover-ups with Tops/Bottoms/One-Pieces
-
-### 2. Category Showcase Component
-**File:** `src/components/CategoryShowcase.tsx`
-- Replace the 3 categories (Bikinis, One-Pieces, Cover-ups) with Tops, Bottoms, One-Pieces
-- Update descriptions and links to match
-
-### 3. Footer Links
-**File:** `src/components/Footer.tsx`
-- Update the `shop` array to use Tops, Bottoms, One-Pieces instead of Bikinis/Cover-ups
-
-### 4. Shop Page Category Titles
-**File:** `src/pages/Shop.tsx`
-- Update the `categoryTitles` mapping to handle `tops`, `bottoms`, and `one-pieces` URL params
-
-### 5. Product Filtering (useProducts hook)
-**File:** `src/hooks/useProducts.ts`
-- Update the query filter to match products by their `category` field (Top, Bottom, One-Piece) rather than text matching
-
----
+Ensure the Square Web Payments SDK script tag is loaded in `index.html` so the POS card form can initialize.
 
 ## Technical Details
 
-The admin dashboard already uses the correct categories internally (`Top`, `Bottom`, `Top & Bottom`, `One-Piece`, `Other`). The changes needed are purely on the customer-facing side to align navigation with how products are actually categorized in the database.
-
-The **Mix & Match** page already correctly filters products by `category === 'Top'` and `category === 'Bottom'`, so Tops and Bottoms will automatically appear there while also having their own dedicated shop pages.
-
----
-
-## No Database Changes Required
-The product `category` field in the database already supports: Top, Bottom, Top & Bottom, One-Piece, Other - no schema updates needed.
+- The `window.Square` type declaration ensures TypeScript knows about the Square SDK global
+- Secrets are stored server-side and accessed via `Deno.env.get()` in edge functions
+- The `squareApplicationId` and `squareLocationId` in the admin settings store will be populated from the secrets (or kept as client-side config since they are public IDs used by the SDK)
+- The Application ID and Location ID are public-safe values (used in browser SDK), so they can also be stored as `VITE_` env vars or in the settings store
 
