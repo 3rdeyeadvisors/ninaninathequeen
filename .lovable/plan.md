@@ -1,36 +1,71 @@
 
 
-# Fix: Remove the Hanging Auth Check (7 Lines Deleted, Nothing Added)
+# Fix: Force Response Body on Settings Update (with Fallback Chain)
 
-## The Problem (Confirmed, Not Guessed)
-Console logs show "[Settings] Starting save..." but nothing after. The code stops at line 63 of `useSettingsDb.ts`:
-```
-const { data: { session } } = await supabase.auth.getSession();
-```
-This call never resolves in the Lovable Cloud environment. It was added in the previous fix as a "safety check" but it's actually what broke saving.
+## The Problem (Line 104-107 of useSettingsDb.ts)
+The `.update()` call returns a `204 No Content` (empty response body). The preview environment hangs on empty-body responses. Every working database call in the app returns a `200` with a body.
 
-## The Fix
-Delete lines 62-68 from `src/hooks/useSettingsDb.ts`. That's it. Nothing else changes, nothing gets added.
+## Primary Fix: Add `.select('id').maybeSingle()` to the update call
 
-Lines being removed:
-```
-// Check auth session
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) {
-  console.error('[Settings] No auth session - cannot save');
-  return false;
-}
-console.log('[Settings] Auth OK, user:', session.user.id);
+Change lines 104-108 from:
+```text
+const { error: updateError } = await supabase
+  .from('store_settings')
+  .update(updateData)
+  .eq('id', targetId);
+error = updateError;
 ```
 
-## Why This Won't Create New Problems
-- Every other database call in the app (products, orders, customers, settings fetch) works without `getSession()` -- auth is handled automatically by the client
-- The actual save logic after line 68 is already tested and correct (update with error handling, logging, fallback to insert)
-- RLS policies on the database enforce admin-only access -- that's the real security layer, not a client-side check
-- The 15-second timeout safety net in Settings.tsx remains as a backstop
-- Zero new code is being added -- only removing the problematic lines
+To:
+```text
+const { error: updateError } = await supabase
+  .from('store_settings')
+  .update(updateData)
+  .eq('id', targetId)
+  .select('id')
+  .maybeSingle();
+error = updateError;
+```
+
+This forces a `200 OK` response with a body, matching the pattern of every other working call.
+
+## Safety Net: 10-second Promise.race timeout around the database call
+
+Wrap the update in `Promise.race` so even if the fix above somehow doesn't resolve the promise, the code will catch it and show an error instead of hanging for 15 seconds:
+
+```text
+const updatePromise = supabase
+  .from('store_settings')
+  .update(updateData)
+  .eq('id', targetId)
+  .select('id')
+  .maybeSingle();
+
+const result = await Promise.race([
+  updatePromise,
+  new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('DB update timed out after 10s')), 10000)
+  )
+]);
+error = result.error;
+```
+
+## Built-in Fallback Chain (if primary fix fails)
+
+If the update with `.select()` still times out, the 10-second race catches it, and we have a pre-planned escalation path -- no new credits needed for planning:
+
+- **Fallback A**: Replace `.update()` with an RPC database function (`.rpc('update_settings', ...)`) since RPC calls already work in this environment (proven by `has_role`)
+- **Fallback B**: Replace `.update()` with delete-then-insert, since `.insert().select()` already works (line 111-115 of the current code)
+
+These fallbacks are already designed. If the primary fix fails, implementing either one is a single-file, surgical change.
 
 ## Files Changed
-- `src/hooks/useSettingsDb.ts` -- remove 7 lines (62-68), nothing else touched
-- `src/pages/admin/Settings.tsx` -- no changes needed, it's already correct
+- `src/hooks/useSettingsDb.ts` -- modify lines 104-108 (update call + race timeout). No other files touched.
+
+## What Will NOT Break
+- The insert path (line 111-115) is untouched and already uses `.select()`
+- The fetch path (line 17-21) is untouched
+- Settings.tsx is untouched -- the timeout safety net and form sync remain
+- RLS policies are unchanged
+- No new dependencies or files added
 
