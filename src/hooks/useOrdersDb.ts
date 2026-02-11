@@ -61,7 +61,9 @@ export function useOrdersDb() {
           status: order.status,
           tracking_number: order.trackingNumber,
           items: order.items,
-        }, { onConflict: 'id' });
+        }, { onConflict: 'id' })
+        .select('id')
+        .maybeSingle();
 
       if (error) {
         console.error('Error upserting order:', error);
@@ -88,7 +90,9 @@ export function useOrdersDb() {
       const { error } = await supabase
         .from('orders')
         .update(dbUpdates)
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select('id')
+        .maybeSingle();
 
       if (error) {
         console.error('Error updating order in DB:', error);
