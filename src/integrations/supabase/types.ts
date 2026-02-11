@@ -191,38 +191,68 @@ export type Database = {
       store_settings: {
         Row: {
           auto_sync: boolean | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string
           currency: string | null
+          facebook_url: string | null
           id: string
+          instagram_url: string | null
+          is_maintenance_mode: boolean | null
           low_stock_threshold: number | null
           pos_provider: string | null
+          seo_description: string | null
+          seo_title: string | null
           square_api_key: string | null
+          square_application_id: string | null
+          square_location_id: string | null
           store_name: string | null
           tax_rate: number | null
+          tiktok_url: string | null
           updated_at: string
         }
         Insert: {
           auto_sync?: boolean | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           currency?: string | null
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
+          is_maintenance_mode?: boolean | null
           low_stock_threshold?: number | null
           pos_provider?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
           square_api_key?: string | null
+          square_application_id?: string | null
+          square_location_id?: string | null
           store_name?: string | null
           tax_rate?: number | null
+          tiktok_url?: string | null
           updated_at?: string
         }
         Update: {
           auto_sync?: boolean | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
           currency?: string | null
+          facebook_url?: string | null
           id?: string
+          instagram_url?: string | null
+          is_maintenance_mode?: boolean | null
           low_stock_threshold?: number | null
           pos_provider?: string | null
+          seo_description?: string | null
+          seo_title?: string | null
           square_api_key?: string | null
+          square_application_id?: string | null
+          square_location_id?: string | null
           store_name?: string | null
           tax_rate?: number | null
+          tiktok_url?: string | null
           updated_at?: string
         }
         Relationships: []
