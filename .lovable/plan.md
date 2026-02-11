@@ -1,113 +1,75 @@
 
 
-# Full Platform Audit: Fix ALL Hanging Database Writes
+# Simplify Platform: Remove Square Sync, Fix Checkout (Sandbox Mode)
 
-## The Root Cause (applies everywhere, not just settings)
+## Overview
 
-Every write operation (`.update()`, `.upsert()`, `.delete()`) that does NOT chain `.select()` returns a `204 No Content` empty-body response. The Lovable preview environment hangs on empty-body responses. This is why "some things save and some don't."
+Remove Square inventory sync, fix the 3 checkout issues, and configure everything for **sandbox testing**. You'll switch to production later by updating the token and one line.
 
-## All Affected Operations (4 remaining)
+---
 
-Here is every client-side database write in the app and its current status:
+## Part 1: Remove Square Inventory Sync
 
-| File | Operation | Has `.select()`? | Status |
-|---|---|---|---|
-| `useSettingsDb.ts` line 104 | `.update()` | Yes (already fixed) | OK |
-| `useSettingsDb.ts` line 124 | `.insert()` | Yes | OK |
-| `useOrdersDb.ts` line 51 | `.upsert()` | **NO** | WILL HANG |
-| `useOrdersDb.ts` line 88 | `.update()` | **NO** | WILL HANG |
-| `useCustomersDb.ts` line 47 | `.upsert()` | **NO** | WILL HANG |
-| `useCustomersDb.ts` line 73 | `.delete()` | **NO** | WILL HANG |
+### Delete files
+- `src/hooks/useSquareSync.ts`
+- `supabase/functions/square-sync-inventory/index.ts`
 
-Edge functions (`sync-products`, `process-payment`, etc.) run server-side and are NOT affected by this issue.
+### Edit files
+- **`src/pages/admin/Products.tsx`** -- Remove `useSquareSync` import, remove sync button and related logic
+- **`src/stores/adminStore.ts`** -- Remove `autoSync` from settings interface and defaults
+- **`src/hooks/useSettingsDb.ts`** -- Remove `autoSync` mapping in fetch and save
+- **`src/providers/DbSyncProvider.tsx`** -- Remove `autoSync` mapping
+- **`supabase/config.toml`** -- Remove `[functions.square-sync-inventory]` entry
 
-## The Fix (3 files, same pattern applied to each)
+The `auto_sync` database column stays (harmless, code just stops reading it).
 
-### File 1: `src/hooks/useOrdersDb.ts`
+---
 
-**upsertOrder (line 51-64)** -- add `.select()`:
-```
-// Before:
-const { error } = await supabase
-  .from('orders')
-  .upsert({...}, { onConflict: 'id' });
+## Part 2: Fix Checkout (3 Issues)
 
-// After:
-const { error } = await supabase
-  .from('orders')
-  .upsert({...}, { onConflict: 'id' })
-  .select('id')
-  .maybeSingle();
+### Issue A: Add missing database columns
+
+```sql
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS square_order_id text;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipping_address jsonb;
 ```
 
-**updateOrderDb (line 88-91)** -- add `.select()`:
-```
-// Before:
-const { error } = await supabase
-  .from('orders')
-  .update(dbUpdates)
-  .eq('id', orderId);
+### Issue B: Align both edge functions to sandbox
 
-// After:
-const { error } = await supabase
-  .from('orders')
-  .update(dbUpdates)
-  .eq('id', orderId)
-  .select('id')
-  .maybeSingle();
-```
+- **`create-square-checkout/index.ts`** -- Change default environment from `'production'` to `'sandbox'` (line 27)
+- **`finalize-square-order/index.ts`** -- Keep default as `'sandbox'` (already sandbox, just clean up the detection logic)
 
-### File 2: `src/hooks/useCustomersDb.ts`
+This ensures checkout is created and verified on the same Square environment.
 
-**upsertCustomer (line 47-56)** -- add `.select()`:
-```
-// Before:
-const { error } = await supabase
-  .from('customers')
-  .upsert({...}, { onConflict: 'id' });
+### Issue C: Re-enter Square Access Token
 
-// After:
-const { error } = await supabase
-  .from('customers')
-  .upsert({...}, { onConflict: 'id' })
-  .select('id')
-  .maybeSingle();
-```
+Prompt you to paste your **sandbox** access token into the secure secrets input. This replaces the current (possibly expired) value.
 
-**deleteCustomerDb (line 73-76)** -- add `.select()`:
-```
-// Before:
-const { error } = await supabase
-  .from('customers')
-  .delete()
-  .eq('id', customerId);
+---
 
-// After:
-const { error } = await supabase
-  .from('customers')
-  .delete()
-  .eq('id', customerId)
-  .select('id')
-  .maybeSingle();
-```
+## Execution Order
 
-### File 3: `src/hooks/useSettingsDb.ts`
+1. Run database migration (add 2 columns)
+2. Delete sync files (`useSquareSync.ts`, `square-sync-inventory` edge function)
+3. Clean up sync references in Products.tsx, adminStore.ts, useSettingsDb.ts, DbSyncProvider.tsx
+4. Set both checkout edge functions to default to `sandbox`
+5. Update `supabase/config.toml`
+6. Prompt you to re-enter the sandbox access token
 
-Already fixed -- no changes needed.
+---
 
-## What This Does NOT Touch
-- All read operations (`.select()`) -- already work fine
-- Edge functions -- run server-side, not affected
-- RLS policies -- no changes
-- Database schema -- no changes
-- Settings.tsx, Products page, or any UI components -- no changes
+## When You're Ready for Production
 
-## Risk Assessment
-- `.select('id').maybeSingle()` after writes is the standard recommended Supabase pattern
-- It does not change what data is written, only ensures the response has a body
-- Every read in the app already uses this pattern successfully
-- The settings fix already applied this same pattern -- this just extends it everywhere
+Two changes:
+1. Update `SQUARE_ACCESS_TOKEN` secret with your production token
+2. Change the environment default in both `create-square-checkout` and `finalize-square-order` from `'sandbox'` to `'production'`
 
-## If something STILL hangs after this
-The settings hook already has a `Promise.race` timeout as a safety net. If any of these 4 operations somehow still hang despite `.select()`, we add the same `Promise.race` wrapper. But based on the settings fix behavior (the `.select()` is the core fix, the race is just a safety net), this should resolve all remaining save issues.
+---
+
+## What Stays Untouched
+
+- POS page and `process-payment` edge function (independent of sync)
+- Checkout page UI (`Checkout.tsx`)
+- Checkout success page (`CheckoutSuccess.tsx`)
+- Square settings fields in Admin Settings (Application ID, Location ID)
 
