@@ -1,111 +1,49 @@
 
-# Shipping Simplification, Tax Removal, and Admin Dashboard Polish
+
+# Fix Product Sync and Client Requested Edits
 
 ## Overview
 
-Three changes bundled together: (1) replace tiered shipping with a single admin-configurable flat rate, (2) remove all local tax calculations (let Square handle it), and (3) clean up the admin settings layout to keep things smooth and intuitive.
+Three things to address: (1) fix the sync so nothing gets dropped and everything uploads exactly as-is, (2) fix the "Trianhlw" misspelling in existing database data per the client's request, and (3) update the About page vision statement.
 
 ---
 
-## 1. Database: Add `shipping_rate` Column
+## 1. Fix Sync Logic — Nothing Gets Dropped
 
-Add a `shipping_rate` numeric column to `store_settings` with a default of `8.50`. No RLS changes needed -- existing admin-only policies cover it.
+**The Problem**: The sync uses the spreadsheet's `Item ID` as the database primary key. When two different products (e.g., "Bela Black Top" and "Bela Black Bottom") share the same Item ID (`BI 205-2`), the dedup step on line 242 sees duplicate IDs and drops one.
 
----
+**The Fix** (in `src/hooks/useSpreadsheetSync.ts`):
+- Use a **slug generated from the product name** as the database primary key (e.g., `bela-black-top`, `bela-black-bottom`) — this guarantees uniqueness since different products have different names
+- Store the spreadsheet's original Item ID exactly as-is in the `item_number` field
+- The product **title stays exactly as it appears** in the spreadsheet — no renaming, no normalization beyond basic whitespace cleanup
+- Size merging continues to work as it already does: rows with the same base title (e.g., "Bela Black Top (XS)" and "Bela Black Top (S)") group together and their sizes/inventory merge into one product
 
-## 2. Replace Tiered Shipping with Flat Rate
-
-### `src/lib/constants.ts`
-- Remove the `ShippingOption` interface and `SHIPPING_OPTIONS` array entirely
-- Keep `PRODUCT_SIZES` as-is
-
-### `src/stores/adminStore.ts`
-- Remove `taxRate` from `AdminSettings` interface and `INITIAL_SETTINGS`
-- Add `shippingRate: number` (default `8.50`) to `AdminSettings` and `INITIAL_SETTINGS`
-
-### `src/pages/Checkout.tsx`
-- Remove `SHIPPING_OPTIONS` import, `selectedShipping` state, `RadioGroup` imports
-- Remove `taxRate`, `taxAmount` calculations
-- Read `settings.shippingRate` from admin store for shipping cost
-- Replace the shipping tier selector card with a simple display showing the flat rate (or "Free" for 2+ sets)
-- Add note: "International orders may take 7-14 business days for delivery."
-- Remove "Estimated Tax" line from order summary; add note: "Tax calculated by payment provider"
-- Update total to `subtotal + shippingCost` (no tax)
-- Remove `taxAmount` from `orderDetails` sent to Square
+**What changes in the code**:
+- Line 139: Always generate the database ID from the slug, never from the spreadsheet Item ID
+- Remove lines 141-144 (the `sync-` prefix logic — not needed anymore)
+- Line 183: Keep matching existing products by ID or title so re-uploads update rather than duplicate
 
 ---
 
-## 3. Remove Tax from POS
+## 2. Fix "Trianhlw" Typo in Database
 
-### `src/pages/admin/POS.tsx`
-- Remove `taxAmount` calculation in both `POSCheckoutDialog` and `AdminPOS` components
-- Remove the "Tax" line from the checkout dialog summary
-- Update `total` / `cartTotal` to just `subtotal` (no tax added)
-- Add a small note: "Tax calculated by payment provider"
+The client flagged a misspelling of "Triangle." A SQL data update will rename any product currently in the database that contains "Trianhlw" to "Triangle." This is a one-time data fix — going forward, the spreadsheet should have the correct spelling and the sync will upload it as-is.
 
 ---
 
-## 4. Update Settings Sync Layer
+## 3. Update About Page Vision
 
-### `src/hooks/useSettingsDb.ts`
-- Stop reading/writing `tax_rate`
-- Add reading/writing `shipping_rate` mapped to `shippingRate`
+Replace the vision paragraph in `src/pages/About.tsx` (lines 32-40) with the client's exact copy:
 
-### `src/providers/DbSyncProvider.tsx`
-- Remove `taxRate` mapping line
-- Add `shippingRate` mapping from `shipping_rate`
+> Nina Armend's vision is to explore the display of the body's beauty with pride and shamelessness. Nina Armend believes the human body is not meant to be hidden, but to be shown with grace. We represent strength that is earned through individuality.
 
 ---
 
-## 5. Admin Settings Page Cleanup
-
-### `src/pages/admin/Settings.tsx`
-- Remove the "Tax Rate (%)" input field from "General Configuration"
-- Add a "Flat Shipping Rate ($)" input field to the "Regional and Shipping" card, so the admin can update it anytime
-- Keep the existing layout structure (2-column grid with save/status sidebar)
-
----
-
-## What the Customer Sees at Checkout
-
-Instead of choosing between Standard/Express/International:
-
-```text
-Shipping: $8.50  (or whatever the admin sets)
-International orders may take 7-14 business days for delivery.
-Tax calculated by payment provider.
-```
-
-Or with 2+ bikini sets:
-
-```text
-Shipping: Free!
-You qualify with 2+ bikini sets.
-```
-
----
-
-## What the Admin Sees in Settings
-
-In the "Regional and Shipping" card, a new input:
-
-```text
-Flat Shipping Rate ($): [8.50]
-```
-
-The "Tax Rate (%)" field is removed entirely.
-
----
-
-## Files Changed Summary
+## Files Changed
 
 | File | Change |
 |------|--------|
-| Database migration | Add `shipping_rate` column |
-| `src/lib/constants.ts` | Remove `SHIPPING_OPTIONS` and `ShippingOption` |
-| `src/stores/adminStore.ts` | Remove `taxRate`, add `shippingRate` |
-| `src/pages/Checkout.tsx` | Flat rate shipping, remove tax, add notes |
-| `src/pages/admin/POS.tsx` | Remove tax calculation and display |
-| `src/pages/admin/Settings.tsx` | Remove tax input, add shipping rate input |
-| `src/hooks/useSettingsDb.ts` | Swap `tax_rate` for `shipping_rate` mapping |
-| `src/providers/DbSyncProvider.tsx` | Swap `taxRate` for `shippingRate` mapping |
+| `src/hooks/useSpreadsheetSync.ts` | Use slug-based DB ID, store original Item ID in item_number, keep names exactly as-is |
+| `src/pages/About.tsx` | Update vision statement |
+| Database (data update) | Fix "Trianhlw" typo in existing products |
+
