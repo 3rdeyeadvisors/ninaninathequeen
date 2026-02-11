@@ -51,7 +51,8 @@ interface SquareCatalogImage {
 // Fetch images from Square catalog
 async function fetchSquareImages(
   imageIds: string[],
-  accessToken: string
+  accessToken: string,
+  apiUrl: string = 'https://connect.squareup.com'
 ): Promise<Map<string, string>> {
   const imageMap = new Map<string, string>()
   
@@ -59,7 +60,7 @@ async function fetchSquareImages(
 
   try {
     // Batch retrieve catalog objects (images)
-    const response = await fetch('https://connect.squareup.com/v2/catalog/batch-retrieve', {
+    const response = await fetch(`${apiUrl}/v2/catalog/batch-retrieve`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -96,7 +97,8 @@ async function fetchSquareImages(
 async function uploadImageToSquare(
   imageUrl: string,
   itemId: string,
-  accessToken: string
+  accessToken: string,
+  apiUrl: string = 'https://connect.squareup.com'
 ): Promise<string | null> {
   try {
     // First, fetch the image data
@@ -130,7 +132,7 @@ async function uploadImageToSquare(
     }
     formData.append('request', JSON.stringify(requestJson))
 
-    const response = await fetch('https://connect.squareup.com/v2/catalog/images', {
+    const response = await fetch(`${apiUrl}/v2/catalog/images`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -174,6 +176,7 @@ Deno.serve(async (req) => {
     const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN');
+    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox';
 
     // Validate the user's JWT token
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -222,6 +225,11 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured. Please provide it in settings.')
     }
 
+    // Determine API URL based on environment or token prefix
+    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'production' && !FINAL_SQUARE_TOKEN.startsWith('EAAAl'))
+      ? 'https://connect.squareup.com'
+      : 'https://connect.squareupsandbox.com';
+
     // Create service role client for database operations
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -236,7 +244,7 @@ Deno.serve(async (req) => {
       let cursor = null
 
       do {
-        const url = new URL('https://connect.squareup.com/v2/catalog/list')
+        const url = new URL(`${SQUARE_API_URL}/v2/catalog/list`)
         url.searchParams.append('types', 'ITEM,IMAGE')
         if (cursor) url.searchParams.append('cursor', cursor)
 
@@ -299,7 +307,7 @@ Deno.serve(async (req) => {
 
       // Fetch any missing images
       if (missingImageIds.length > 0) {
-        const additionalImages = await fetchSquareImages(missingImageIds, FINAL_SQUARE_TOKEN)
+        const additionalImages = await fetchSquareImages(missingImageIds, FINAL_SQUARE_TOKEN, SQUARE_API_URL)
         for (const [id, url] of additionalImages) {
           imageUrlMap.set(id, url)
         }
@@ -329,7 +337,7 @@ Deno.serve(async (req) => {
       // Get inventory counts (only if we have variations)
       let inventoryCounts: SquareInventoryCount[] = []
       if (variationIds.length > 0) {
-        const inventoryResponse = await fetch('https://connect.squareup.com/v2/inventory/counts/batch-retrieve', {
+        const inventoryResponse = await fetch(`${SQUARE_API_URL}/v2/inventory/counts/batch-retrieve`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
@@ -619,7 +627,7 @@ Deno.serve(async (req) => {
       }
 
       // Get locations from Square
-      const locationsResponse = await fetch('https://connect.squareup.com/v2/locations', {
+      const locationsResponse = await fetch(`${SQUARE_API_URL}/v2/locations`, {
         headers: {
           'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
           'Content-Type': 'application/json',
@@ -634,7 +642,8 @@ Deno.serve(async (req) => {
       }
 
       const locationsData = await locationsResponse.json()
-      const locationId = locationsData.locations?.[0]?.id
+      // Use provided location ID from environment or fallback to sandbox default
+      const locationId = locationsData.locations?.[0]?.id || Deno.env.get('SQUARE_LOCATION_ID') || "L09Y3ZCB23S11"
 
       if (!locationId) {
         throw new Error('No Square location found')
@@ -654,7 +663,7 @@ Deno.serve(async (req) => {
             // Only upload if the image is a URL (not already a Square URL)
             if (product.image.startsWith('http') && !product.image.includes('squarecdn.com')) {
               console.log(`[SquareSync] Uploading image for ${product.title}...`)
-              return await uploadImageToSquare(product.image, squareItemId, FINAL_SQUARE_TOKEN)
+              return await uploadImageToSquare(product.image, squareItemId, FINAL_SQUARE_TOKEN, SQUARE_API_URL)
             }
           }
           return null
@@ -762,7 +771,7 @@ Deno.serve(async (req) => {
 
       let totalSynced = 0
       for (const batch of batches) {
-        const batchResponse = await fetch('https://connect.squareup.com/v2/inventory/changes/batch-create', {
+        const batchResponse = await fetch(`${SQUARE_API_URL}/v2/inventory/changes/batch-create`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
@@ -818,7 +827,7 @@ Deno.serve(async (req) => {
         // Batch upsert catalog objects (limit 100)
         for (let i = 0; i < priceUpdates.length; i += 100) {
           const batch = priceUpdates.slice(i, i + 100);
-          const catalogResponse = await fetch('https://connect.squareup.com/v2/catalog/batch-upsert', {
+          const catalogResponse = await fetch(`${SQUARE_API_URL}/v2/catalog/batch-upsert`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,

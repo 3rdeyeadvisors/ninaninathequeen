@@ -36,7 +36,7 @@ export function useSettingsDb() {
           posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
           squareApiKey: (settingsData.square_api_key as string) || '',
           squareApplicationId: (settingsData.square_application_id as string) || '',
-          squareLocationId: (settingsData.square_location_id as string) || '',
+          squareLocationId: (settingsData.square_location_id as string) || 'L09Y3ZCB23S11',
           autoSync: (settingsData.auto_sync as boolean) ?? true,
           seoTitle: (settingsData.seo_title as string) || '',
           seoDescription: (settingsData.seo_description as string) || '',

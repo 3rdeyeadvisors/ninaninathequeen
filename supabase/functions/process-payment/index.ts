@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN');
     const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox';
 
-    const { sourceId, amount, currency, locationId, orderDetails } = await req.json()
+    const { sourceId, amount, currency, locationId: requestLocationId, orderDetails } = await req.json()
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     let FINAL_SQUARE_TOKEN = SQUARE_ACCESS_TOKEN;
@@ -37,6 +37,9 @@ Deno.serve(async (req) => {
     const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'production' && !FINAL_SQUARE_TOKEN.startsWith('EAAAl'))
       ? 'https://connect.squareup.com'
       : 'https://connect.squareupsandbox.com';
+
+    // Fallback to sandbox location ID if not provided
+    const locationId = requestLocationId || Deno.env.get('SQUARE_LOCATION_ID') || "L09Y3ZCB23S11"
 
     console.log(`[ProcessPayment] Processing payment in ${SQUARE_API_URL.includes('sandbox') ? 'sandbox' : 'production'} environment`);
 
