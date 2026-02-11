@@ -30,13 +30,7 @@ export default function About() {
               <h2 className="font-serif text-3xl md:text-5xl mb-8">The Nina Armend Vision</h2>
               <div className="space-y-6">
                 <p className="text-muted-foreground leading-relaxed text-lg">
-                  Founded with a mission to celebrate the diverse beauty of women, Nina Armend combines
-                  authentic Brazilian craftsmanship with exotic, luxurious silhouettes. Every piece
-                  is thoughtfully selected to flatter every body type, ensuring high quality and eco-conscious production.
-                </p>
-                <p className="text-muted-foreground leading-relaxed text-lg">
-                  Our designs focus on the perfect fit, utilizing high-quality Brazilian fabrics that set
-                  the standard and innovative construction techniques that honor the body's natural curves.
+                  Nina Armend's vision is to explore the display of the body's beauty with pride and shamelessness. Nina Armend believes the human body is not meant to be hidden, but to be shown with grace. We represent strength that is earned through individuality.
                 </p>
               </div>
             </motion.div>

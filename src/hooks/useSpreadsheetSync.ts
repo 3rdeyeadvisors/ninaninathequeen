@@ -135,13 +135,9 @@ export function useSpreadsheetSync() {
               .replace(/-+/g, '-')
               .replace(/^-|-$/g, '');
 
-            // Use row ID if available, otherwise generate slug-based ID
-            let productId = row.id ? String(row.id) : `sync-${slug || Math.random().toString(36).substring(7)}`;
-
-            // If it's a "sync-" ID, try to make it more stable by using the slug
-            if (productId.startsWith('sync-') && slug) {
-              productId = `sync-${slug}`;
-            }
+            // Always use slug from product name as DB primary key to avoid collisions
+            // when multiple products share the same spreadsheet Item ID
+            const productId = slug || Math.random().toString(36).substring(7);
 
             productGroups[groupKey] = {
               baseTitle,
@@ -153,7 +149,7 @@ export function useSpreadsheetSync() {
               sizeInventory: {},
               image: row.image,
               description: row.description,
-              itemNumber: row.itemnumber,
+              itemNumber: row.itemnumber || (row.id ? String(row.id) : undefined),
               colorCodes: row.colors ? parseColors(String(row.colors)) : undefined
             };
           }
@@ -174,12 +170,10 @@ export function useSpreadsheetSync() {
           const existingProduct = allProducts?.find(p =>
             p.id === product.id ||
             p.id === `sync-${normalizedSlug}` ||
-            (p.title.toLowerCase() === product.baseTitle.toLowerCase() &&
-             (allProducts.length < 50)) // Only match by title if catalog is small to avoid false positives
+            p.title.toLowerCase() === product.baseTitle.toLowerCase()
           );
 
-          // Use existing product ID if found, otherwise use spreadsheet ID
-          // We no longer force sync- prefix if a specific ID was provided in the spreadsheet
+          // Use existing product ID if found, otherwise use slug-based ID
           const id = existingProduct ? existingProduct.id : product.id;
 
           const inventorySizes = Object.keys(product.sizeInventory);
