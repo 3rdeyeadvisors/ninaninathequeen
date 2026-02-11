@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCartStore } from '@/stores/cartStore';
 import { useAdminStore } from '@/stores/adminStore';
 import { getSupabase } from '@/lib/supabaseClient';
+import { SHIPPING_OPTIONS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { Loader2, ShieldCheck, Truck, ArrowLeft, CreditCard, Mail, User } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -19,6 +21,7 @@ export default function Checkout() {
   const { settings } = useAdminStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedShipping, setSelectedShipping] = useState(SHIPPING_OPTIONS[0].id);
 
   // Contact info state
   const [formData, setFormData] = useState({
@@ -33,7 +36,8 @@ export default function Checkout() {
   const onePiecesCount = items.filter(i => i.product.productType === 'One-Piece').reduce((sum, i) => sum + i.quantity, 0);
   const totalSets = Math.min(topsCount, bottomsCount) + onePiecesCount;
   const freeShipping = totalSets >= 2;
-  const shippingCost = freeShipping ? 0 : 12.50;
+  const selectedOption = SHIPPING_OPTIONS.find(o => o.id === selectedShipping) || SHIPPING_OPTIONS[0];
+  const shippingCost = freeShipping ? 0 : selectedOption.price;
   const taxRate = (settings.taxRate || 7.5) / 100;
   const taxAmount = subtotal * taxRate;
   const total = subtotal + shippingCost + taxAmount;
@@ -191,6 +195,46 @@ export default function Checkout() {
                   </CardContent>
                 </Card>
 
+                {/* Shipping Method Selector */}
+                <Card className="border-border/50">
+                  <CardHeader>
+                    <CardTitle className="font-serif text-2xl flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-primary" />
+                      Shipping Method
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {freeShipping ? (
+                      <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
+                        <p className="font-sans text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                          🎉 Free shipping! You qualify with 2+ bikini sets.
+                        </p>
+                      </div>
+                    ) : (
+                      <RadioGroup value={selectedShipping} onValueChange={setSelectedShipping} className="space-y-3">
+                        {SHIPPING_OPTIONS.map((option) => (
+                          <label
+                            key={option.id}
+                            htmlFor={option.id}
+                            className={`flex items-center justify-between border rounded-lg p-4 cursor-pointer transition-colors ${
+                              selectedShipping === option.id ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-primary/30'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <RadioGroupItem value={option.id} id={option.id} />
+                              <div>
+                                <p className="font-sans text-sm font-medium">{option.label}</p>
+                                <p className="font-sans text-[11px] text-muted-foreground">{option.estimatedDelivery}</p>
+                              </div>
+                            </div>
+                            <span className="font-sans text-sm font-medium">${option.price.toFixed(2)}</span>
+                          </label>
+                        ))}
+                      </RadioGroup>
+                    )}
+                  </CardContent>
+                </Card>
+
                 <div className="pt-4">
                   <Button
                     onClick={handleCreateCheckoutSession}
@@ -213,20 +257,6 @@ export default function Checkout() {
                     <ShieldCheck className="h-3 w-3" />
                     Secure Checkout by Square
                   </p>
-                </div>
-
-                <div className="bg-secondary/20 rounded-xl p-6 border border-border/30">
-                  <div className="flex gap-4">
-                    <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                      <Truck className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-sans text-xs font-bold uppercase tracking-widest mb-1">Worldwide Shipping</h4>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed font-sans">
-                        You will provide your shipping address on the next secure page. We offer complimentary express shipping on orders of 2+ bikini sets.
-                      </p>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="flex items-center justify-center gap-8 py-6 border-t border-border/30">

@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3 } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useOrdersDb } from '@/hooks/useOrdersDb';
@@ -28,16 +28,40 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AdminOrders() {
-  const { orders, _hasHydrated } = useAdminStore();
-  const { updateOrderDb } = useOrdersDb();
+  const { orders, productOverrides, _hasHydrated } = useAdminStore();
+  const { updateOrderDb, createManualOrder } = useOrdersDb();
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isViewing, setIsViewing] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const [editStatus, setEditStatus] = useState<AdminOrder['status']>('Pending');
   const [editTracking, setEditTracking] = useState('');
   const [editShippingCost, setEditShippingCost] = useState('');
   const [editItemCost, setEditItemCost] = useState('');
+
+  // Manual order creation state
+  const [newOrder, setNewOrder] = useState({
+    customerName: '',
+    customerEmail: '',
+    shippingCost: '0.00',
+    itemCost: '0.00',
+  });
+  const [newOrderItems, setNewOrderItems] = useState<Array<{
+    productId: string;
+    title: string;
+    size: string;
+    quantity: number;
+    price: string;
+    image: string;
+  }>>([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedQty, setSelectedQty] = useState(1);
+
+  const activeProducts = Object.entries(productOverrides)
+    .filter(([_, p]) => !p.isDeleted && p.status !== 'Inactive')
+    .map(([id, p]) => ({ id, ...p }));
 
   // Show loading skeleton while data is being restored from storage
   if (!_hasHydrated) {
@@ -101,6 +125,62 @@ export default function AdminOrders() {
     }
   };
 
+  const addItemToNewOrder = () => {
+    if (!selectedProductId) return;
+    const product = activeProducts.find(p => p.id === selectedProductId);
+    if (!product) return;
+
+    setNewOrderItems(prev => [...prev, {
+      productId: product.id,
+      title: product.title,
+      size: selectedSize,
+      quantity: selectedQty,
+      price: product.price,
+      image: product.image || '',
+    }]);
+    setSelectedProductId('');
+    setSelectedSize('');
+    setSelectedQty(1);
+  };
+
+  const handleCreateOrder = async () => {
+    if (!newOrder.customerName || !newOrder.customerEmail || newOrderItems.length === 0) {
+      toast.error('Please fill in customer info and add at least one item');
+      return;
+    }
+
+    const orderTotal = newOrderItems.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0) + parseFloat(newOrder.shippingCost || '0');
+
+    const order: AdminOrder = {
+      id: `#MAN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      customerName: newOrder.customerName,
+      customerEmail: newOrder.customerEmail,
+      date: new Date().toISOString().split('T')[0],
+      total: orderTotal.toFixed(2),
+      shippingCost: newOrder.shippingCost,
+      itemCost: newOrder.itemCost,
+      status: 'Processing',
+      trackingNumber: '',
+      items: newOrderItems.map(item => ({
+        title: item.title,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image,
+        size: item.size,
+      })),
+    };
+
+    const result = await createManualOrder(order);
+    if (result) {
+      toast.success('Manual order created and inventory updated');
+      setIsCreating(false);
+      setNewOrder({ customerName: '', customerEmail: '', shippingCost: '0.00', itemCost: '0.00' });
+      setNewOrderItems([]);
+    } else {
+      toast.error('Failed to create order');
+    }
+  };
+
   const getStatusIcon = (status: AdminOrder['status']) => {
     switch (status) {
       case 'Delivered': return <CheckCircle2 className="h-3 w-3 mr-1" />;
@@ -129,7 +209,13 @@ export default function AdminOrders() {
           <AdminSidebar />
 
           <main className="flex-1 space-y-8 bg-card p-4 sm:p-8 rounded-2xl border border-border/50 shadow-sm">
-            <h1 className="font-serif text-3xl">Manage Orders</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="font-serif text-3xl">Manage Orders</h1>
+              <Button onClick={() => setIsCreating(true)} className="font-sans text-[10px] uppercase tracking-widest">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Order
+              </Button>
+            </div>
 
             <div className="overflow-x-auto rounded-lg border">
               <Table className="min-w-[800px]">
@@ -174,6 +260,7 @@ export default function AdminOrders() {
               </Table>
             </div>
 
+            {/* View Order Dialog */}
             <Dialog open={isViewing} onOpenChange={setIsViewing}>
               <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
@@ -200,6 +287,22 @@ export default function AdminOrders() {
                       </div>
                     </div>
 
+                    {/* Shipping Address */}
+                    {selectedOrder.shippingAddress && (
+                      <div className="border-b pb-6">
+                        <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Shipping Address</h4>
+                        <div className="font-sans text-sm space-y-0.5">
+                          {selectedOrder.shippingAddress.addressLine1 && <p>{selectedOrder.shippingAddress.addressLine1}</p>}
+                          {selectedOrder.shippingAddress.addressLine2 && <p>{selectedOrder.shippingAddress.addressLine2}</p>}
+                          <p>
+                            {[selectedOrder.shippingAddress.city, selectedOrder.shippingAddress.state, selectedOrder.shippingAddress.postalCode]
+                              .filter(Boolean).join(', ')}
+                          </p>
+                          {selectedOrder.shippingAddress.country && <p>{selectedOrder.shippingAddress.country}</p>}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-3 gap-4 border-b pb-6">
                       <div>
                         <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Revenue</h4>
@@ -223,7 +326,9 @@ export default function AdminOrders() {
                             <img src={item.image} alt="" className="w-12 h-16 object-cover rounded shadow-sm border" />
                             <div className="flex-1">
                               <p className="font-sans text-sm font-medium">{item.title}</p>
-                              <p className="font-sans text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                              <p className="font-sans text-xs text-muted-foreground">
+                                {item.size ? `Size: ${item.size} · ` : ''}Qty: {item.quantity}
+                              </p>
                             </div>
                             <p className="font-sans text-sm font-medium">${parseFloat(item.price).toFixed(2)}</p>
                           </div>
@@ -244,6 +349,7 @@ export default function AdminOrders() {
               </DialogContent>
             </Dialog>
 
+            {/* Edit Order Dialog */}
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
               <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
@@ -308,6 +414,138 @@ export default function AdminOrders() {
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsEditing(false)} className="font-sans text-[10px] uppercase tracking-widest">Cancel</Button>
                   <Button onClick={saveOrderChanges} className="bg-primary font-sans text-[10px] uppercase tracking-widest">Save Updates</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Create Manual Order Dialog */}
+            <Dialog open={isCreating} onOpenChange={setIsCreating}>
+              <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-serif text-2xl">Create Manual Order</DialogTitle>
+                  <DialogDescription className="font-sans text-sm">
+                    Add a POS, phone, or custom order. Inventory will be decremented automatically.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label className="font-sans text-[10px] uppercase tracking-widest">Customer Name</Label>
+                      <Input
+                        value={newOrder.customerName}
+                        onChange={(e) => setNewOrder({ ...newOrder, customerName: e.target.value })}
+                        placeholder="Jane Doe"
+                        className="font-sans text-sm"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="font-sans text-[10px] uppercase tracking-widest">Customer Email</Label>
+                      <Input
+                        value={newOrder.customerEmail}
+                        onChange={(e) => setNewOrder({ ...newOrder, customerEmail: e.target.value })}
+                        placeholder="jane@example.com"
+                        className="font-sans text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Add items */}
+                  <div className="border-t pt-4 space-y-3">
+                    <h4 className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground">Add Items</h4>
+                    <div className="grid grid-cols-12 gap-2">
+                      <div className="col-span-5">
+                        <Select value={selectedProductId} onValueChange={(val) => {
+                          setSelectedProductId(val);
+                          setSelectedSize('');
+                        }}>
+                          <SelectTrigger className="font-sans text-sm">
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {activeProducts.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-3">
+                        <Select value={selectedSize} onValueChange={setSelectedSize}>
+                          <SelectTrigger className="font-sans text-sm">
+                            <SelectValue placeholder="Size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(activeProducts.find(p => p.id === selectedProductId)?.sizes || []).map(s => (
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          value={selectedQty}
+                          onChange={(e) => setSelectedQty(parseInt(e.target.value) || 1)}
+                          className="font-sans text-sm"
+                          placeholder="Qty"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Button onClick={addItemToNewOrder} variant="outline" className="w-full font-sans text-[10px] uppercase tracking-widest" disabled={!selectedProductId}>
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Item list */}
+                    {newOrderItems.length > 0 && (
+                      <div className="space-y-2">
+                        {newOrderItems.map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-secondary/20 p-2 rounded-lg">
+                            <div className="flex-1">
+                              <p className="font-sans text-sm">{item.title} {item.size ? `(${item.size})` : ''}</p>
+                              <p className="font-sans text-xs text-muted-foreground">Qty: {item.quantity} × ${parseFloat(item.price).toFixed(2)}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setNewOrderItems(prev => prev.filter((_, i) => i !== idx))}>
+                              <XCircle className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                        <p className="text-right font-sans text-sm font-medium">
+                          Items subtotal: ${newOrderItems.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0).toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                    <div className="grid gap-2">
+                      <Label className="font-sans text-[10px] uppercase tracking-widest">Shipping Cost</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={newOrder.shippingCost}
+                        onChange={(e) => setNewOrder({ ...newOrder, shippingCost: e.target.value })}
+                        className="font-sans text-sm"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="font-sans text-[10px] uppercase tracking-widest">Item Cost (COGS)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={newOrder.itemCost}
+                        onChange={(e) => setNewOrder({ ...newOrder, itemCost: e.target.value })}
+                        className="font-sans text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreating(false)} className="font-sans text-[10px] uppercase tracking-widest">Cancel</Button>
+                  <Button onClick={handleCreateOrder} className="bg-primary font-sans text-[10px] uppercase tracking-widest">Create Order</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
