@@ -1,0 +1,1 @@
+ALTER TABLE public.store_settings ADD COLUMN shipping_rate numeric DEFAULT 8.50;

@@ -72,8 +72,7 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
     destroy: () => Promise<void>;
   } | null>(null);
 
-  const taxAmount = subtotal * (settings.taxRate / 100);
-  const total = subtotal + taxAmount;
+  const total = subtotal;
 
   useEffect(() => {
     let isMounted = true;
@@ -218,14 +217,11 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
               <span className="text-muted-foreground">Subtotal</span>
               <span>${subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm font-sans">
-              <span className="text-muted-foreground">Tax ({settings.taxRate}%)</span>
-              <span>${taxAmount.toFixed(2)}</span>
-            </div>
             <div className="flex justify-between font-serif text-xl pt-2 border-t border-border/30 text-primary">
               <span>Total Due</span>
               <span>${total.toFixed(2)}</span>
             </div>
+            <p className="text-[10px] text-muted-foreground font-sans text-center">Tax calculated by payment provider</p>
           </div>
         </div>
 
@@ -312,8 +308,7 @@ export default function AdminPOS() {
   };
 
   const subtotal = posCart.reduce((acc, item) => acc + (parseFloat(item.price) * item.quantity), 0);
-  const taxAmount = subtotal * (settings.taxRate / 100);
-  const cartTotal = subtotal + taxAmount;
+  const cartTotal = subtotal;
 
   const completeSale = async (paymentData: PaymentData) => {
     setIsProcessing(true);
@@ -490,14 +485,11 @@ export default function AdminPOS() {
                       <span>Subtotal</span>
                       <span>${subtotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-xs font-sans text-muted-foreground">
-                      <span>Tax ({settings.taxRate}%)</span>
-                      <span>${taxAmount.toFixed(2)}</span>
-                    </div>
                     <div className="flex justify-between font-serif text-xl border-t pt-2 mt-2">
                       <span>Total</span>
                       <span className="text-primary">${cartTotal.toFixed(2)}</span>
                     </div>
+                    <p className="text-[10px] text-muted-foreground font-sans text-center">Tax calculated by payment provider</p>
                   </div>
 
                   <Button

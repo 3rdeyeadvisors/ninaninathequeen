@@ -31,7 +31,7 @@ export function useSettingsDb() {
         updateSettings({
           storeName: (settingsData.store_name as string) || 'NINA ARMEND',
           currency: (settingsData.currency as string) || 'USD',
-          taxRate: Number(settingsData.tax_rate) || 7.5,
+          shippingRate: Number(settingsData.shipping_rate) || 8.50,
           lowStockThreshold: (settingsData.low_stock_threshold as number) || 10,
           posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
           squareApiKey: (settingsData.square_api_key as string) || '',
@@ -81,7 +81,7 @@ export function useSettingsDb() {
       const updateData = {
         store_name: newSettings.storeName,
           currency: newSettings.currency,
-          tax_rate: newSettings.taxRate,
+          shipping_rate: newSettings.shippingRate,
           low_stock_threshold: newSettings.lowStockThreshold,
           pos_provider: newSettings.posProvider,
           square_api_key: newSettings.squareApiKey,

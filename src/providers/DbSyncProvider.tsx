@@ -157,7 +157,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         updateSettings({
           storeName: (data.store_name as string) || 'NINA ARMEND',
           currency: (data.currency as string) || 'USD',
-          taxRate: Number(data.tax_rate) || 7.5,
+          shippingRate: Number(data.shipping_rate) || 8.50,
           lowStockThreshold: (data.low_stock_threshold as number) || 10,
           posProvider: (data.pos_provider as 'none' | 'square') || 'none',
           squareApiKey: (data.square_api_key as string) || '',

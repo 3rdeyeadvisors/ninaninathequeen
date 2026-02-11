@@ -209,6 +209,7 @@ export type Database = {
           pos_provider: string | null
           seo_description: string | null
           seo_title: string | null
+          shipping_rate: number | null
           square_api_key: string | null
           square_application_id: string | null
           square_location_id: string | null
@@ -231,6 +232,7 @@ export type Database = {
           pos_provider?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          shipping_rate?: number | null
           square_api_key?: string | null
           square_application_id?: string | null
           square_location_id?: string | null
@@ -253,6 +255,7 @@ export type Database = {
           pos_provider?: string | null
           seo_description?: string | null
           seo_title?: string | null
+          shipping_rate?: number | null
           square_api_key?: string | null
           square_application_id?: string | null
           square_location_id?: string | null

@@ -60,7 +60,7 @@ export interface ProductOverride {
 export interface AdminSettings {
   storeName: string;
   currency: string;
-  taxRate: number;
+  shippingRate: number;
   lowStockThreshold: number;
   posProvider: 'none' | 'square';
   squareApiKey: string;
@@ -101,7 +101,7 @@ interface AdminStore {
 const INITIAL_SETTINGS: AdminSettings = {
   storeName: 'NINA ARMEND',
   currency: 'USD',
-  taxRate: 7.5,
+  shippingRate: 8.50,
   lowStockThreshold: 10,
   posProvider: 'square',
   squareApiKey: '',

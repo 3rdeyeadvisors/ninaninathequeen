@@ -100,24 +100,13 @@ export default function AdminSettings() {
                         onChange={(e) => updateLocal({ storeName: e.target.value })}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor="currency">Currency</Label>
-                        <Input
-                          id="currency"
-                          value={localSettings.currency}
-                          onChange={(e) => updateLocal({ currency: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="tax">Tax Rate (%)</Label>
-                        <Input
-                          id="tax"
-                          type="number"
-                          value={localSettings.taxRate}
-                          onChange={(e) => updateLocal({ taxRate: parseFloat(e.target.value) })}
-                        />
-                      </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="currency">Currency</Label>
+                      <Input
+                        id="currency"
+                        value={localSettings.currency}
+                        onChange={(e) => updateLocal({ currency: e.target.value })}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -189,17 +178,22 @@ export default function AdminSettings() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="shippingRate">Flat Shipping Rate ($)</Label>
+                      <Input
+                        id="shippingRate"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={localSettings.shippingRate}
+                        onChange={(e) => updateLocal({ shippingRate: parseFloat(e.target.value) || 0 })}
+                      />
+                      <p className="text-xs text-muted-foreground">Customers with 2+ bikini sets get free shipping automatically.</p>
+                    </div>
                     <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
                       <div className="space-y-0.5">
                         <Label>International Shipping</Label>
                         <p className="text-xs text-muted-foreground">Allow orders from outside Brazil</p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg">
-                      <div className="space-y-0.5">
-                        <Label>Free Shipping Threshold</Label>
-                        <p className="text-xs text-muted-foreground">Currently: 2+ Bikini Sets</p>
                       </div>
                       <Switch defaultChecked />
                     </div>
