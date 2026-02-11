@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     // Get secrets from environment variables or database
     let SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')
-    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'production'
+    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox'
 
     if (!SQUARE_ACCESS_TOKEN) {
       const { data: settings } = await supabase

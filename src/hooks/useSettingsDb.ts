@@ -37,7 +37,7 @@ export function useSettingsDb() {
           squareApiKey: (settingsData.square_api_key as string) || '',
           squareApplicationId: (settingsData.square_application_id as string) || '',
           squareLocationId: (settingsData.square_location_id as string) || 'L09Y3ZCB23S11',
-          autoSync: (settingsData.auto_sync as boolean) ?? true,
+          
           seoTitle: (settingsData.seo_title as string) || '',
           seoDescription: (settingsData.seo_description as string) || '',
           instagramUrl: (settingsData.instagram_url as string) || '',
@@ -87,7 +87,7 @@ export function useSettingsDb() {
           square_api_key: newSettings.squareApiKey,
           square_application_id: (newSettings as AdminSettings).squareApplicationId,
           square_location_id: (newSettings as AdminSettings).squareLocationId,
-          auto_sync: newSettings.autoSync,
+          
           seo_title: newSettings.seoTitle,
           seo_description: newSettings.seoDescription,
           instagram_url: newSettings.instagramUrl,

@@ -56,7 +56,7 @@ export interface AdminSettings {
   squareApiKey: string;
   squareApplicationId: string;
   squareLocationId: string;
-  autoSync: boolean;
+  
   // New settings
   seoTitle?: string;
   seoDescription?: string;
@@ -97,7 +97,7 @@ const INITIAL_SETTINGS: AdminSettings = {
   squareApiKey: '',
   squareApplicationId: '',
   squareLocationId: 'L09Y3ZCB23S11',
-  autoSync: true,
+  
   seoTitle: 'Nina Armend | Luxury Brazilian Swimwear',
   seoDescription: 'Discover our exclusive collection of premium Brazilian swimwear, handcrafted with the finest Italian fabrics.',
   instagramUrl: 'https://instagram.com/ninaarmend',
