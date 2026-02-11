@@ -53,7 +53,9 @@ export function useCustomersDb() {
           total_spent: customer.totalSpent,
           order_count: customer.orderCount,
           join_date: customer.joinDate,
-        }, { onConflict: 'id' });
+        }, { onConflict: 'id' })
+        .select('id')
+        .maybeSingle();
 
       if (error) {
         console.error('Error upserting customer:', error);
@@ -73,7 +75,9 @@ export function useCustomersDb() {
       const { error } = await supabase
         .from('customers')
         .delete()
-        .eq('id', customerId);
+        .eq('id', customerId)
+        .select('id')
+        .maybeSingle();
 
       if (error) {
         console.error('Error deleting customer:', error);
