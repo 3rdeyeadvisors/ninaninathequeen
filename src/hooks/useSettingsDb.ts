@@ -101,11 +101,24 @@ export function useSettingsDb() {
       let error;
       if (targetId) {
         console.log('[Settings] Updating row:', targetId);
-        const { error: updateError } = await supabase
+        const updatePromise = supabase
           .from('store_settings')
           .update(updateData)
-          .eq('id', targetId);
-        error = updateError;
+          .eq('id', targetId)
+          .select('id')
+          .maybeSingle();
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('DB update timed out after 10s')), 10000)
+        );
+
+        try {
+          const result = await Promise.race([updatePromise, timeoutPromise]);
+          error = result.error;
+        } catch (raceErr: any) {
+          console.error('[Settings] Update race failed:', raceErr.message);
+          error = raceErr;
+        }
       } else {
         console.log('[Settings] No row found, inserting new...');
         const { data: inserted, error: insertError } = await supabase
