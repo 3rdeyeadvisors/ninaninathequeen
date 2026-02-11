@@ -72,7 +72,7 @@ export default function Checkout() {
           size: item.selectedOptions.find(o => o.name.toLowerCase() === 'size')?.value || item.variantTitle
         })),
         shippingCost: shippingCost.toFixed(2),
-        itemCost: (subtotal * 0.3).toFixed(2),
+        itemCost: (subtotal * 0.3).toFixed(2), // Estimated COGS for admin reporting
         taxAmount: taxAmount.toFixed(2),
         total: total.toFixed(2)
       };

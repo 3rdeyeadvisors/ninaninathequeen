@@ -1,17 +1,20 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, ShoppingBag } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useCartStore } from '@/stores/cartStore';
 import { getSupabase } from '@/lib/supabaseClient';
+import { toast } from 'sonner';
 
 export default function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
   const { clearCart } = useCartStore();
+  const [isFinalizing, setIsFinalizing] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const finalizeOrder = async () => {
@@ -22,57 +25,25 @@ export default function CheckoutSuccess() {
         try {
           const supabase = getSupabase();
 
-          // First check if the order is still 'Pending' to avoid double-processing on refresh
-          const { data: currentOrder } = await supabase
-            .from('orders')
-            .select('status, items')
-            .eq('id', orderId)
-            .single();
+          // Call the secure backend function to finalize the order
+          const { data, error: functionError } = await supabase.functions.invoke('finalize-square-order', {
+            body: { orderId }
+          });
 
-          if (currentOrder && currentOrder.status === 'Pending') {
-            // Update order status to Processing
-            const { error: updateError } = await supabase
-              .from('orders')
-              .update({ status: 'Processing' })
-              .eq('id', orderId);
-
-            if (updateError) {
-              console.error('Error updating order status:', updateError);
-            } else {
-              console.log('Order status updated to Processing');
-
-              // Update inventory
-              if (currentOrder.items && Array.isArray(currentOrder.items)) {
-                for (const item of (currentOrder.items as any[])) {
-                  try {
-                    const { data: product, error: fetchError } = await supabase
-                      .from('products')
-                      .select('id, inventory, size_inventory')
-                      .eq('id', item.productId)
-                      .single();
-
-                    if (!fetchError && product) {
-                      const currentTotal = product.inventory || 0;
-                      const newTotal = Math.max(0, currentTotal - item.quantity);
-                      const sizeInventory = { ...(product.size_inventory as Record<string, number> || {}) };
-                      const sizeKey = Object.keys(sizeInventory).find(k => k.toLowerCase() === item.size.toLowerCase()) || item.size;
-                      sizeInventory[sizeKey] = Math.max(0, (sizeInventory[sizeKey] || 0) - item.quantity);
-
-                      await supabase
-                        .from('products')
-                        .update({ inventory: newTotal, size_inventory: sizeInventory })
-                        .eq('id', item.productId);
-                    }
-                  } catch (invErr) {
-                    console.error('Inventory update error:', invErr);
-                  }
-                }
-              }
-            }
+          if (functionError || !data?.success) {
+            console.error('Error finalizing order:', functionError || data?.error);
+            setError(data?.error || 'There was a problem verifying your payment. Please contact support if you have been charged.');
+          } else {
+            console.log('Order finalized successfully');
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error('Unexpected error finalizing order:', err);
+          setError('An unexpected error occurred. Please contact support if you have been charged.');
+        } finally {
+          setIsFinalizing(false);
         }
+      } else {
+        setIsFinalizing(false);
       }
     };
 
@@ -80,37 +51,69 @@ export default function CheckoutSuccess() {
   }, [orderId, clearCart]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      <main className="pt-32 md:pt-40 pb-20">
+      <main className="flex-1 pt-32 md:pt-40 pb-20 flex items-center">
         <div className="container mx-auto px-4 text-center max-w-2xl">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="flex justify-center mb-6">
-              <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="h-12 w-12 text-primary" />
+            {isFinalizing ? (
+              <div className="space-y-6">
+                <div className="flex justify-center">
+                  <Loader2 className="h-16 w-16 text-primary animate-spin" />
+                </div>
+                <h1 className="font-serif text-3xl">Verifying Your Order...</h1>
+                <p className="text-muted-foreground">Please wait a moment while we confirm your payment and secure your items.</p>
               </div>
-            </div>
+            ) : error ? (
+              <div className="space-y-6">
+                <div className="flex justify-center">
+                  <div className="h-20 w-20 bg-destructive/10 rounded-full flex items-center justify-center">
+                    <AlertCircle className="h-12 w-12 text-destructive" />
+                  </div>
+                </div>
+                <h1 className="font-serif text-3xl md:text-4xl mb-4">Payment Verification Needed</h1>
+                <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
+                  {error}
+                </p>
+                <div className="flex justify-center gap-4">
+                  <Button asChild size="lg" className="bg-primary">
+                    <Link to="/contact">Contact Support</Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg">
+                    <Link to="/shop">Back to Shop</Link>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-center mb-6">
+                  <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="h-12 w-12 text-primary" />
+                  </div>
+                </div>
 
-            <h1 className="font-serif text-4xl md:text-5xl mb-4 tracking-tight">Thank You For Your Order!</h1>
-            <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-              {orderId ? `Your order ${orderId} has been placed successfully.` : "Your order has been placed successfully."} We'll send you a confirmation email with your order details and tracking information once your package ships.
-            </p>
+                <h1 className="font-serif text-4xl md:text-5xl mb-4 tracking-tight">Thank You For Your Order!</h1>
+                <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
+                  {orderId ? `Your order ${orderId} has been placed successfully.` : "Your order has been placed successfully."} We'll send you a confirmation email with your order details and tracking information once your package ships.
+                </p>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Button asChild size="lg" className="w-full bg-primary py-6">
-                <Link to="/shop">
-                  <ShoppingBag className="h-5 w-5 mr-2" />
-                  Continue Shopping
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg" className="w-full py-6">
-                <Link to="/account">View Order Status</Link>
-              </Button>
-            </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Button asChild size="lg" className="w-full bg-primary py-6 font-sans uppercase tracking-widest text-xs">
+                    <Link to="/shop">
+                      <ShoppingBag className="h-4 w-4 mr-2" />
+                      Continue Shopping
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg" className="w-full py-6 font-sans uppercase tracking-widest text-xs">
+                    <Link to="/account">View Order Status</Link>
+                  </Button>
+                </div>
+              </>
+            )}
           </motion.div>
         </div>
       </main>
