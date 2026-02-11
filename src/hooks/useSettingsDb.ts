@@ -57,11 +57,21 @@ export function useSettingsDb() {
   const updateSettingsDb = useCallback(async (newSettings: Partial<AdminSettings>) => {
     try {
       const supabase = getSupabase();
+      console.log('[Settings] Starting save...');
+
+      // Check auth session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('[Settings] No auth session - cannot save');
+        return false;
+      }
+      console.log('[Settings] Auth OK, user:', session.user.id);
 
       // Use cached ID if available, otherwise fetch it
       let targetId = settingsIdRef.current;
 
       if (!targetId) {
+        console.log('[Settings] No cached ID, fetching...');
         const { data: existing } = await supabase
           .from('store_settings')
           .select('id')
@@ -72,6 +82,7 @@ export function useSettingsDb() {
           targetId = existing.id;
           settingsIdRef.current = targetId;
         }
+        console.log('[Settings] Fetched ID:', targetId);
       }
 
       // Prepare data for upsert/update
@@ -97,14 +108,14 @@ export function useSettingsDb() {
 
       let error;
       if (targetId) {
-        // Update existing row
+        console.log('[Settings] Updating row:', targetId);
         const { error: updateError } = await supabase
           .from('store_settings')
           .update(updateData)
           .eq('id', targetId);
         error = updateError;
       } else {
-        // Create new row (upsert with new ID if none exists)
+        console.log('[Settings] No row found, inserting new...');
         const { data: inserted, error: insertError } = await supabase
           .from('store_settings')
           .insert(updateData)
@@ -118,12 +129,13 @@ export function useSettingsDb() {
       }
 
       if (error) {
-        console.error('Error updating settings:', error);
+        console.error('[Settings] Save failed:', error);
         return false;
       }
+      console.log('[Settings] Save successful');
       return true;
     } catch (err) {
-      console.error('Failed to update settings:', err);
+      console.error('[Settings] Save exception:', err);
       return false;
     }
   }, []);

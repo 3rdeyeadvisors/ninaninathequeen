@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore } from '@/stores/adminStore';
 import { useSettingsDb } from '@/hooks/useSettingsDb';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Store, Globe, Bell, Shield, Save, CreditCard, Key, ExternalLink, CheckCircle, Loader2, Search, Share2, Mail, Phone, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,20 @@ export default function AdminSettings() {
   const [localSettings, setLocalSettings] = useState(settings);
   const [isEditingToken, setIsEditingToken] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const hasEditedRef = useRef(false);
+
+  // Sync localSettings when zustand store updates (e.g. after DB fetch)
+  useEffect(() => {
+    if (!hasEditedRef.current) {
+      setLocalSettings(settings);
+    }
+  }, [settings]);
+
+  // Track when user starts editing
+  const updateLocal = (patch: Partial<typeof localSettings>) => {
+    hasEditedRef.current = true;
+    setLocalSettings(prev => ({ ...prev, ...patch }));
+  };
 
   // Mask the token for display
   const maskedToken = localSettings.squareApiKey 
@@ -29,24 +43,26 @@ export default function AdminSettings() {
 
   const handleSave = async () => {
     setIsSaving(true);
-
-    const savePromise = updateSettingsDb(localSettings);
-
-    toast.promise(savePromise, {
-      loading: 'Saving store settings...',
-      success: (success) => {
-        if (success) {
-          updateSettings(localSettings);
-          setIsEditingToken(false);
-          return "Store settings saved!";
-        }
-        return "Failed to save settings to database.";
-      },
-      error: "An error occurred while saving."
-    });
+    const timeout = setTimeout(() => {
+      setIsSaving(false);
+      toast.error('Save timed out. Please try again.');
+    }, 15000);
 
     try {
-      await savePromise;
+      const success = await updateSettingsDb(localSettings);
+      clearTimeout(timeout);
+      if (success) {
+        updateSettings(localSettings);
+        hasEditedRef.current = false;
+        setIsEditingToken(false);
+        toast.success('Store settings saved!');
+      } else {
+        toast.error('Failed to save settings. Check console for details.');
+      }
+    } catch (err) {
+      clearTimeout(timeout);
+      console.error('[Settings] Save error:', err);
+      toast.error('An error occurred while saving.');
     } finally {
       setIsSaving(false);
     }
@@ -81,7 +97,7 @@ export default function AdminSettings() {
                       <Input
                         id="storeName"
                         value={localSettings.storeName}
-                        onChange={(e) => setLocalSettings({...localSettings, storeName: e.target.value})}
+                        onChange={(e) => updateLocal({ storeName: e.target.value })}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -90,7 +106,7 @@ export default function AdminSettings() {
                         <Input
                           id="currency"
                           value={localSettings.currency}
-                          onChange={(e) => setLocalSettings({...localSettings, currency: e.target.value})}
+                          onChange={(e) => updateLocal({ currency: e.target.value })}
                         />
                       </div>
                       <div className="grid gap-2">
@@ -99,7 +115,7 @@ export default function AdminSettings() {
                           id="tax"
                           type="number"
                           value={localSettings.taxRate}
-                          onChange={(e) => setLocalSettings({...localSettings, taxRate: parseFloat(e.target.value)})}
+                          onChange={(e) => updateLocal({ taxRate: parseFloat(e.target.value) })}
                         />
                       </div>
                     </div>
@@ -120,7 +136,7 @@ export default function AdminSettings() {
                       <Input
                         id="squareAppId"
                         value={localSettings.squareApplicationId}
-                        onChange={(e) => setLocalSettings({...localSettings, squareApplicationId: e.target.value})}
+                        onChange={(e) => updateLocal({ squareApplicationId: e.target.value })}
                         placeholder="sq0idp-..."
                       />
                     </div>
@@ -129,7 +145,7 @@ export default function AdminSettings() {
                       <Input
                         id="squareLocId"
                         value={localSettings.squareLocationId}
-                        onChange={(e) => setLocalSettings({...localSettings, squareLocationId: e.target.value})}
+                        onChange={(e) => updateLocal({ squareLocationId: e.target.value })}
                         placeholder="L..."
                       />
                     </div>
@@ -150,7 +166,7 @@ export default function AdminSettings() {
                           id="squareApiKey"
                           type="password"
                           value={localSettings.squareApiKey}
-                          onChange={(e) => setLocalSettings({...localSettings, squareApiKey: e.target.value})}
+                          onChange={(e) => updateLocal({ squareApiKey: e.target.value })}
                           placeholder="EAAA..."
                         />
                       ) : (
@@ -203,7 +219,7 @@ export default function AdminSettings() {
                       <Input
                         id="seoTitle"
                         value={localSettings.seoTitle}
-                        onChange={(e) => setLocalSettings({...localSettings, seoTitle: e.target.value})}
+                        onChange={(e) => updateLocal({ seoTitle: e.target.value })}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -211,7 +227,7 @@ export default function AdminSettings() {
                       <Textarea
                         id="seoDesc"
                         value={localSettings.seoDescription}
-                        onChange={(e) => setLocalSettings({...localSettings, seoDescription: e.target.value})}
+                        onChange={(e) => updateLocal({ seoDescription: e.target.value })}
                         className="h-24 resize-none"
                       />
                     </div>
@@ -231,7 +247,7 @@ export default function AdminSettings() {
                       <Input
                         id="instagram"
                         value={localSettings.instagramUrl}
-                        onChange={(e) => setLocalSettings({...localSettings, instagramUrl: e.target.value})}
+                        onChange={(e) => updateLocal({ instagramUrl: e.target.value })}
                         placeholder="https://instagram.com/..."
                       />
                     </div>
@@ -240,7 +256,7 @@ export default function AdminSettings() {
                       <Input
                         id="facebook"
                         value={localSettings.facebookUrl}
-                        onChange={(e) => setLocalSettings({...localSettings, facebookUrl: e.target.value})}
+                        onChange={(e) => updateLocal({ facebookUrl: e.target.value })}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -248,7 +264,7 @@ export default function AdminSettings() {
                       <Input
                         id="tiktok"
                         value={localSettings.tiktokUrl}
-                        onChange={(e) => setLocalSettings({...localSettings, tiktokUrl: e.target.value})}
+                        onChange={(e) => updateLocal({ tiktokUrl: e.target.value })}
                       />
                     </div>
                   </CardContent>
@@ -267,7 +283,7 @@ export default function AdminSettings() {
                       <Input
                         id="contactEmail"
                         value={localSettings.contactEmail}
-                        onChange={(e) => setLocalSettings({...localSettings, contactEmail: e.target.value})}
+                        onChange={(e) => updateLocal({ contactEmail: e.target.value })}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -275,7 +291,7 @@ export default function AdminSettings() {
                       <Input
                         id="contactPhone"
                         value={localSettings.contactPhone}
-                        onChange={(e) => setLocalSettings({...localSettings, contactPhone: e.target.value})}
+                        onChange={(e) => updateLocal({ contactPhone: e.target.value })}
                       />
                     </div>
                   </CardContent>
@@ -330,7 +346,7 @@ export default function AdminSettings() {
                       </div>
                       <Switch
                         checked={localSettings.isMaintenanceMode}
-                        onCheckedChange={(checked) => setLocalSettings({...localSettings, isMaintenanceMode: checked})}
+                        onCheckedChange={(checked) => updateLocal({ isMaintenanceMode: checked })}
                       />
                     </div>
                   </CardContent>
