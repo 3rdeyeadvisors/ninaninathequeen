@@ -1,75 +1,76 @@
 
 
-# Simplify Platform: Remove Square Sync, Fix Checkout (Sandbox Mode)
+# Shipping, Address Display, and Manual Orders
 
 ## Overview
 
-Remove Square inventory sync, fix the 3 checkout issues, and configure everything for **sandbox testing**. You'll switch to production later by updating the token and one line.
+Three enhancements to give the admin full order management: see customer shipping addresses, offer tiered shipping rates at checkout, and manually create orders that track inventory.
 
 ---
 
-## Part 1: Remove Square Inventory Sync
+## Feature 1: Display Shipping Address in Admin Orders
 
-### Delete files
-- `src/hooks/useSquareSync.ts`
-- `supabase/functions/square-sync-inventory/index.ts`
+The shipping address is already being saved from Square into the `shipping_address` column. It just needs to be shown in the admin UI.
 
-### Edit files
-- **`src/pages/admin/Products.tsx`** -- Remove `useSquareSync` import, remove sync button and related logic
-- **`src/stores/adminStore.ts`** -- Remove `autoSync` from settings interface and defaults
-- **`src/hooks/useSettingsDb.ts`** -- Remove `autoSync` mapping in fetch and save
-- **`src/providers/DbSyncProvider.tsx`** -- Remove `autoSync` mapping
-- **`supabase/config.toml`** -- Remove `[functions.square-sync-inventory]` entry
-
-The `auto_sync` database column stays (harmless, code just stops reading it).
+### Changes
+- **`src/pages/admin/Orders.tsx`** -- Add a "Shipping Address" section to the Order Details (view) dialog, reading from the order's `shipping_address` field
+- **`src/stores/adminStore.ts`** -- Add `shippingAddress` (optional object) to the `AdminOrder` interface
+- **`src/hooks/useOrdersDb.ts`** -- Map `shipping_address` from the database to the store's `shippingAddress` field when fetching orders
 
 ---
 
-## Part 2: Fix Checkout (3 Issues)
+## Feature 2: Shipping Options at Checkout
 
-### Issue A: Add missing database columns
+Replace the current flat $12.50 / free-over-2-sets logic with tiered shipping options the customer can choose from.
 
-```sql
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS square_order_id text;
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS shipping_address jsonb;
-```
+### Shipping Tiers
+- **Standard Domestic (US)**: $8.50 (5-7 business days)
+- **Express Domestic (US)**: $15.00 (2-3 business days)
+- **International**: $22.00 (7-14 business days)
+- **Free Shipping**: Still applies when 2+ bikini sets are in the cart (overrides any tier to $0)
 
-### Issue B: Align both edge functions to sandbox
-
-- **`create-square-checkout/index.ts`** -- Change default environment from `'production'` to `'sandbox'` (line 27)
-- **`finalize-square-order/index.ts`** -- Keep default as `'sandbox'` (already sandbox, just clean up the detection logic)
-
-This ensures checkout is created and verified on the same Square environment.
-
-### Issue C: Re-enter Square Access Token
-
-Prompt you to paste your **sandbox** access token into the secure secrets input. This replaces the current (possibly expired) value.
+### Changes
+- **`src/pages/Checkout.tsx`** -- Add a shipping method selector (radio group) below the contact info card. The selected tier's cost replaces the old flat rate. Free shipping override still applies when eligible.
+- **`src/lib/constants.ts`** -- Add `SHIPPING_OPTIONS` array with label, price, and estimated delivery for each tier, keeping it easy for the admin to adjust later.
 
 ---
 
-## Execution Order
+## Feature 3: Manual Order Creation (Admin)
 
-1. Run database migration (add 2 columns)
-2. Delete sync files (`useSquareSync.ts`, `square-sync-inventory` edge function)
-3. Clean up sync references in Products.tsx, adminStore.ts, useSettingsDb.ts, DbSyncProvider.tsx
-4. Set both checkout edge functions to default to `sandbox`
-5. Update `supabase/config.toml`
-6. Prompt you to re-enter the sandbox access token
+Allow the admin to create orders manually for POS sales, phone orders, or custom orders. These orders will decrement inventory just like online orders.
+
+### Changes
+
+**`src/pages/admin/Orders.tsx`** -- Add a "Create Order" button and dialog with:
+- Customer name and email fields
+- Product selector (dropdown from existing products in the store)
+- Size selector per product
+- Quantity per item
+- Shipping cost and item cost (COGS) fields
+- Status defaults to "Processing" (since it's already paid via POS/phone)
+- On save: inserts order into database, decrements inventory for each item (both total `inventory` and `size_inventory`), and updates the local store
+
+**`src/hooks/useOrdersDb.ts`** -- Add a `createManualOrder` function that:
+1. Inserts the order record into the `orders` table
+2. For each item, fetches the product, decrements `inventory` and `size_inventory`, and updates the product in the database
+3. Updates the local admin store with the new order
 
 ---
 
-## When You're Ready for Production
+## What Stays the Same
 
-Two changes:
-1. Update `SQUARE_ACCESS_TOKEN` secret with your production token
-2. Change the environment default in both `create-square-checkout` and `finalize-square-order` from `'sandbox'` to `'production'`
+- Square handles payment and collects the shipping address for online orders (no changes to edge functions)
+- The `finalize-square-order` function continues to extract the address and decrement inventory for online orders
+- POS page and `process-payment` edge function remain untouched
+- The edit order dialog keeps its current fields (status, tracking, shipping/item cost)
 
 ---
 
-## What Stays Untouched
+## Technical Execution Order
 
-- POS page and `process-payment` edge function (independent of sync)
-- Checkout page UI (`Checkout.tsx`)
-- Checkout success page (`CheckoutSuccess.tsx`)
-- Square settings fields in Admin Settings (Application ID, Location ID)
+1. Update `AdminOrder` interface to include `shippingAddress`
+2. Update `useOrdersDb` to map `shipping_address` from DB and add `createManualOrder`
+3. Add `SHIPPING_OPTIONS` to constants
+4. Update `Checkout.tsx` with shipping tier selector
+5. Update `Orders.tsx` with shipping address display in view dialog + manual order creation dialog
 
