@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+export interface ShippingAddress {
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+}
+
 export interface AdminOrder {
   id: string;
   customerName: string;
@@ -11,6 +20,7 @@ export interface AdminOrder {
   itemCost?: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
   trackingNumber: string;
+  shippingAddress?: ShippingAddress;
   items: Array<{
     title: string;
     quantity: number;
