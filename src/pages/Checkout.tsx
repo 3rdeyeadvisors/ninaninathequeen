@@ -167,6 +167,52 @@ export default function Checkout() {
     await handlePaymentResponse(result);
   };
 
+  const handleCreateCheckoutSession = async () => {
+    setIsProcessing(true);
+    try {
+      const supabase = getSupabase();
+      const orderId = `#ORD-${Math.floor(Math.random() * 9000) + 1000}`;
+      const orderDetails = {
+        id: orderId,
+        customerName: `${formData.firstName} ${formData.lastName}`,
+        customerEmail: formData.email,
+        items: items.map(item => ({
+          productId: item.product.id,
+          variantId: item.variantId,
+          title: item.product.title,
+          quantity: item.quantity,
+          price: item.price.amount,
+          image: item.product.images[0]?.url || '',
+          size: item.selectedOptions.find(o => o.name.toLowerCase() === 'size')?.value || item.variantTitle
+        })),
+        shippingCost: shippingCost.toFixed(2),
+        itemCost: (subtotal * 0.3).toFixed(2),
+      };
+
+      const { data, error } = await supabase.functions.invoke('create-square-checkout', {
+        body: {
+          orderDetails,
+          locationId: settings.squareLocationId
+        }
+      });
+
+      if (error || !data.success) {
+        throw new Error(error?.message || data?.error || 'Failed to initialize checkout session');
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (err: any) {
+      console.error('Checkout session error:', err);
+      toast.error(err.message || 'An error occurred while initiating checkout');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   useEffect(() => {
     if (checkoutStep !== 'payment') return;
 
@@ -463,6 +509,24 @@ export default function Checkout() {
                           <div id="apple-pay-container" className="min-h-[48px]"></div>
                           <div id="google-pay-container" className="min-h-[48px]"></div>
                           <div id="cash-app-pay-container" className="min-h-[48px]"></div>
+
+                          <Button
+                            onClick={handleCreateCheckoutSession}
+                            disabled={isProcessing}
+                            className="w-full h-12 bg-[#000] text-white hover:bg-[#1a1a1a] font-sans uppercase tracking-[0.2em] text-[10px] font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98]"
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Initializing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="h-4 w-4" />
+                                <span>Pay Now with Square</span>
+                              </>
+                            )}
+                          </Button>
                         </div>
 
                         <div className="relative mb-8">

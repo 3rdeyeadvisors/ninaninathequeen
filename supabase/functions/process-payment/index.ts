@@ -6,7 +6,6 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -15,14 +14,11 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN');
+    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox';
 
-    // Parse request body
     const { sourceId, amount, currency, locationId, orderDetails } = await req.json()
-
-    // Create service role client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // Fallback to getting API key from store_settings if env var is missing
     let FINAL_SQUARE_TOKEN = SQUARE_ACCESS_TOKEN;
     if (!FINAL_SQUARE_TOKEN) {
       const { data: settings } = await supabase
@@ -37,8 +33,14 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured.')
     }
 
-    // Call Square Payments API
-    const paymentResponse = await fetch('https://connect.squareup.com/v2/payments', {
+    // Determine API URL based on environment or token prefix
+    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'production' && !FINAL_SQUARE_TOKEN.startsWith('EAAAl'))
+      ? 'https://connect.squareup.com'
+      : 'https://connect.squareupsandbox.com';
+
+    console.log(`[ProcessPayment] Processing payment in ${SQUARE_API_URL.includes('sandbox') ? 'sandbox' : 'production'} environment`);
+
+    const paymentResponse = await fetch(`${SQUARE_API_URL}/v2/payments`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
@@ -49,7 +51,7 @@ Deno.serve(async (req) => {
         idempotency_key: crypto.randomUUID(),
         source_id: sourceId,
         amount_money: {
-          amount: Math.round(parseFloat(amount) * 100), // convert to cents
+          amount: Math.round(parseFloat(amount) * 100),
           currency: currency || 'USD'
         },
         location_id: locationId
@@ -69,9 +71,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('[ProcessPayment] Payment successful:', paymentResult.payment.id)
-
-    // Create order in database if orderDetails are provided
     if (orderDetails) {
       const { error: orderError } = await supabase
         .from('orders')
@@ -88,16 +87,9 @@ Deno.serve(async (req) => {
           tracking_number: 'Pending'
         })
 
-      if (orderError) {
-        console.error('[ProcessPayment] Order creation error:', orderError)
-        // We don't fail the response here because the payment was already successful
-      }
-
-      // Decrement inventory in Supabase
       if (orderDetails.items && Array.isArray(orderDetails.items)) {
         for (const item of orderDetails.items) {
           try {
-            // Fetch current product to get its size_inventory
             const { data: product, error: fetchError } = await supabase
               .from('products')
               .select('id, inventory, size_inventory')
@@ -107,22 +99,14 @@ Deno.serve(async (req) => {
             if (!fetchError && product) {
               const currentTotal = product.inventory || 0;
               const newTotal = Math.max(0, currentTotal - item.quantity);
-
               const sizeInventory = { ...(product.size_inventory as Record<string, number> || {}) };
-              // Match size key case-insensitively
               const sizeKey = Object.keys(sizeInventory).find(k => k.toLowerCase() === item.size.toLowerCase()) || item.size;
-              const currentSizeStock = sizeInventory[sizeKey] || 0;
-              sizeInventory[sizeKey] = Math.max(0, currentSizeStock - item.quantity);
+              sizeInventory[sizeKey] = Math.max(0, (sizeInventory[sizeKey] || 0) - item.quantity);
 
               await supabase
                 .from('products')
-                .update({
-                  inventory: newTotal,
-                  size_inventory: sizeInventory
-                })
+                .update({ inventory: newTotal, size_inventory: sizeInventory })
                 .eq('id', item.productId);
-
-              console.log(`[ProcessPayment] Updated inventory for product ${item.productId}: ${currentTotal} -> ${newTotal}`);
             }
           } catch (invErr) {
             console.error('[ProcessPayment] Inventory update error:', invErr);
@@ -131,20 +115,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({
-      success: true,
-      payment: paymentResult.payment
-    }), {
+    return new Response(JSON.stringify({ success: true, payment: paymentResult.payment }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-    console.error('[ProcessPayment] Error:', errorMessage)
-    return new Response(JSON.stringify({
-      success: false,
-      error: errorMessage
-    }), {
+  } catch (error: any) {
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
