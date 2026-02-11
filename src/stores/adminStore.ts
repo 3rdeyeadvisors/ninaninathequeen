@@ -96,7 +96,7 @@ const INITIAL_SETTINGS: AdminSettings = {
   posProvider: 'square',
   squareApiKey: '',
   squareApplicationId: '',
-  squareLocationId: '',
+  squareLocationId: 'L09Y3ZCB23S11',
   autoSync: true,
   seoTitle: 'Nina Armend | Luxury Brazilian Swimwear',
   seoDescription: 'Discover our exclusive collection of premium Brazilian swimwear, handcrafted with the finest Italian fabrics.',
