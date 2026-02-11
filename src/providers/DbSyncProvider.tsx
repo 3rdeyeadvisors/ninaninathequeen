@@ -188,23 +188,9 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         return;
       }
 
-      // If that fails (likely due to RLS for guest users), try the public store_info view
-      // We cast to any for the table name because the view might not be in the generated types yet
-      const { data: info, error: infoError } = await supabase
-        .from('store_info' as unknown as 'products')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
+      // store_settings query failed (likely RLS for guest users) — use defaults
+      console.warn('Could not fetch store settings (RLS):', settingsError?.message);
 
-      if (infoError) {
-        console.warn('Could not fetch store settings or public info:', infoError);
-        return;
-      }
-
-      if (info) {
-        applySettings(info);
-        console.log('Loaded store info from public view');
-      }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
     }
