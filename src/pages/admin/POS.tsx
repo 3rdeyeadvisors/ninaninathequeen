@@ -221,7 +221,6 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
               <span>Total Due</span>
               <span>${total.toFixed(2)}</span>
             </div>
-            <p className="text-[10px] text-muted-foreground font-sans text-center">Tax calculated by payment provider</p>
           </div>
         </div>
 
@@ -489,7 +488,7 @@ export default function AdminPOS() {
                       <span>Total</span>
                       <span className="text-primary">${cartTotal.toFixed(2)}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground font-sans text-center">Tax calculated by payment provider</p>
+                    
                   </div>
 
                   <Button

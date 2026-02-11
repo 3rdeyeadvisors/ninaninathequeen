@@ -302,9 +302,6 @@ export default function Checkout() {
                         <span>Total</span>
                         <span className="text-primary">${total.toFixed(2)}</span>
                       </div>
-                      <p className="text-[10px] text-muted-foreground font-sans text-center pt-1">
-                        Tax calculated by payment provider
-                      </p>
                     </div>
 
                     <p className="text-[10px] text-center text-muted-foreground leading-relaxed font-sans px-4">
