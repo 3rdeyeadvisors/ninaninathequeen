@@ -6,13 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCartStore } from '@/stores/cartStore';
 import { useAdminStore } from '@/stores/adminStore';
 import { getSupabase } from '@/lib/supabaseClient';
-import { SHIPPING_OPTIONS } from '@/lib/constants';
 import { toast } from 'sonner';
-import { Loader2, ShieldCheck, Truck, ArrowLeft, CreditCard, Mail, User } from 'lucide-react';
+import { Loader2, ShieldCheck, Truck, ArrowLeft, CreditCard, Mail, User, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Checkout() {
@@ -21,7 +19,6 @@ export default function Checkout() {
   const { settings } = useAdminStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedShipping, setSelectedShipping] = useState(SHIPPING_OPTIONS[0].id);
 
   // Contact info state
   const [formData, setFormData] = useState({
@@ -36,11 +33,8 @@ export default function Checkout() {
   const onePiecesCount = items.filter(i => i.product.productType === 'One-Piece').reduce((sum, i) => sum + i.quantity, 0);
   const totalSets = Math.min(topsCount, bottomsCount) + onePiecesCount;
   const freeShipping = totalSets >= 2;
-  const selectedOption = SHIPPING_OPTIONS.find(o => o.id === selectedShipping) || SHIPPING_OPTIONS[0];
-  const shippingCost = freeShipping ? 0 : selectedOption.price;
-  const taxRate = (settings.taxRate || 7.5) / 100;
-  const taxAmount = subtotal * taxRate;
-  const total = subtotal + shippingCost + taxAmount;
+  const shippingCost = freeShipping ? 0 : (settings.shippingRate || 8.50);
+  const total = subtotal + shippingCost;
 
   const validateContact = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -76,8 +70,7 @@ export default function Checkout() {
           size: item.selectedOptions.find(o => o.name.toLowerCase() === 'size')?.value || item.variantTitle
         })),
         shippingCost: shippingCost.toFixed(2),
-        itemCost: (subtotal * 0.3).toFixed(2), // Estimated COGS for admin reporting
-        taxAmount: taxAmount.toFixed(2),
+        itemCost: (subtotal * 0.3).toFixed(2),
         total: total.toFixed(2)
       };
 
@@ -195,15 +188,15 @@ export default function Checkout() {
                   </CardContent>
                 </Card>
 
-                {/* Shipping Method Selector */}
+                {/* Shipping Display */}
                 <Card className="border-border/50">
                   <CardHeader>
                     <CardTitle className="font-serif text-2xl flex items-center gap-2">
                       <Truck className="h-5 w-5 text-primary" />
-                      Shipping Method
+                      Shipping
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-3">
                     {freeShipping ? (
                       <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
                         <p className="font-sans text-sm font-medium text-emerald-700 dark:text-emerald-400">
@@ -211,27 +204,18 @@ export default function Checkout() {
                         </p>
                       </div>
                     ) : (
-                      <RadioGroup value={selectedShipping} onValueChange={setSelectedShipping} className="space-y-3">
-                        {SHIPPING_OPTIONS.map((option) => (
-                          <label
-                            key={option.id}
-                            htmlFor={option.id}
-                            className={`flex items-center justify-between border rounded-lg p-4 cursor-pointer transition-colors ${
-                              selectedShipping === option.id ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-primary/30'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <RadioGroupItem value={option.id} id={option.id} />
-                              <div>
-                                <p className="font-sans text-sm font-medium">{option.label}</p>
-                                <p className="font-sans text-[11px] text-muted-foreground">{option.estimatedDelivery}</p>
-                              </div>
-                            </div>
-                            <span className="font-sans text-sm font-medium">${option.price.toFixed(2)}</span>
-                          </label>
-                        ))}
-                      </RadioGroup>
+                      <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-lg border border-border/50">
+                        <div>
+                          <p className="font-sans text-sm font-medium">Flat Rate Shipping</p>
+                          <p className="font-sans text-[11px] text-muted-foreground">Domestic & International</p>
+                        </div>
+                        <span className="font-sans text-sm font-medium">${shippingCost.toFixed(2)}</span>
+                      </div>
                     )}
+                    <p className="text-[11px] text-muted-foreground font-sans flex items-center gap-1.5">
+                      <Info className="h-3 w-3 shrink-0" />
+                      International orders may take 7–14 business days for delivery.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -314,14 +298,13 @@ export default function Checkout() {
                           {shippingCost === 0 ? 'FREE' : `$${shippingCost.toFixed(2)}`}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm font-sans">
-                        <span className="text-muted-foreground">Estimated Tax</span>
-                        <span>${taxAmount.toFixed(2)}</span>
-                      </div>
                       <div className="flex justify-between text-xl font-serif pt-4 border-t border-border/30">
                         <span>Total</span>
                         <span className="text-primary">${total.toFixed(2)}</span>
                       </div>
+                      <p className="text-[10px] text-muted-foreground font-sans text-center pt-1">
+                        Tax calculated by payment provider
+                      </p>
                     </div>
 
                     <p className="text-[10px] text-center text-muted-foreground leading-relaxed font-sans px-4">
