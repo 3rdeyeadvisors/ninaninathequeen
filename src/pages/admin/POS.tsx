@@ -22,6 +22,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+declare global {
+  interface Window {
+    Square?: {
+      payments: (appId: string, locationId: string) => {
+        card: () => Promise<{
+          attach: (selector: string) => Promise<void>;
+          tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;
+          destroy: () => Promise<void>;
+        }>;
+      };
+    };
+  }
+}
+
 interface PosItem {
   id: string;
   title: string;
@@ -253,7 +267,7 @@ export default function AdminPOS() {
     const q = searchQuery.toLowerCase();
     return baseProducts.filter(p => {
       const titleMatch = p.title.toLowerCase().includes(q);
-      const skuMatch = (p as Record<string, unknown>).sku ? String((p as Record<string, unknown>).sku).toLowerCase().includes(q) : false;
+      const skuMatch = (p as unknown as Record<string, unknown>).sku ? String((p as unknown as Record<string, unknown>).sku).toLowerCase().includes(q) : false;
       return titleMatch || skuMatch;
     });
   }, [initialProducts, productOverrides, searchQuery]);
