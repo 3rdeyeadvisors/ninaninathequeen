@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
 
     // Get secrets from environment variables or database
     let SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')
-    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox'
+    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'production'
 
     if (!SQUARE_ACCESS_TOKEN) {
       const { data: settings } = await supabase
@@ -39,13 +39,12 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured.')
     }
 
-    // Determine API URL based on environment
-    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'production')
-      ? "https://connect.squareup.com"
-      : "https://connect.squareupsandbox.com"
+    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
+      ? "https://connect.squareupsandbox.com"
+      : "https://connect.squareup.com"
 
-    // Use location ID from request, environment, or default sandbox location
-    const locationId = requestLocationId || Deno.env.get('SQUARE_LOCATION_ID') || "L09Y3ZCB23S11"
+    // Use location ID from environment secret first, then request
+    const locationId = Deno.env.get('SQUARE_LOCATION_ID') || requestLocationId
 
     console.log(`[CreateSquareCheckout] Creating checkout for order: ${orderDetails.id} in ${SQUARE_ENVIRONMENT} environment`)
 
