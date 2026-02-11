@@ -45,31 +45,11 @@ Deno.serve(async (req) => {
 
     console.log(`[CreateSquareCheckout] Creating checkout for order: ${orderDetails.id} in ${SQUARE_ENVIRONMENT} environment`)
 
-    // Save order to database as Pending
-    const { error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        id: orderDetails.id,
-        customer_name: orderDetails.customerName || 'Pending Customer',
-        customer_email: orderDetails.customerEmail || 'pending@email.com',
-        date: new Date().toISOString().split('T')[0],
-        total: orderDetails.total,
-        status: 'Pending',
-        items: orderDetails.items,
-        shipping_cost: orderDetails.shippingCost,
-        item_cost: orderDetails.itemCost,
-        tracking_number: 'Pending'
-      })
-
-    if (orderError) {
-      console.error('[CreateSquareCheckout] Error saving order:', orderError)
-    }
-
     const body: any = {
       idempotency_key: crypto.randomUUID(),
       checkout_options: {
         redirect_url: `${req.headers.get('origin')}/checkout/success?orderId=${encodeURIComponent(orderDetails.id)}`,
-        ask_for_shipping_address: true, // Let Square handle it if not provided or to confirm
+        ask_for_shipping_address: true,
       },
       order: {
         location_id: locationId,
@@ -94,30 +74,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Pre-populate if we have the data
-    if (orderDetails.customerEmail) {
-      body.pre_populated_data = {
-        ...body.pre_populated_data,
-        customer_browser_details: {
-          email_address: orderDetails.customerEmail
-        }
-      }
-    }
-
-    if (orderDetails.shippingAddress && orderDetails.shippingAddress.address) {
-      body.pre_populated_data = {
-        ...body.pre_populated_data,
-        shipping_address: {
-          address_line_1: orderDetails.shippingAddress.address,
-          locality: orderDetails.shippingAddress.city,
-          administrative_district_level_1: orderDetails.shippingAddress.state,
-          postal_code: orderDetails.shippingAddress.zip,
-          country: orderDetails.shippingAddress.country === 'United States' ? 'US' : 'US' // Simplify to US for now
-        }
-      }
-      body.checkout_options.ask_for_shipping_address = false; // We have it
-    }
-
     // Add Tax as a line item if provided
     if (orderDetails.taxAmount && parseFloat(orderDetails.taxAmount) > 0) {
       body.order.line_items.push({
@@ -128,6 +84,15 @@ Deno.serve(async (req) => {
           currency: "USD"
         }
       });
+    }
+
+    // Pre-populate if we have the data
+    if (orderDetails.customerEmail) {
+      body.pre_populated_data = {
+        customer_browser_details: {
+          email_address: orderDetails.customerEmail
+        }
+      }
     }
 
     const response = await fetch(`${SQUARE_API_URL}/v2/online-checkout/payment-links`, {
@@ -151,6 +116,27 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
+    }
+
+    // Save order to database as Pending with Square Order ID
+    const { error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        id: orderDetails.id,
+        customer_name: orderDetails.customerName || 'Pending Customer',
+        customer_email: orderDetails.customerEmail || 'pending@email.com',
+        date: new Date().toISOString().split('T')[0],
+        total: orderDetails.total,
+        status: 'Pending',
+        items: orderDetails.items,
+        shipping_cost: orderDetails.shippingCost,
+        item_cost: orderDetails.itemCost, // COGS
+        tracking_number: 'Pending',
+        square_order_id: result.payment_link.order_id
+      })
+
+    if (orderError) {
+      console.error('[CreateSquareCheckout] Error saving order:', orderError)
     }
 
     return new Response(JSON.stringify({
