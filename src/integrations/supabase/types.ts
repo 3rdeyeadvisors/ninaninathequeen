@@ -56,7 +56,9 @@ export type Database = {
           id: string
           item_cost: string | null
           items: Json
+          shipping_address: Json | null
           shipping_cost: string | null
+          square_order_id: string | null
           status: string | null
           total: string
           tracking_number: string | null
@@ -70,7 +72,9 @@ export type Database = {
           id: string
           item_cost?: string | null
           items?: Json
+          shipping_address?: Json | null
           shipping_cost?: string | null
+          square_order_id?: string | null
           status?: string | null
           total: string
           tracking_number?: string | null
@@ -84,7 +88,9 @@ export type Database = {
           id?: string
           item_cost?: string | null
           items?: Json
+          shipping_address?: Json | null
           shipping_cost?: string | null
+          square_order_id?: string | null
           status?: string | null
           total?: string
           tracking_number?: string | null

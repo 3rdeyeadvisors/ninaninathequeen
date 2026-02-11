@@ -59,9 +59,9 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured.')
     }
 
-    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'production' && !SQUARE_ACCESS_TOKEN.startsWith('EAAAl'))
-      ? "https://connect.squareup.com"
-      : "https://connect.squareupsandbox.com"
+    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
+      ? "https://connect.squareupsandbox.com"
+      : "https://connect.squareup.com"
 
     // Verify order with Square
     console.log(`[FinalizeSquareOrder] Verifying Square Order: ${order.square_order_id}`)

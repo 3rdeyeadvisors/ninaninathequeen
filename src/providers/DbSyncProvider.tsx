@@ -163,7 +163,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
           squareApiKey: (data.square_api_key as string) || '',
           squareApplicationId: (data.square_application_id as string) || '',
           squareLocationId: (data.square_location_id as string) || '',
-          autoSync: (data.auto_sync as boolean) ?? true,
+          
           seoTitle: (data.seo_title as string) || '',
           seoDescription: (data.seo_description as string) || '',
           instagramUrl: (data.instagram_url as string) || '',
