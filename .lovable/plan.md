@@ -1,54 +1,53 @@
 
 
-# Fix Build Errors and Store Square Credentials
+# Fix Admin Dashboard Saving Issue
 
-## Overview
-Fix the TypeScript build errors in POS.tsx caused by `window.Square` not being typed, and the unsafe `Record<string, unknown>` cast. Then securely store your three Square credentials (Access Token, Application ID, and Location ID) so the POS payment flow works.
+## Problem
+The save button spins forever because the code tries to write to columns that don't exist in the `store_settings` database table. The update silently fails, and the UI never resolves.
 
-## Step 1: Fix TypeScript build errors in POS.tsx
+## Root Cause
+The `store_settings` table has 10 columns, but the settings hook (`useSettingsDb.ts`) tries to write to 8 additional columns that were never added via migration:
 
-**Problem**: `window.Square` is not recognized by TypeScript.
+| Missing Column | Type |
+|---|---|
+| `square_application_id` | text |
+| `square_location_id` | text |
+| `seo_title` | text |
+| `seo_description` | text |
+| `instagram_url` | text |
+| `facebook_url` | text |
+| `tiktok_url` | text |
+| `contact_email` | text |
+| `contact_phone` | text |
+| `is_maintenance_mode` | boolean |
 
-**Solution**: Add a type declaration at the top of `POS.tsx`:
-```typescript
-declare global {
-  interface Window {
-    Square?: {
-      payments: (appId: string, locationId: string) => {
-        card: () => Promise<{
-          attach: (selector: string) => Promise<void>;
-          tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;
-          destroy: () => Promise<void>;
-        }>;
-      };
-    };
-  }
-}
-```
+## Fix
 
-**Problem**: Casting `Product` to `Record<string, unknown>` fails.
+### Step 1: Add missing columns to `store_settings`
+Run a database migration to add all 10 missing columns with sensible defaults so existing rows are unaffected.
 
-**Solution**: Cast through `unknown` first: `(p as unknown as Record<string, unknown>).sku`
+### Step 2: Fix the `store_info` 404 error
+There is a reference somewhere in the code to a `store_info` table that doesn't exist (visible in the network logs). Find and remove or redirect it to `store_settings`.
 
-## Step 2: Store Square credentials as secrets
-
-Three secrets will be securely stored:
-1. **SQUARE_ACCESS_TOKEN** -- already exists, will be updated with your production token
-2. **SQUARE_APPLICATION_ID** -- new secret for the Web Payments SDK app ID
-3. **SQUARE_LOCATION_ID** -- new secret for your Square location
-
-## Step 3: Update edge functions to use the new secrets
-
-Update `process-payment/index.ts` and `create-square-checkout/index.ts` to read `SQUARE_APPLICATION_ID` and `SQUARE_LOCATION_ID` from environment secrets instead of relying on client-provided values.
-
-## Step 4: Load Square Web Payments SDK
-
-Ensure the Square Web Payments SDK script tag is loaded in `index.html` so the POS card form can initialize.
+### Step 3: Verify the save flow
+After the migration, the existing `useSettingsDb.ts` code will work as-is since it already maps to the correct column names. No code changes should be needed beyond fixing the `store_info` reference.
 
 ## Technical Details
 
-- The `window.Square` type declaration ensures TypeScript knows about the Square SDK global
-- Secrets are stored server-side and accessed via `Deno.env.get()` in edge functions
-- The `squareApplicationId` and `squareLocationId` in the admin settings store will be populated from the secrets (or kept as client-side config since they are public IDs used by the SDK)
-- The Application ID and Location ID are public-safe values (used in browser SDK), so they can also be stored as `VITE_` env vars or in the settings store
+Migration SQL:
+```sql
+ALTER TABLE public.store_settings
+  ADD COLUMN IF NOT EXISTS square_application_id text,
+  ADD COLUMN IF NOT EXISTS square_location_id text,
+  ADD COLUMN IF NOT EXISTS seo_title text,
+  ADD COLUMN IF NOT EXISTS seo_description text,
+  ADD COLUMN IF NOT EXISTS instagram_url text,
+  ADD COLUMN IF NOT EXISTS facebook_url text,
+  ADD COLUMN IF NOT EXISTS tiktok_url text,
+  ADD COLUMN IF NOT EXISTS contact_email text,
+  ADD COLUMN IF NOT EXISTS contact_phone text,
+  ADD COLUMN IF NOT EXISTS is_maintenance_mode boolean DEFAULT false;
+```
+
+No RLS policy changes are needed -- the existing RESTRICTIVE admin-only policies already cover ALL operations on `store_settings`.
 
