@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN');
-    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox';
+    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'production';
 
     const { sourceId, amount, currency, locationId: requestLocationId, orderDetails } = await req.json()
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -33,13 +33,12 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured.')
     }
 
-    // Determine API URL based on environment or token prefix
-    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'production' && !FINAL_SQUARE_TOKEN.startsWith('EAAAl'))
-      ? 'https://connect.squareup.com'
-      : 'https://connect.squareupsandbox.com';
+    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
+      ? 'https://connect.squareupsandbox.com'
+      : 'https://connect.squareup.com';
 
-    // Fallback to sandbox location ID if not provided
-    const locationId = requestLocationId || Deno.env.get('SQUARE_LOCATION_ID') || "L09Y3ZCB23S11"
+    // Use location ID from environment secret, then request, then fallback
+    const locationId = Deno.env.get('SQUARE_LOCATION_ID') || requestLocationId;
 
     console.log(`[ProcessPayment] Processing payment in ${SQUARE_API_URL.includes('sandbox') ? 'sandbox' : 'production'} environment`);
 
