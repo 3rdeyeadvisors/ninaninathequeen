@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -35,8 +36,8 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured.')
     }
 
-    // Determine API URL based on environment or token prefix
-    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'production' && !SQUARE_ACCESS_TOKEN.startsWith('EAAAl'))
+    // Determine API URL based on environment
+    const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'production')
       ? "https://connect.squareup.com"
       : "https://connect.squareupsandbox.com"
 
