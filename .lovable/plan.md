@@ -1,76 +1,111 @@
 
-
-# Shipping, Address Display, and Manual Orders
+# Shipping Simplification, Tax Removal, and Admin Dashboard Polish
 
 ## Overview
 
-Three enhancements to give the admin full order management: see customer shipping addresses, offer tiered shipping rates at checkout, and manually create orders that track inventory.
+Three changes bundled together: (1) replace tiered shipping with a single admin-configurable flat rate, (2) remove all local tax calculations (let Square handle it), and (3) clean up the admin settings layout to keep things smooth and intuitive.
 
 ---
 
-## Feature 1: Display Shipping Address in Admin Orders
+## 1. Database: Add `shipping_rate` Column
 
-The shipping address is already being saved from Square into the `shipping_address` column. It just needs to be shown in the admin UI.
-
-### Changes
-- **`src/pages/admin/Orders.tsx`** -- Add a "Shipping Address" section to the Order Details (view) dialog, reading from the order's `shipping_address` field
-- **`src/stores/adminStore.ts`** -- Add `shippingAddress` (optional object) to the `AdminOrder` interface
-- **`src/hooks/useOrdersDb.ts`** -- Map `shipping_address` from the database to the store's `shippingAddress` field when fetching orders
+Add a `shipping_rate` numeric column to `store_settings` with a default of `8.50`. No RLS changes needed -- existing admin-only policies cover it.
 
 ---
 
-## Feature 2: Shipping Options at Checkout
+## 2. Replace Tiered Shipping with Flat Rate
 
-Replace the current flat $12.50 / free-over-2-sets logic with tiered shipping options the customer can choose from.
+### `src/lib/constants.ts`
+- Remove the `ShippingOption` interface and `SHIPPING_OPTIONS` array entirely
+- Keep `PRODUCT_SIZES` as-is
 
-### Shipping Tiers
-- **Standard Domestic (US)**: $8.50 (5-7 business days)
-- **Express Domestic (US)**: $15.00 (2-3 business days)
-- **International**: $22.00 (7-14 business days)
-- **Free Shipping**: Still applies when 2+ bikini sets are in the cart (overrides any tier to $0)
+### `src/stores/adminStore.ts`
+- Remove `taxRate` from `AdminSettings` interface and `INITIAL_SETTINGS`
+- Add `shippingRate: number` (default `8.50`) to `AdminSettings` and `INITIAL_SETTINGS`
 
-### Changes
-- **`src/pages/Checkout.tsx`** -- Add a shipping method selector (radio group) below the contact info card. The selected tier's cost replaces the old flat rate. Free shipping override still applies when eligible.
-- **`src/lib/constants.ts`** -- Add `SHIPPING_OPTIONS` array with label, price, and estimated delivery for each tier, keeping it easy for the admin to adjust later.
-
----
-
-## Feature 3: Manual Order Creation (Admin)
-
-Allow the admin to create orders manually for POS sales, phone orders, or custom orders. These orders will decrement inventory just like online orders.
-
-### Changes
-
-**`src/pages/admin/Orders.tsx`** -- Add a "Create Order" button and dialog with:
-- Customer name and email fields
-- Product selector (dropdown from existing products in the store)
-- Size selector per product
-- Quantity per item
-- Shipping cost and item cost (COGS) fields
-- Status defaults to "Processing" (since it's already paid via POS/phone)
-- On save: inserts order into database, decrements inventory for each item (both total `inventory` and `size_inventory`), and updates the local store
-
-**`src/hooks/useOrdersDb.ts`** -- Add a `createManualOrder` function that:
-1. Inserts the order record into the `orders` table
-2. For each item, fetches the product, decrements `inventory` and `size_inventory`, and updates the product in the database
-3. Updates the local admin store with the new order
+### `src/pages/Checkout.tsx`
+- Remove `SHIPPING_OPTIONS` import, `selectedShipping` state, `RadioGroup` imports
+- Remove `taxRate`, `taxAmount` calculations
+- Read `settings.shippingRate` from admin store for shipping cost
+- Replace the shipping tier selector card with a simple display showing the flat rate (or "Free" for 2+ sets)
+- Add note: "International orders may take 7-14 business days for delivery."
+- Remove "Estimated Tax" line from order summary; add note: "Tax calculated by payment provider"
+- Update total to `subtotal + shippingCost` (no tax)
+- Remove `taxAmount` from `orderDetails` sent to Square
 
 ---
 
-## What Stays the Same
+## 3. Remove Tax from POS
 
-- Square handles payment and collects the shipping address for online orders (no changes to edge functions)
-- The `finalize-square-order` function continues to extract the address and decrement inventory for online orders
-- POS page and `process-payment` edge function remain untouched
-- The edit order dialog keeps its current fields (status, tracking, shipping/item cost)
+### `src/pages/admin/POS.tsx`
+- Remove `taxAmount` calculation in both `POSCheckoutDialog` and `AdminPOS` components
+- Remove the "Tax" line from the checkout dialog summary
+- Update `total` / `cartTotal` to just `subtotal` (no tax added)
+- Add a small note: "Tax calculated by payment provider"
 
 ---
 
-## Technical Execution Order
+## 4. Update Settings Sync Layer
 
-1. Update `AdminOrder` interface to include `shippingAddress`
-2. Update `useOrdersDb` to map `shipping_address` from DB and add `createManualOrder`
-3. Add `SHIPPING_OPTIONS` to constants
-4. Update `Checkout.tsx` with shipping tier selector
-5. Update `Orders.tsx` with shipping address display in view dialog + manual order creation dialog
+### `src/hooks/useSettingsDb.ts`
+- Stop reading/writing `tax_rate`
+- Add reading/writing `shipping_rate` mapped to `shippingRate`
 
+### `src/providers/DbSyncProvider.tsx`
+- Remove `taxRate` mapping line
+- Add `shippingRate` mapping from `shipping_rate`
+
+---
+
+## 5. Admin Settings Page Cleanup
+
+### `src/pages/admin/Settings.tsx`
+- Remove the "Tax Rate (%)" input field from "General Configuration"
+- Add a "Flat Shipping Rate ($)" input field to the "Regional and Shipping" card, so the admin can update it anytime
+- Keep the existing layout structure (2-column grid with save/status sidebar)
+
+---
+
+## What the Customer Sees at Checkout
+
+Instead of choosing between Standard/Express/International:
+
+```text
+Shipping: $8.50  (or whatever the admin sets)
+International orders may take 7-14 business days for delivery.
+Tax calculated by payment provider.
+```
+
+Or with 2+ bikini sets:
+
+```text
+Shipping: Free!
+You qualify with 2+ bikini sets.
+```
+
+---
+
+## What the Admin Sees in Settings
+
+In the "Regional and Shipping" card, a new input:
+
+```text
+Flat Shipping Rate ($): [8.50]
+```
+
+The "Tax Rate (%)" field is removed entirely.
+
+---
+
+## Files Changed Summary
+
+| File | Change |
+|------|--------|
+| Database migration | Add `shipping_rate` column |
+| `src/lib/constants.ts` | Remove `SHIPPING_OPTIONS` and `ShippingOption` |
+| `src/stores/adminStore.ts` | Remove `taxRate`, add `shippingRate` |
+| `src/pages/Checkout.tsx` | Flat rate shipping, remove tax, add notes |
+| `src/pages/admin/POS.tsx` | Remove tax calculation and display |
+| `src/pages/admin/Settings.tsx` | Remove tax input, add shipping rate input |
+| `src/hooks/useSettingsDb.ts` | Swap `tax_rate` for `shipping_rate` mapping |
+| `src/providers/DbSyncProvider.tsx` | Swap `taxRate` for `shippingRate` mapping |
