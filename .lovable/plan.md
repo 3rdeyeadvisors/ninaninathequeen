@@ -1,71 +1,113 @@
 
 
-# Fix: Force Response Body on Settings Update (with Fallback Chain)
+# Full Platform Audit: Fix ALL Hanging Database Writes
 
-## The Problem (Line 104-107 of useSettingsDb.ts)
-The `.update()` call returns a `204 No Content` (empty response body). The preview environment hangs on empty-body responses. Every working database call in the app returns a `200` with a body.
+## The Root Cause (applies everywhere, not just settings)
 
-## Primary Fix: Add `.select('id').maybeSingle()` to the update call
+Every write operation (`.update()`, `.upsert()`, `.delete()`) that does NOT chain `.select()` returns a `204 No Content` empty-body response. The Lovable preview environment hangs on empty-body responses. This is why "some things save and some don't."
 
-Change lines 104-108 from:
-```text
-const { error: updateError } = await supabase
-  .from('store_settings')
-  .update(updateData)
-  .eq('id', targetId);
-error = updateError;
+## All Affected Operations (4 remaining)
+
+Here is every client-side database write in the app and its current status:
+
+| File | Operation | Has `.select()`? | Status |
+|---|---|---|---|
+| `useSettingsDb.ts` line 104 | `.update()` | Yes (already fixed) | OK |
+| `useSettingsDb.ts` line 124 | `.insert()` | Yes | OK |
+| `useOrdersDb.ts` line 51 | `.upsert()` | **NO** | WILL HANG |
+| `useOrdersDb.ts` line 88 | `.update()` | **NO** | WILL HANG |
+| `useCustomersDb.ts` line 47 | `.upsert()` | **NO** | WILL HANG |
+| `useCustomersDb.ts` line 73 | `.delete()` | **NO** | WILL HANG |
+
+Edge functions (`sync-products`, `process-payment`, etc.) run server-side and are NOT affected by this issue.
+
+## The Fix (3 files, same pattern applied to each)
+
+### File 1: `src/hooks/useOrdersDb.ts`
+
+**upsertOrder (line 51-64)** -- add `.select()`:
 ```
+// Before:
+const { error } = await supabase
+  .from('orders')
+  .upsert({...}, { onConflict: 'id' });
 
-To:
-```text
-const { error: updateError } = await supabase
-  .from('store_settings')
-  .update(updateData)
-  .eq('id', targetId)
+// After:
+const { error } = await supabase
+  .from('orders')
+  .upsert({...}, { onConflict: 'id' })
   .select('id')
   .maybeSingle();
-error = updateError;
 ```
 
-This forces a `200 OK` response with a body, matching the pattern of every other working call.
+**updateOrderDb (line 88-91)** -- add `.select()`:
+```
+// Before:
+const { error } = await supabase
+  .from('orders')
+  .update(dbUpdates)
+  .eq('id', orderId);
 
-## Safety Net: 10-second Promise.race timeout around the database call
-
-Wrap the update in `Promise.race` so even if the fix above somehow doesn't resolve the promise, the code will catch it and show an error instead of hanging for 15 seconds:
-
-```text
-const updatePromise = supabase
-  .from('store_settings')
-  .update(updateData)
-  .eq('id', targetId)
+// After:
+const { error } = await supabase
+  .from('orders')
+  .update(dbUpdates)
+  .eq('id', orderId)
   .select('id')
   .maybeSingle();
-
-const result = await Promise.race([
-  updatePromise,
-  new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('DB update timed out after 10s')), 10000)
-  )
-]);
-error = result.error;
 ```
 
-## Built-in Fallback Chain (if primary fix fails)
+### File 2: `src/hooks/useCustomersDb.ts`
 
-If the update with `.select()` still times out, the 10-second race catches it, and we have a pre-planned escalation path -- no new credits needed for planning:
+**upsertCustomer (line 47-56)** -- add `.select()`:
+```
+// Before:
+const { error } = await supabase
+  .from('customers')
+  .upsert({...}, { onConflict: 'id' });
 
-- **Fallback A**: Replace `.update()` with an RPC database function (`.rpc('update_settings', ...)`) since RPC calls already work in this environment (proven by `has_role`)
-- **Fallback B**: Replace `.update()` with delete-then-insert, since `.insert().select()` already works (line 111-115 of the current code)
+// After:
+const { error } = await supabase
+  .from('customers')
+  .upsert({...}, { onConflict: 'id' })
+  .select('id')
+  .maybeSingle();
+```
 
-These fallbacks are already designed. If the primary fix fails, implementing either one is a single-file, surgical change.
+**deleteCustomerDb (line 73-76)** -- add `.select()`:
+```
+// Before:
+const { error } = await supabase
+  .from('customers')
+  .delete()
+  .eq('id', customerId);
 
-## Files Changed
-- `src/hooks/useSettingsDb.ts` -- modify lines 104-108 (update call + race timeout). No other files touched.
+// After:
+const { error } = await supabase
+  .from('customers')
+  .delete()
+  .eq('id', customerId)
+  .select('id')
+  .maybeSingle();
+```
 
-## What Will NOT Break
-- The insert path (line 111-115) is untouched and already uses `.select()`
-- The fetch path (line 17-21) is untouched
-- Settings.tsx is untouched -- the timeout safety net and form sync remain
-- RLS policies are unchanged
-- No new dependencies or files added
+### File 3: `src/hooks/useSettingsDb.ts`
+
+Already fixed -- no changes needed.
+
+## What This Does NOT Touch
+- All read operations (`.select()`) -- already work fine
+- Edge functions -- run server-side, not affected
+- RLS policies -- no changes
+- Database schema -- no changes
+- Settings.tsx, Products page, or any UI components -- no changes
+
+## Risk Assessment
+- `.select('id').maybeSingle()` after writes is the standard recommended Supabase pattern
+- It does not change what data is written, only ensures the response has a body
+- Every read in the app already uses this pattern successfully
+- The settings fix already applied this same pattern -- this just extends it everywhere
+
+## If something STILL hangs after this
+The settings hook already has a `Promise.race` timeout as a safety net. If any of these 4 operations somehow still hang despite `.select()`, we add the same `Promise.race` wrapper. But based on the settings fix behavior (the `.select()` is the core fix, the race is just a safety net), this should resolve all remaining save issues.
 
