@@ -59,25 +59,39 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured.')
     }
 
+    // Trim whitespace from token
+    SQUARE_ACCESS_TOKEN = SQUARE_ACCESS_TOKEN.trim()
+
     const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
       ? "https://connect.squareupsandbox.com"
       : "https://connect.squareup.com"
 
     // Verify order with Square
-    console.log(`[FinalizeSquareOrder] Verifying Square Order: ${order.square_order_id}`)
-    const squareResponse = await fetch(`${SQUARE_API_URL}/v2/orders/${order.square_order_id}`, {
-      headers: {
-        'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
-        'Square-Version': '2024-01-18'
+    console.log(`[FinalizeSquareOrder] Verifying Square Order: ${order.square_order_id} in ${SQUARE_ENVIRONMENT} environment`)
+
+    const startTime = Date.now()
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
+
+    try {
+      const squareResponse = await fetch(`${SQUARE_API_URL}/v2/orders/${order.square_order_id}`, {
+        headers: {
+          'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+          'Square-Version': '2024-01-18'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId)
+      const duration = Date.now() - startTime
+      console.log(`[FinalizeSquareOrder] Square API responded in ${duration}ms with status: ${squareResponse.status}`)
+
+      if (!squareResponse.ok) {
+        const errorResult = await squareResponse.json();
+        throw new Error(`Failed to fetch order from Square: ${errorResult.errors?.[0]?.detail || 'Unknown error'}`);
       }
-    });
 
-    if (!squareResponse.ok) {
-      const errorResult = await squareResponse.json();
-      throw new Error(`Failed to fetch order from Square: ${errorResult.errors?.[0]?.detail || 'Unknown error'}`);
-    }
-
-    const { order: squareOrder } = await squareResponse.json();
+      const { order: squareOrder } = await squareResponse.json();
 
     // Check if order is paid
     // In Square, an order created via payment link and paid will have a state of 'OPEN' or 'COMPLETED'
@@ -141,9 +155,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, orderId }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+      return new Response(JSON.stringify({ success: true, orderId }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId)
+      if (fetchError.name === 'AbortError') {
+        console.error('[FinalizeSquareOrder] Square API request timed out')
+        throw new Error('Square API request timed out after 20 seconds')
+      }
+      throw fetchError
+    }
 
   } catch (error: any) {
     console.error('[FinalizeSquareOrder] Error:', error.message);
