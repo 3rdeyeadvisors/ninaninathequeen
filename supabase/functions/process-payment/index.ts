@@ -33,45 +33,58 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured.')
     }
 
+    // Trim whitespace from token
+    FINAL_SQUARE_TOKEN = FINAL_SQUARE_TOKEN.trim()
+
     const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
       ? 'https://connect.squareupsandbox.com'
       : 'https://connect.squareup.com';
 
     // Use location ID from environment secret, then request, then fallback
-    const locationId = Deno.env.get('SQUARE_LOCATION_ID') || requestLocationId;
+    const locationId = Deno.env.get('SQUARE_LOCATION_ID') || requestLocationId || 'L09Y3ZCB23S11';
 
-    console.log(`[ProcessPayment] Processing payment in ${SQUARE_API_URL.includes('sandbox') ? 'sandbox' : 'production'} environment`);
+    console.log(`[ProcessPayment] Processing payment in ${SQUARE_API_URL.includes('sandbox') ? 'sandbox' : 'production'} environment at location: ${locationId}`);
 
-    const paymentResponse = await fetch(`${SQUARE_API_URL}/v2/payments`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Square-Version': '2024-01-18'
-      },
-      body: JSON.stringify({
-        idempotency_key: crypto.randomUUID(),
-        source_id: sourceId,
-        amount_money: {
-          amount: Math.round(parseFloat(amount) * 100),
-          currency: currency || 'USD'
+    const startTime = Date.now()
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
+
+    try {
+      const paymentResponse = await fetch(`${SQUARE_API_URL}/v2/payments`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${FINAL_SQUARE_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Square-Version': '2024-01-18'
         },
-        location_id: locationId
+        body: JSON.stringify({
+          idempotency_key: crypto.randomUUID(),
+          source_id: sourceId,
+          amount_money: {
+            amount: Math.round(parseFloat(amount) * 100),
+            currency: currency || 'USD'
+          },
+          location_id: locationId
+        }),
+        signal: controller.signal
       })
-    })
 
-    const paymentResult = await paymentResponse.json()
+      clearTimeout(timeoutId)
+      const duration = Date.now() - startTime
+      console.log(`[ProcessPayment] Square API responded in ${duration}ms with status: ${paymentResponse.status}`)
 
-    if (!paymentResponse.ok) {
-      console.error('[ProcessPayment] Square API error:', paymentResult)
-      return new Response(JSON.stringify({
-        success: false,
-        error: paymentResult.errors?.[0]?.detail || 'Payment failed'
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
+      const paymentResult = await paymentResponse.json()
+
+      if (!paymentResponse.ok) {
+        console.error('[ProcessPayment] Square API error:', paymentResult)
+        return new Response(JSON.stringify({
+          success: false,
+          error: paymentResult.errors?.[0]?.detail || 'Payment failed'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
 
     if (orderDetails) {
       const { error: orderError } = await supabase
@@ -117,11 +130,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, payment: paymentResult.payment }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+      return new Response(JSON.stringify({ success: true, payment: paymentResult.payment }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId)
+      if (fetchError.name === 'AbortError') {
+        console.error('[ProcessPayment] Square API request timed out')
+        throw new Error('Square API request timed out after 20 seconds')
+      }
+      throw fetchError
+    }
 
   } catch (error: any) {
+    console.error('[ProcessPayment] Unexpected error:', error.message)
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
