@@ -18,6 +18,10 @@ Deno.serve(async (req) => {
   try {
     const { orderDetails, locationId: requestLocationId } = await req.json()
 
+    if (!orderDetails || !orderDetails.id) {
+      throw new Error('Order details are missing or invalid.');
+    }
+
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -49,6 +53,10 @@ Deno.serve(async (req) => {
     // Trim whitespace from token
     SQUARE_ACCESS_TOKEN = SQUARE_ACCESS_TOKEN.trim()
 
+    if (SQUARE_ACCESS_TOKEN.length < 10) {
+      throw new Error('Square Access Token appears to be invalid (too short).')
+    }
+
     const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
       ? "https://connect.squareupsandbox.com"
       : "https://connect.squareup.com"
@@ -56,10 +64,65 @@ Deno.serve(async (req) => {
     // Use location ID from environment secret first, then request, then fallback to Sandbox default
     const locationId = Deno.env.get('SQUARE_LOCATION_ID') || requestLocationId || 'L09Y3ZCB23S11'
 
-    // Ensure we have a valid origin for redirects
-    const origin = req.headers.get('origin') || 'https://ninaarmend.com'
+    // Ensure we have a valid origin for redirects, and sanitize it
+    let origin = req.headers.get('origin') || 'https://ninaarmend.com'
+    if (origin.endsWith('/')) {
+      origin = origin.slice(0, -1)
+    }
 
     console.log(`[CreateSquareCheckout] Creating checkout for order: ${orderDetails.id} at location: ${locationId}`)
+
+    // Prepare line items with validation
+    const line_items = []
+
+    if (orderDetails.items && Array.isArray(orderDetails.items)) {
+      for (const item of orderDetails.items) {
+        const itemPrice = parseFloat(item.price)
+        if (isNaN(itemPrice)) {
+          console.warn(`[CreateSquareCheckout] Invalid price for item ${item.title}: ${item.price}`)
+          continue
+        }
+
+        line_items.push({
+          name: `${item.title}${item.size ? ` (${item.size})` : ''}`,
+          quantity: item.quantity.toString(),
+          base_price_money: {
+            amount: Math.round(itemPrice * 100),
+            currency: "USD"
+          }
+        })
+      }
+    }
+
+    // Add Shipping if cost is > 0
+    const shippingCost = parseFloat(orderDetails.shippingCost || '0')
+    if (!isNaN(shippingCost) && shippingCost > 0) {
+      line_items.push({
+        name: "Shipping",
+        quantity: "1",
+        base_price_money: {
+          amount: Math.round(shippingCost * 100),
+          currency: "USD"
+        }
+      })
+    }
+
+    // Add Tax as a line item if provided and > 0
+    const taxAmount = parseFloat(orderDetails.taxAmount || '0')
+    if (!isNaN(taxAmount) && taxAmount > 0) {
+      line_items.push({
+        name: "Tax",
+        quantity: "1",
+        base_price_money: {
+          amount: Math.round(taxAmount * 100),
+          currency: "USD"
+        }
+      });
+    }
+
+    if (line_items.length === 0) {
+      throw new Error('No valid items found to create a checkout session.')
+    }
 
     const body: any = {
       idempotency_key: crypto.randomUUID(),
@@ -69,40 +132,11 @@ Deno.serve(async (req) => {
       },
       order: {
         location_id: locationId,
-        line_items: [
-          ...orderDetails.items.map((item: any) => ({
-            name: `${item.title}${item.size ? ` (${item.size})` : ''}`,
-            quantity: item.quantity.toString(),
-            base_price_money: {
-              amount: Math.round(parseFloat(item.price) * 100),
-              currency: "USD"
-            }
-          })),
-          {
-            name: "Shipping",
-            quantity: "1",
-            base_price_money: {
-              amount: Math.round(parseFloat(orderDetails.shippingCost) * 100),
-              currency: "USD"
-            }
-          }
-        ]
+        line_items: line_items
       }
     }
 
-    // Add Tax as a line item if provided
-    if (orderDetails.taxAmount && parseFloat(orderDetails.taxAmount) > 0) {
-      body.order.line_items.push({
-        name: "Tax",
-        quantity: "1",
-        base_price_money: {
-          amount: Math.round(parseFloat(orderDetails.taxAmount) * 100),
-          currency: "USD"
-        }
-      });
-    }
-
-    // Pre-populate if we have the data
+    // Pre-populate customer email if available
     if (orderDetails.customerEmail) {
       body.pre_populated_data = {
         customer_info: {
@@ -111,7 +145,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('[CreateSquareCheckout] Sending request to Square API...')
+    console.log(`[CreateSquareCheckout] Sending request to Square API: ${SQUARE_API_URL}/v2/online-checkout/payment-links`)
     const startTime = Date.now()
 
     // Add a timeout to the fetch call
@@ -132,26 +166,28 @@ Deno.serve(async (req) => {
 
       clearTimeout(timeoutId)
       const duration = Date.now() - startTime
-      console.log(`[CreateSquareCheckout] Square API responded in ${duration}ms with status: ${response.status}`)
 
       const result = await response.json()
 
       if (!response.ok) {
-        console.error('[CreateSquareCheckout] Square API error:', result)
+        console.error('[CreateSquareCheckout] Square API error details:', JSON.stringify(result))
+        const errorDetail = result.errors?.[0]?.detail || result.errors?.[0]?.category || 'Failed to create checkout'
         return new Response(JSON.stringify({
           success: false,
-          error: result.errors?.[0]?.detail || 'Failed to create checkout'
+          error: `${errorDetail} (Square Status: ${response.status})`
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      // Save order to database as Pending with Square Order ID
-      console.log('[CreateSquareCheckout] Saving order to database...')
+      console.log(`[CreateSquareCheckout] Square API success in ${duration}ms. Order ID: ${result.payment_link.order_id}`)
+
+      // Save order to database as Pending with Square Order ID (using upsert to avoid conflicts)
+      console.log('[CreateSquareCheckout] Saving/Updating order in database...')
       const { error: orderError } = await supabase
         .from('orders')
-        .insert({
+        .upsert({
           id: orderDetails.id,
           customer_name: orderDetails.customerName || 'Pending Customer',
           customer_email: orderDetails.customerEmail || 'pending@email.com',
@@ -162,11 +198,14 @@ Deno.serve(async (req) => {
           shipping_cost: orderDetails.shippingCost,
           item_cost: orderDetails.itemCost, // COGS
           tracking_number: 'Pending',
-          square_order_id: result.payment_link.order_id
+          square_order_id: result.payment_link.order_id,
+          updated_at: new Date().toISOString()
         })
 
       if (orderError) {
-        console.error('[CreateSquareCheckout] Error saving order:', orderError)
+        console.error('[CreateSquareCheckout] DB Error saving order:', orderError.message)
+      } else {
+        console.log('[CreateSquareCheckout] Order record synced successfully.')
       }
 
       return new Response(JSON.stringify({
@@ -179,8 +218,14 @@ Deno.serve(async (req) => {
     } catch (fetchError: any) {
       clearTimeout(timeoutId)
       if (fetchError.name === 'AbortError') {
-        console.error('[CreateSquareCheckout] Square API request timed out')
-        throw new Error('Square API request timed out after 20 seconds')
+        console.error('[CreateSquareCheckout] Square API request timed out after 20s')
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Square API request timed out. Please try again.'
+        }), {
+          status: 504,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
       throw fetchError
     }
