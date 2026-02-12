@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Move client initialization outside to benefit from reuse
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -15,16 +20,15 @@ Deno.serve(async (req) => {
     })
   }
 
+  console.time('TotalExecutionTime');
   try {
+    console.time('RequestBodyParsing');
     const { orderDetails, locationId: requestLocationId } = await req.json()
+    console.timeEnd('RequestBodyParsing');
 
     if (!orderDetails || !orderDetails.id) {
       throw new Error('Order details are missing or invalid.');
     }
-
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Get secrets from environment variables or database
     let SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')
@@ -33,6 +37,7 @@ Deno.serve(async (req) => {
     console.log(`[CreateSquareCheckout] Environment: ${SQUARE_ENVIRONMENT}`)
 
     if (!SQUARE_ACCESS_TOKEN) {
+      console.time('FetchSettingsFromDB');
       console.log('[CreateSquareCheckout] Access token not in env, fetching from DB...')
       const { data: settings, error: settingsError } = await supabase
         .from('store_settings')
@@ -44,6 +49,7 @@ Deno.serve(async (req) => {
         console.error('[CreateSquareCheckout] DB error fetching settings:', settingsError)
       }
       SQUARE_ACCESS_TOKEN = settings?.square_api_key;
+      console.timeEnd('FetchSettingsFromDB');
     }
 
     if (!SQUARE_ACCESS_TOKEN) {
@@ -94,9 +100,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Add Shipping if cost is > 0
+    // Add Shipping - Include even if cost is 0 as requested by the user
     const shippingCost = parseFloat(orderDetails.shippingCost || '0')
-    if (!isNaN(shippingCost) && shippingCost > 0) {
+    if (!isNaN(shippingCost)) {
       line_items.push({
         name: "Shipping",
         quantity: "1",
@@ -146,12 +152,12 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[CreateSquareCheckout] Sending request to Square API: ${SQUARE_API_URL}/v2/online-checkout/payment-links`)
-    const startTime = Date.now()
 
     // Add a timeout to the fetch call
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
 
+    console.time('SquareAPICall');
     try {
       const response = await fetch(`${SQUARE_API_URL}/v2/online-checkout/payment-links`, {
         method: 'POST',
@@ -165,7 +171,7 @@ Deno.serve(async (req) => {
       })
 
       clearTimeout(timeoutId)
-      const duration = Date.now() - startTime
+      console.timeEnd('SquareAPICall');
 
       const result = await response.json()
 
@@ -181,10 +187,11 @@ Deno.serve(async (req) => {
         })
       }
 
-      console.log(`[CreateSquareCheckout] Square API success in ${duration}ms. Order ID: ${result.payment_link.order_id}`)
+      console.log(`[CreateSquareCheckout] Square API success. Order ID: ${result.payment_link.order_id}`)
 
       // Save order to database as Pending with Square Order ID (using upsert to avoid conflicts)
       console.log('[CreateSquareCheckout] Saving/Updating order in database...')
+      console.time('DBSaveOrder');
       const { error: orderError } = await supabase
         .from('orders')
         .upsert({
@@ -201,6 +208,7 @@ Deno.serve(async (req) => {
           square_order_id: result.payment_link.order_id,
           updated_at: new Date().toISOString()
         })
+      console.timeEnd('DBSaveOrder');
 
       if (orderError) {
         console.error('[CreateSquareCheckout] DB Error saving order:', orderError.message)
@@ -208,6 +216,7 @@ Deno.serve(async (req) => {
         console.log('[CreateSquareCheckout] Order record synced successfully.')
       }
 
+      console.timeEnd('TotalExecutionTime');
       return new Response(JSON.stringify({
         success: true,
         url: result.payment_link.url
