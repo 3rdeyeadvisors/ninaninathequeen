@@ -6,28 +6,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Move client initialization outside to benefit from reuse
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
 
+  console.time('FinalizeOrder_TotalExecutionTime');
   try {
     const { orderId } = await req.json()
     if (!orderId) {
       throw new Error('Order ID is required')
     }
 
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
     // Fetch internal order
     console.log(`[FinalizeSquareOrder] Fetching order ${orderId} from DB...`)
+    console.time('FinalizeOrder_FetchInternalOrder');
     const { data: order, error: fetchError } = await supabase
       .from('orders')
       .select('*')
       .eq('id', orderId)
       .maybeSingle();
+    console.timeEnd('FinalizeOrder_FetchInternalOrder');
 
     if (fetchError) {
       console.error(`[FinalizeSquareOrder] DB Fetch Error:`, fetchError.message)
@@ -57,12 +61,14 @@ Deno.serve(async (req) => {
     const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox'
 
     if (!SQUARE_ACCESS_TOKEN) {
+      console.time('FinalizeOrder_FetchSettingsFromDB');
       const { data: settings } = await supabase
         .from('store_settings')
         .select('square_api_key')
         .limit(1)
         .maybeSingle();
       SQUARE_ACCESS_TOKEN = settings?.square_api_key;
+      console.timeEnd('FinalizeOrder_FetchSettingsFromDB');
     }
 
     if (!SQUARE_ACCESS_TOKEN) {
@@ -79,10 +85,10 @@ Deno.serve(async (req) => {
     // Verify order with Square
     console.log(`[FinalizeSquareOrder] Verifying Square Order: ${order.square_order_id} at ${SQUARE_API_URL}`)
 
-    const startTime = Date.now()
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 20000) // 20s timeout
 
+    console.time('FinalizeOrder_SquareAPICall');
     try {
       const squareResponse = await fetch(`${SQUARE_API_URL}/v2/orders/${order.square_order_id}`, {
         headers: {
@@ -94,7 +100,7 @@ Deno.serve(async (req) => {
       });
 
       clearTimeout(timeoutId)
-      const duration = Date.now() - startTime
+      console.timeEnd('FinalizeOrder_SquareAPICall');
 
       const result = await squareResponse.json();
 
@@ -104,10 +110,9 @@ Deno.serve(async (req) => {
       }
 
       const { order: squareOrder } = result;
-      console.log(`[FinalizeSquareOrder] Square API success in ${duration}ms. State: ${squareOrder.state}`)
+      console.log(`[FinalizeSquareOrder] Square API success. State: ${squareOrder.state}`)
 
       // Check if order is paid
-      // In Square, an order created via payment link and paid will have a state of 'OPEN' or 'COMPLETED'
       const isPaid = squareOrder.state === 'OPEN' || squareOrder.state === 'COMPLETED';
 
       if (!isPaid) {
@@ -115,24 +120,21 @@ Deno.serve(async (req) => {
         throw new Error(`Payment verification pending. Current state: ${squareOrder.state}`);
       }
 
-      // Extract shipping address - checking multiple potential locations in the order object
+      // Extract shipping address
       let shippingAddress = null;
       if (squareOrder.fulfillments && squareOrder.fulfillments.length > 0) {
         const fulfillment = squareOrder.fulfillments[0];
         if (fulfillment.shipment_details && fulfillment.shipment_details.recipient) {
           shippingAddress = fulfillment.shipment_details.recipient.address;
         } else if (fulfillment.pickup_details && fulfillment.pickup_details.recipient) {
-          // Fallback to pickup recipient address if shipment is missing but pickup exists
           shippingAddress = fulfillment.pickup_details.recipient.address;
         }
       }
 
-      // If no fulfillment address, check the tenders/payments for card billing address as a last resort
-      // (Note: Square Payment Links usually put address in fulfillments)
-
       console.log(`[FinalizeSquareOrder] Transitioning order ${orderId} to 'Processing'`)
 
       // Update internal order
+      console.time('FinalizeOrder_DBUpdateOrder');
       const { error: updateError } = await supabase
         .from('orders')
         .update({
@@ -141,6 +143,7 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
+      console.timeEnd('FinalizeOrder_DBUpdateOrder');
 
       if (updateError) {
         console.error(`[FinalizeSquareOrder] DB Update Error:`, updateError.message)
@@ -149,6 +152,7 @@ Deno.serve(async (req) => {
 
       // Decrement Inventory
       console.log(`[FinalizeSquareOrder] Decrementing inventory for items in order ${orderId}`)
+      console.time('FinalizeOrder_InventoryUpdate');
       if (order.items && Array.isArray(order.items)) {
         for (const item of order.items) {
           try {
@@ -163,7 +167,6 @@ Deno.serve(async (req) => {
               const newTotal = Math.max(0, currentTotal - item.quantity);
               const sizeInventory = { ...(product.size_inventory as Record<string, number> || {}) };
 
-              // Find matching size key (case-insensitive)
               const sizeKey = Object.keys(sizeInventory).find(k => k.toLowerCase() === (item.size || '').toLowerCase()) || item.size;
 
               if (sizeKey) {
@@ -186,7 +189,9 @@ Deno.serve(async (req) => {
           }
         }
       }
+      console.timeEnd('FinalizeOrder_InventoryUpdate');
 
+      console.timeEnd('FinalizeOrder_TotalExecutionTime');
       return new Response(JSON.stringify({ success: true, orderId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
