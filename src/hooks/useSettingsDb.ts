@@ -57,13 +57,11 @@ export function useSettingsDb() {
   const updateSettingsDb = useCallback(async (newSettings: Partial<AdminSettings>) => {
     try {
       const supabase = getSupabase();
-      console.log('[Settings] Starting save...');
 
       // Use cached ID if available, otherwise fetch it
       let targetId = settingsIdRef.current;
 
       if (!targetId) {
-        console.log('[Settings] No cached ID, fetching...');
         const { data: existing } = await supabase
           .from('store_settings')
           .select('id')
@@ -74,7 +72,6 @@ export function useSettingsDb() {
           targetId = existing.id;
           settingsIdRef.current = targetId;
         }
-        console.log('[Settings] Fetched ID:', targetId);
       }
 
       // Prepare data for upsert/update
@@ -100,7 +97,6 @@ export function useSettingsDb() {
 
       let error;
       if (targetId) {
-        console.log('[Settings] Updating row:', targetId);
         const updatePromise = supabase
           .from('store_settings')
           .update(updateData)
@@ -120,7 +116,6 @@ export function useSettingsDb() {
           error = raceErr;
         }
       } else {
-        console.log('[Settings] No row found, inserting new...');
         const { data: inserted, error: insertError } = await supabase
           .from('store_settings')
           .insert(updateData)
@@ -137,7 +132,6 @@ export function useSettingsDb() {
         console.error('[Settings] Save failed:', error);
         return false;
       }
-      console.log('[Settings] Save successful');
       return true;
     } catch (err) {
       console.error('[Settings] Save exception:', err);

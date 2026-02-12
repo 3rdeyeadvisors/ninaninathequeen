@@ -219,7 +219,8 @@ serve(async (req) => {
     const autoSyncEnabled = settingsData?.auto_sync ?? false;
     const posProvider = settingsData?.pos_provider;
 
-    // Auto-sync to Square if enabled
+    // Auto-sync to Square if enabled (disabled until square-sync-inventory function is implemented)
+    /*
     if (autoSyncEnabled && posProvider === 'square') {
       console.log('[sync-products] Auto-sync enabled, pushing to Square...');
       // Don't await - let it run in background to not slow down the response
@@ -227,6 +228,7 @@ serve(async (req) => {
         console.error('[sync-products] Background Square sync failed:', err)
       );
     }
+    */
 
     return new Response(
       JSON.stringify({ 

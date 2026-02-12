@@ -33,8 +33,6 @@ export default function CheckoutSuccess() {
           if (functionError || !data?.success) {
             console.error('Error finalizing order:', functionError || data?.error);
             setError(data?.error || 'There was a problem verifying your payment. Please contact support if you have been charged.');
-          } else {
-            console.log('Order finalized successfully');
           }
         } catch (err: any) {
           console.error('Unexpected error finalizing order:', err);

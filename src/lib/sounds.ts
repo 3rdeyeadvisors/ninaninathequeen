@@ -8,5 +8,7 @@ export const playSound = (type: 'success' | 'click' | 'remove' | 'error') => {
 
   const audio = new Audio(sounds[type]);
   audio.volume = 0.3;
-  audio.play().catch(e => console.log('Sound play blocked:', e));
+  audio.play().catch(() => {
+    // Sound play blocked by browser - this is expected behavior
+  });
 };
