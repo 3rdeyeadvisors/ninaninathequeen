@@ -63,7 +63,6 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
             isDeleted: product.is_deleted || false,
           });
         });
-        console.log(`Loaded ${data.length} products from database`);
       }
     } catch (err) {
       console.error('Failed to fetch products:', err);
@@ -104,7 +103,6 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
             });
           }
         });
-        console.log(`Loaded ${data.length} orders from database`);
       }
     } catch (err) {
       console.error('Failed to fetch orders:', err);
@@ -141,7 +139,6 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
             });
           }
         });
-        console.log(`Loaded ${data.length} customers from database`);
       }
     } catch (err) {
       console.error('Failed to fetch customers:', err);
@@ -184,7 +181,6 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
 
       if (!settingsError && settings) {
         applySettings(settings);
-        console.log('Loaded settings from database (full access)');
         return;
       }
 

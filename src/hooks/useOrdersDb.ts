@@ -1,6 +1,17 @@
 import { useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminOrder, type ShippingAddress } from '@/stores/adminStore';
+import type { Json } from '@/integrations/supabase/types';
+
+/**
+ * Interface for database order updates
+ */
+interface DbOrderUpdate {
+  status?: string;
+  tracking_number?: string;
+  shipping_cost?: string;
+  item_cost?: string;
+}
 
 /**
  * Hook to sync orders with the database.
@@ -82,7 +93,7 @@ export function useOrdersDb() {
     try {
       const supabase = getSupabase();
 
-      const dbUpdates: any = {};
+      const dbUpdates: DbOrderUpdate = {};
       if (updates.status) dbUpdates.status = updates.status;
       if (updates.trackingNumber !== undefined) dbUpdates.tracking_number = updates.trackingNumber;
       if (updates.shippingCost !== undefined) dbUpdates.shipping_cost = updates.shippingCost;
@@ -132,7 +143,7 @@ export function useOrdersDb() {
           item_cost: order.itemCost,
           status: order.status,
           tracking_number: order.trackingNumber,
-          items: order.items as any,
+          items: order.items as Json,
         })
         .select('id')
         .maybeSingle();
@@ -162,7 +173,7 @@ export function useOrdersDb() {
           .from('products')
           .update({
             inventory: newTotal,
-            size_inventory: sizeInventory as any,
+            size_inventory: sizeInventory as Json,
           })
           .eq('id', productId)
           .select('id')

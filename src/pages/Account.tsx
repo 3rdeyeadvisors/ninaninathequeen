@@ -53,6 +53,7 @@ import { playSound } from '@/lib/sounds';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PRODUCT_SIZES } from '@/lib/constants';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
+import { getSupabase } from '@/lib/supabaseClient';
 
 export default function Account() {
   // Legacy auth store - kept for profile data display only
@@ -204,15 +205,54 @@ export default function Account() {
 
   const copyReferralLink = () => {
     if (user?.referralCode) {
-      navigator.clipboard.writeText(`https://ninaarmend.com/invite/${user.referralCode}`);
+      navigator.clipboard.writeText(`${window.location.origin}/invite/${user.referralCode}`);
       toast.success("Referral link copied to clipboard!");
     }
   };
 
-  const mockOrders = [
-    { id: '#NA-7829', date: 'May 15, 2025', status: 'Delivered', total: '$160.00' },
-    { id: '#NA-7542', date: 'April 02, 2025', status: 'Delivered', total: '$85.00' },
-  ];
+  // Real customer orders from database
+  const [customerOrders, setCustomerOrders] = useState<Array<{
+    id: string;
+    date: string;
+    status: string;
+    total: string;
+  }>>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+
+  // Fetch real orders from database
+  useEffect(() => {
+    const fetchCustomerOrders = async () => {
+      if (!user?.email) {
+        setIsLoadingOrders(false);
+        return;
+      }
+
+      setIsLoadingOrders(true);
+      try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, date, status, total')
+          .eq('customer_email', user.email)
+          .order('date', { ascending: false });
+
+        if (!error && data) {
+          setCustomerOrders(data.map(order => ({
+            id: order.id,
+            date: new Date(order.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            status: order.status || 'Pending',
+            total: `$${parseFloat(order.total).toFixed(2)}`
+          })));
+        }
+      } catch (err) {
+        console.error('Error fetching orders:', err);
+      } finally {
+        setIsLoadingOrders(false);
+      }
+    };
+
+    fetchCustomerOrders();
+  }, [user?.email]);
 
   // Show loading state while checking auth
   if (cloudAuth.isLoading) {
@@ -428,7 +468,7 @@ export default function Account() {
                 <div className="grid grid-cols-2 gap-4 border-t pt-6">
                   <div className="text-center p-3 bg-secondary/30 rounded-xl">
                     <p className="text-[10px] font-sans tracking-[0.2em] uppercase text-muted-foreground mb-1">Orders</p>
-                    <p className="font-serif text-xl font-bold">{mockOrders.length}</p>
+                    <p className="font-serif text-xl font-bold">{customerOrders.length}</p>
                   </div>
                   <div className="text-center p-3 bg-primary/5 rounded-xl border border-primary/10">
                     <p className="text-[10px] font-sans tracking-[0.2em] uppercase text-primary mb-1">Points</p>
@@ -496,26 +536,41 @@ export default function Account() {
                       <CardTitle className="font-serif text-xl">Order History</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-[10px] uppercase tracking-widest">Order</TableHead>
-                            <TableHead className="text-[10px] uppercase tracking-widest">Date</TableHead>
-                            <TableHead className="text-[10px] uppercase tracking-widest">Status</TableHead>
-                            <TableHead className="text-[10px] uppercase tracking-widest text-right">Total</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {mockOrders.map((order) => (
-                            <TableRow key={order.id}>
-                              <TableCell className="font-medium">{order.id}</TableCell>
-                              <TableCell>{order.date}</TableCell>
-                              <TableCell><Badge variant="outline" className="border-green-500/50 text-green-600">{order.status}</Badge></TableCell>
-                              <TableCell className="text-right">{order.total}</TableCell>
+                      {isLoadingOrders ? (
+                        <div className="text-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                          <p className="text-muted-foreground mt-4">Loading your orders...</p>
+                        </div>
+                      ) : customerOrders.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Package className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                          <p className="text-muted-foreground">No orders yet.</p>
+                          <Link to="/shop">
+                            <Button variant="link" className="mt-2 text-primary">Start Shopping</Button>
+                          </Link>
+                        </div>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-[10px] uppercase tracking-widest">Order</TableHead>
+                              <TableHead className="text-[10px] uppercase tracking-widest">Date</TableHead>
+                              <TableHead className="text-[10px] uppercase tracking-widest">Status</TableHead>
+                              <TableHead className="text-[10px] uppercase tracking-widest text-right">Total</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {customerOrders.map((order) => (
+                              <TableRow key={order.id}>
+                                <TableCell className="font-medium">{order.id}</TableCell>
+                                <TableCell>{order.date}</TableCell>
+                                <TableCell><Badge variant="outline" className="border-green-500/50 text-green-600">{order.status}</Badge></TableCell>
+                                <TableCell className="text-right">{order.total}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>
