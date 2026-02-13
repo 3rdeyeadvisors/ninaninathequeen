@@ -166,6 +166,7 @@ export type Database = {
           id: string
           name: string | null
           points: number | null
+          points_reset_at: string | null
           preferred_size: string | null
           referral_code: string | null
           updated_at: string
@@ -177,6 +178,7 @@ export type Database = {
           id: string
           name?: string | null
           points?: number | null
+          points_reset_at?: string | null
           preferred_size?: string | null
           referral_code?: string | null
           updated_at?: string
@@ -188,9 +190,37 @@ export type Database = {
           id?: string
           name?: string | null
           points?: number | null
+          points_reset_at?: string | null
           preferred_size?: string | null
           referral_code?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          points_awarded: number
+          referred_id: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          points_awarded?: number
+          referred_id: string
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          points_awarded?: number
+          referred_id?: string
+          referrer_id?: string
+          status?: string
         }
         Relationships: []
       }
@@ -292,6 +322,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_and_reset_points: { Args: { _user_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

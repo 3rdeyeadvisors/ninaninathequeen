@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { Star, Quote } from 'lucide-react';
+import { useReviewStore } from '@/stores/reviewStore';
+import { useMemo } from 'react';
 
-const testimonials = [
+const fallbackTestimonials = [
   {
     name: "Isabella Silva",
     location: "Rio de Janeiro",
@@ -23,6 +25,27 @@ const testimonials = [
 ];
 
 export function Testimonials() {
+  const { reviews } = useReviewStore();
+
+  const testimonials = useMemo(() => {
+    // Use real reviews with 4+ stars if available, pad with fallbacks
+    const realTestimonials = reviews
+      .filter(r => r.rating >= 4 && r.comment.length >= 20)
+      .slice(0, 3)
+      .map(r => ({
+        name: r.userName,
+        location: "Verified Buyer",
+        text: r.comment,
+        rating: r.rating,
+      }));
+
+    if (realTestimonials.length >= 3) return realTestimonials;
+    
+    // Mix real + fallback
+    const needed = 3 - realTestimonials.length;
+    return [...realTestimonials, ...fallbackTestimonials.slice(0, needed)];
+  }, [reviews]);
+
   return (
     <section className="py-24 bg-secondary/20 overflow-hidden">
       <div className="container mx-auto px-4 md:px-8">

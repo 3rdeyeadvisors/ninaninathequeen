@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getSupabase } from '@/lib/supabaseClient';
 import { useReviewStore, type Review } from '@/stores/reviewStore';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
@@ -44,7 +45,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
     ? productReviews.reduce((acc, r) => acc + r.rating, 0) / productReviews.length
     : 0;
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
       toast.error("Please sign in to leave a review");
@@ -75,9 +76,30 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
       comment: trimmedComment
     });
 
+    // Award 10 points for submitting a review
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, points')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        if (profile) {
+          await supabase
+            .from('profiles')
+            .update({ points: (profile.points || 0) + 10 })
+            .eq('id', profile.id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to award review points:', err);
+    }
+
     setNewComment('');
     setNewRating(5);
-    toast.success("Review submitted! Thank you.");
+    toast.success("Review submitted! +10 points earned 🎉");
   };
 
   const handleAdminReply = (reviewId: string) => {

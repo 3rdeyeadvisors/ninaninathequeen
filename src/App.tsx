@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCloudAuthStore } from "@/stores/cloudAuthStore";
 import { useAdminStore } from "@/stores/adminStore";
@@ -63,6 +63,15 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+// Capture referral code and redirect to account page
+function InviteCapture() {
+  const { code } = useParams<{ code: string }>();
+  if (code) {
+    localStorage.setItem('referral_code', code);
+  }
+  return <Navigate to="/account" replace />;
 }
 
 function AppContent() {
@@ -129,6 +138,7 @@ function AppContent() {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/invite/:code" element={<InviteCapture />} />
         <Route path="/demo" element={<Demo />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
