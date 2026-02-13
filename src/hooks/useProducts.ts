@@ -63,7 +63,7 @@ function overrideToProduct(override: ProductOverride): Product {
   };
 }
 
-export function useProducts(first: number = 20, query?: string) {
+export function useProducts(first: number = 20, query?: string, includeHidden: boolean = false) {
   const { productOverrides, _hasHydrated } = useAdminStore();
 
   const products = useMemo(() => {
@@ -72,7 +72,7 @@ export function useProducts(first: number = 20, query?: string) {
 
     // Only use products from database (via productOverrides store)
     const allProducts: Product[] = Object.values(productOverrides)
-      .filter(o => !o.isDeleted && o.title)
+      .filter(o => !o.isDeleted && o.title && (includeHidden || o.status !== 'Inactive'))
       .map(overrideToProduct);
 
     // Apply search/category filter
@@ -103,7 +103,7 @@ export function useProducts(first: number = 20, query?: string) {
     }
 
     return filteredProducts.slice(0, first);
-  }, [productOverrides, _hasHydrated, first, query]);
+  }, [productOverrides, _hasHydrated, first, query, includeHidden]);
 
   return {
     data: products,

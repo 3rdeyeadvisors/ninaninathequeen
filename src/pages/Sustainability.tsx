@@ -3,6 +3,8 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { Leaf, Recycle, Heart } from 'lucide-react';
+import slowFashionImg from '@/assets/slow-fashion.jpeg';
+import waterConservationImg from '@/assets/water-conservation.jpeg';
 
 export default function Sustainability() {
   return (
@@ -32,7 +34,7 @@ export default function Sustainability() {
               {
                 icon: Recycle,
                 title: "Conscious Packaging",
-                description: "Our signature gold-foiled packaging is 100% recyclable and plastic-free, designed to be kept and reused."
+                description: "Our signature packaging is 100% recyclable and plastic-free, designed to be kept and reused."
               },
               {
                 icon: Heart,
@@ -67,8 +69,8 @@ export default function Sustainability() {
                     over quantity, we reduce the overall environmental footprint of your wardrobe.
                   </p>
                 </div>
-                <div className="w-full md:w-1/2 aspect-video bg-secondary rounded-xl overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1544391496-1ca7c9765779?auto=format&fit=crop&q=80&w=800" alt="Slow Fashion" className="w-full h-full object-cover" />
+                <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-secondary overflow-hidden mx-auto flex-shrink-0">
+                  <img src={slowFashionImg} alt="Slow Fashion" className="w-full h-full object-cover" />
                 </div>
               </div>
 
@@ -81,8 +83,8 @@ export default function Sustainability() {
                     is meant to enjoy.
                   </p>
                 </div>
-                <div className="w-full md:w-1/2 aspect-video bg-secondary rounded-xl overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1506223580648-267923485f76?auto=format&fit=crop&q=80&w=800" alt="Water Conservation" className="w-full h-full object-cover" />
+                <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-secondary overflow-hidden mx-auto flex-shrink-0">
+                  <img src={waterConservationImg} alt="Water Conservation" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
