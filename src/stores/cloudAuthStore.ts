@@ -11,6 +11,7 @@ export interface CloudAuthUser {
   isAdmin: boolean;
   preferredSize?: string;
   points?: number;
+  referralCode?: string;
 }
 
 interface CloudAuthState {
@@ -51,7 +52,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
           // Fetch additional profile data
           const { data: profile } = await supabase
             .from('profiles')
-            .select('preferred_size, points')
+            .select('preferred_size, points, referral_code')
             .eq('id', session.user.id)
             .single();
 
@@ -63,6 +64,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
             isAdmin,
             preferredSize: profile?.preferred_size,
             points: profile?.points || 0,
+            referralCode: profile?.referral_code,
           };
 
           set({
@@ -149,18 +151,27 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
   signUpWithEmail: async (email: string, password: string, name?: string) => {
     try {
       const supabase = getSupabase();
+      // Check for stored referral code
+      const referralCode = typeof window !== 'undefined' ? localStorage.getItem('referral_code') : null;
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             name,
+            ...(referralCode ? { referral_code: referralCode } : {}),
           },
         },
       });
       
       if (error) {
         return { error };
+      }
+      
+      // Clear referral code after successful signup
+      if (referralCode) {
+        localStorage.removeItem('referral_code');
       }
       
       return { error: null };

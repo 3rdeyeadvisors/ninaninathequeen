@@ -43,7 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus, Trash2, AlertCircle, LayoutDashboard, Heart } from 'lucide-react';
+import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus, Trash2, AlertCircle, LayoutDashboard, Heart, Users, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -72,7 +72,7 @@ export default function Account() {
     email: cloudAuth.user.email,
     avatar: cloudAuth.user.avatar,
     points: cloudAuth.user.points || legacyUser?.points || 0,
-    referralCode: legacyUser?.referralCode,
+    referralCode: cloudAuth.user.referralCode || legacyUser?.referralCode,
     role: cloudAuth.user.isAdmin ? 'Admin' : legacyUser?.role,
     preferredSize: cloudAuth.user.preferredSize || legacyUser?.preferredSize,
   } : legacyUser;
@@ -96,6 +96,54 @@ export default function Account() {
 
   const [resetEmail, setResetEmail] = useState('');
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralPoints, setReferralPoints] = useState(0);
+  const [pointsResetAt, setPointsResetAt] = useState<string | null>(null);
+
+  // Check and reset points + fetch referral data
+  useEffect(() => {
+    const checkPointsAndReferrals = async () => {
+      if (!cloudAuth.user?.id) return;
+      const supabase = getSupabase();
+      
+      // Check points reset
+      try {
+        await supabase.rpc('check_and_reset_points', { _user_id: cloudAuth.user.id });
+      } catch (err) {
+        console.error('Points reset check failed:', err);
+      }
+
+      // Fetch profile for reset date
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('points_reset_at, points')
+          .eq('id', cloudAuth.user.id)
+          .maybeSingle();
+        if (profile?.points_reset_at) {
+          setPointsResetAt(profile.points_reset_at);
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
+      }
+
+      // Fetch referral count
+      try {
+        const { data: referrals } = await supabase
+          .from('referrals')
+          .select('id, points_awarded')
+          .eq('referrer_id', cloudAuth.user.id);
+        if (referrals) {
+          setReferralCount(referrals.length);
+          setReferralPoints(referrals.reduce((sum, r) => sum + (r.points_awarded || 0), 0));
+        }
+      } catch (err) {
+        console.error('Failed to fetch referrals:', err);
+      }
+    };
+
+    checkPointsAndReferrals();
+  }, [cloudAuth.user?.id]);
 
   // Login states
   const [loginEmail, setLoginEmail] = useState('');
@@ -374,7 +422,7 @@ export default function Account() {
                       <UserPlus className="h-6 w-6 text-primary" />
                     </div>
                     <CardTitle className="font-serif text-2xl">Join Nina Armend</CardTitle>
-                    <CardDescription>Create your account and earn 250 welcome points</CardDescription>
+                    <CardDescription>Create your account and earn 50 welcome points</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleSignup} className="space-y-4">
@@ -586,6 +634,14 @@ export default function Account() {
                           <p className="text-[10px] font-sans tracking-[0.2em] uppercase text-primary mb-2">Your Points</p>
                           <p className="font-serif text-5xl font-bold text-primary">{user?.points || 0}</p>
                           <p className="text-xs text-muted-foreground mt-2">Use points for discounts on your next order.</p>
+                          {pointsResetAt && (
+                            <div className="mt-3 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>
+                                Resets {new Date(new Date(pointsResetAt).getTime() + 60 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <div className="p-6 bg-secondary/30 rounded-2xl">
                           <p className="text-[10px] font-sans tracking-[0.2em] uppercase text-muted-foreground mb-2">Refer a Friend</p>
@@ -593,6 +649,50 @@ export default function Account() {
                           <Button variant="outline" size="sm" onClick={copyReferralLink} className="w-full">
                             <Share2 className="h-4 w-4 mr-2" /> Copy Referral Link
                           </Button>
+                        </div>
+                      </div>
+
+                      {/* Referral Tracking */}
+                      <div className="p-6 bg-card border border-border/50 rounded-2xl">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Users className="h-5 w-5 text-primary" />
+                          <h3 className="font-sans text-sm font-semibold uppercase tracking-widest">Your Referrals</h3>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center p-4 bg-secondary/20 rounded-xl">
+                            <p className="font-serif text-3xl font-bold">{referralCount}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-1">Friends Referred</p>
+                          </div>
+                          <div className="text-center p-4 bg-primary/5 rounded-xl border border-primary/10">
+                            <p className="font-serif text-3xl font-bold text-primary">{referralPoints}</p>
+                            <p className="text-[10px] text-primary uppercase tracking-widest mt-1">Points Earned</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-4">
+                          Earn 25 points for every friend who signs up using your referral link!
+                        </p>
+                      </div>
+
+                      {/* How to Earn Points */}
+                      <div className="p-6 bg-secondary/20 rounded-2xl">
+                        <h3 className="font-sans text-sm font-semibold uppercase tracking-widest mb-4">How to Earn Points</h3>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Create an account</span>
+                            <Badge variant="outline" className="font-mono">+50 pts</Badge>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Every $1 spent</span>
+                            <Badge variant="outline" className="font-mono">+1 pt</Badge>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Write a review</span>
+                            <Badge variant="outline" className="font-mono">+10 pts</Badge>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Refer a friend</span>
+                            <Badge variant="outline" className="font-mono">+25 pts</Badge>
+                          </div>
                         </div>
                       </div>
                     </CardContent>

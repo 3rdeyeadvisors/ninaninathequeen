@@ -191,6 +191,31 @@ Deno.serve(async (req) => {
       }
       console.timeEnd('FinalizeOrder_InventoryUpdate');
 
+      // Award loyalty points (1 point per $1 spent)
+      console.log(`[FinalizeSquareOrder] Awarding loyalty points for order ${orderId}`);
+      try {
+        const orderTotal = parseFloat(order.total) || 0;
+        const pointsToAward = Math.floor(orderTotal);
+        if (pointsToAward > 0 && order.customer_email) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, points')
+            .eq('email', order.customer_email)
+            .maybeSingle();
+
+          if (profile) {
+            await supabase
+              .from('profiles')
+              .update({ points: (profile.points || 0) + pointsToAward })
+              .eq('id', profile.id);
+            console.log(`[FinalizeSquareOrder] Awarded ${pointsToAward} points to ${order.customer_email}`);
+          }
+        }
+      } catch (pointsErr) {
+        console.error('[FinalizeSquareOrder] Points award error:', pointsErr);
+        // Non-critical, don't fail the order
+      }
+
       console.timeEnd('FinalizeOrder_TotalExecutionTime');
       return new Response(JSON.stringify({ success: true, orderId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
