@@ -3,7 +3,7 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight, RefreshCw, Package } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight, RefreshCw, Package, Eye, EyeOff } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
@@ -52,7 +52,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 const CATEGORIES = ['All', 'Top', 'Bottom', 'Top & Bottom', 'One-Piece', 'Other'] as const;
 
 export default function AdminProducts() {
-  const { data: initialProducts, isLoading } = useProducts(1000);
+  const { data: initialProducts, isLoading } = useProducts(1000, undefined, true);
   const { productOverrides, updateProductOverride, deleteProduct, _hasHydrated } = useAdminStore();
   const { isUploading, handleFileUpload, downloadTemplate, fileInputRef: syncInputRef } = useSpreadsheetSync();
   const { fetchProducts, upsertProduct, deleteProductDb, bulkDeleteProducts } = useProductsDb();
@@ -290,6 +290,46 @@ export default function AdminProducts() {
     } catch (err) {
       await fetchProducts();
       toast.error("An error occurred. Catalog refreshed.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const toggleProductVisibility = async (productId: string) => {
+    const product = (initialProducts || []).find(p => p.id === productId);
+    if (!product) return;
+
+    const existingOverride = productOverrides[productId];
+    const currentStatus = existingOverride?.status || 'Active';
+    const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
+
+    const newOverride: ProductOverride = existingOverride
+      ? { ...existingOverride, status: newStatus } as ProductOverride
+      : {
+          id: productId,
+          title: product.title,
+          price: product.price.amount,
+          image: product.images[0]?.url || '',
+          description: product.description || '',
+          productType: product.productType,
+          inventory: 0,
+          status: newStatus,
+        } as ProductOverride;
+
+    updateProductOverride(productId, newOverride);
+
+    try {
+      setIsSyncing(true);
+      const success = await upsertProduct(newOverride);
+      if (success) {
+        toast.success(newStatus === 'Active' ? 'Product visible in store' : 'Product hidden from store');
+      } else {
+        await fetchProducts();
+        toast.error("Failed to update visibility.");
+      }
+    } catch (err) {
+      await fetchProducts();
+      toast.error("An error occurred.");
     } finally {
       setIsSyncing(false);
     }
@@ -588,7 +628,7 @@ export default function AdminProducts() {
                       : 45; // Default stock when no data exists
                     
                     return (
-                      <TableRow key={product.id}>
+                      <TableRow key={product.id} className={override?.status === 'Inactive' ? 'opacity-50' : ''}>
                         <TableCell>
                           <Checkbox
                             checked={selectedProducts.has(product.id)}
@@ -676,7 +716,16 @@ export default function AdminProducts() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right space-x-2">
+                        <TableCell className="text-right space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => toggleProductVisibility(product.id)}
+                            title={override?.status === 'Inactive' ? 'Show in store' : 'Hide from store'}
+                          >
+                            {override?.status === 'Inactive' ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4" />}
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
                             const sizes = product.options.find(o => o.name === 'Size')?.values || [];
                             const override = productOverrides[product.id];
