@@ -4,7 +4,7 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Mail, Phone, MapPin, Loader2 } from 'lucide-react';
+import { Mail, Phone, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
 import { useState } from 'react';
@@ -89,15 +89,6 @@ export default function Contact() {
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center gap-4">
-                    <div className="bg-secondary p-3 rounded-full">
-                      <MapPin className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Atelier</p>
-                      <p>Leblon, Rio de Janeiro, Brazil</p>
-                    </div>
-                  </div>
                 </div>
               </div>
 
