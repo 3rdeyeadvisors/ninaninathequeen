@@ -168,7 +168,6 @@ serve(async (req) => {
         collection: String(p.collection || ''),
         category: String(p.category || p.productType || 'Other'),
         status: (() => {
-          // Normalize status to match database constraints (Active, Inactive, Draft)
           const rawStatus = String(p.status || 'Active');
           if (['Active', 'Inactive', 'Draft'].includes(rawStatus)) {
             return rawStatus;
@@ -185,6 +184,7 @@ serve(async (req) => {
         color_codes: Array.isArray(p.color_codes || p.colorCodes) ? (p.color_codes || p.colorCodes) : [],
         sizes: Array.isArray(p.sizes) ? p.sizes : [],
         is_deleted: Boolean(p.is_deleted ?? p.isDeleted ?? false),
+        unit_cost: String(p.unit_cost || p.unitCost || '0.00'),
         updated_at: new Date().toISOString()
       };
     }).filter(row => row.id); // Remove rows with missing IDs

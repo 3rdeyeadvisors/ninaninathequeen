@@ -259,14 +259,6 @@ export default function AdminCustomers() {
                         </div>
                       )}
 
-                      <div className="pt-4 flex justify-between gap-4">
-                         <Button variant="outline" className="flex-1 font-sans text-[10px] uppercase tracking-widest h-11">
-                           View History
-                         </Button>
-                         <Button className="flex-1 bg-primary font-sans text-[10px] uppercase tracking-widest h-11">
-                           Send Email
-                         </Button>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -368,9 +360,13 @@ export default function AdminCustomers() {
                   <div className="p-2 bg-emerald-100 rounded-lg">
                     <DollarSign className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Avg. Life Value</h3>
+                  <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Avg. Lifetime Value</h3>
                 </div>
-                <p className="font-serif text-2xl">$425.50</p>
+                <p className="font-serif text-2xl">
+                  ${customers.length > 0
+                    ? (customers.reduce((sum, c) => sum + parseFloat(c.totalSpent || '0'), 0) / customers.length).toFixed(2)
+                    : '0.00'}
+                </p>
               </div>
               <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
                 <div className="flex items-center gap-3 mb-4">
@@ -379,16 +375,22 @@ export default function AdminCustomers() {
                   </div>
                   <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Repeat Purchase Rate</h3>
                 </div>
-                <p className="font-serif text-2xl">64%</p>
+                <p className="font-serif text-2xl">
+                  {customers.length > 0
+                    ? `${Math.round((customers.filter(c => c.orderCount > 1).length / customers.length) * 100)}%`
+                    : '0%'}
+                </p>
               </div>
               <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-amber-100 rounded-lg">
-                    <Mail className="h-4 w-4 text-amber-600" />
+                    <DollarSign className="h-4 w-4 text-amber-600" />
                   </div>
-                  <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Newsletter Subs</h3>
+                  <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Total Revenue</h3>
                 </div>
-                <p className="font-serif text-2xl">892</p>
+                <p className="font-serif text-2xl">
+                  ${customers.reduce((sum, c) => sum + parseFloat(c.totalSpent || '0'), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
             </div>
           </main>

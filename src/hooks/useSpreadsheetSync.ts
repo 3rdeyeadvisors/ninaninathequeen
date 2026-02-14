@@ -99,6 +99,7 @@ export function useSpreadsheetSync() {
           baseTitle: string;
           id: string;
           price: string;
+          unitCost: string;
           productType: string;
           collection: string;
           status: string;
@@ -143,6 +144,7 @@ export function useSpreadsheetSync() {
               baseTitle,
               id: productId,
               price: row.price ? String(row.price).replace(/[^0-9.]/g, '') : '0.00',
+              unitCost: row.unitcost ? String(row.unitcost).replace(/[^0-9.]/g, '') : '0.00',
               productType: row.producttype || '',
               collection: collection,
               status: row.status || 'Active',
@@ -155,8 +157,11 @@ export function useSpreadsheetSync() {
           }
 
           const stock = row.inventory !== undefined ? parseInt(row.inventory) || 0 : 0;
+          // "Status" column = additional units ordered on top of existing stock
+          const ordered = row.status ? parseInt(row.status) : NaN;
+          const totalForSize = stock + (isNaN(ordered) ? 0 : ordered);
           productGroups[groupKey].sizeInventory[size] =
-            (productGroups[groupKey].sizeInventory[size] || 0) + stock;
+            (productGroups[groupKey].sizeInventory[size] || 0) + totalForSize;
         });
 
         const productsToSync: ProductOverride[] = [];
@@ -197,9 +202,13 @@ export function useSpreadsheetSync() {
             }
           }
 
-          // Normalize status to match database constraints
+          // Normalize status: if numeric (ordered qty), default to 'Active'
           let status = product.status || 'Active';
-          if (!['Active', 'Inactive', 'Draft'].includes(status)) {
+          const statusNum = parseInt(status);
+          if (!isNaN(statusNum)) {
+            // Status was a number (ordered quantity) - product is active
+            status = 'Active';
+          } else if (!['Active', 'Inactive', 'Draft'].includes(status)) {
             const statusLower = status.toLowerCase();
             if (statusLower.includes('active') || statusLower.includes('stock') || statusLower.includes('order')) {
               status = 'Active';
@@ -225,7 +234,8 @@ export function useSpreadsheetSync() {
             category: product.productType,
             status: status as 'Active' | 'Inactive' | 'Draft',
             itemNumber: product.itemNumber,
-            colorCodes: product.colorCodes
+            colorCodes: product.colorCodes,
+            unitCost: product.unitCost,
           };
 
           updateProductOverride(id, productOverride);
@@ -260,22 +270,51 @@ export function useSpreadsheetSync() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = `Item ID,Item Name,Type,Price Per Unit,Stock,Collection,Status,Item Number,Color
-LB-001,White Top (XS),Top,85.00,10,La Bella,Active,SKU-001,#FFFFFF
-LB-002,White Top (S),Top,85.00,15,La Bella,Active,SKU-001,#FFFFFF
-LB-003,White Bottom (XS),Bottom,75.00,8,La Bella,Active,SKU-002,#FFD700
-EM-001,Black One-Piece (M),One-Piece,120.00,5,El Mar,Active,SKU-003,#000000
-TB-001,Sunset Set (S),Top & Bottom,150.00,12,Summer,Active,SKU-004,"#FF6B35,#FFD700"
-`;
+    const { productOverrides } = useAdminStore.getState();
+    const products = Object.values(productOverrides).filter(p => !p.isDeleted);
+    
+    if (products.length === 0) {
+      // Fallback to template if no products
+      const csvContent = `Item Name,Type,Price,Unit Cost,Stock,Collection,Status,Item Number,Color\n`;
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'nina_armend_products.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("Empty template downloaded!");
+      return;
+    }
+
+    // Build CSV rows from actual product data
+    const headers = ['Item Name', 'Type', 'Price', 'Unit Cost', 'Stock', 'Collection', 'Status', 'Item Number', 'Color'];
+    const rows = products.map(p => {
+      const escapeCsv = (val: string) => val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
+      return [
+        escapeCsv(p.title || ''),
+        escapeCsv(p.productType || p.category || ''),
+        p.price || '0.00',
+        p.unitCost || '0.00',
+        String(p.inventory || 0),
+        escapeCsv(p.collection || ''),
+        p.status || 'Active',
+        escapeCsv(p.itemNumber || ''),
+        escapeCsv((p.colorCodes || []).join(','))
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'nina_armend_inventory_template.csv';
+    a.download = `nina_armend_products_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast.success("Template downloaded!");
+    toast.success(`Spreadsheet downloaded with ${products.length} products!`);
   };
 
   return {

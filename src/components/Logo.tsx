@@ -3,12 +3,12 @@ import { motion } from 'framer-motion';
 export function Logo({ className = "" }: { className?: string }) {
   return (
     <motion.div 
-      className={`font-serif flex flex-col items-center text-center ${className}`}
+      className={`font-serif flex flex-col items-center text-center overflow-visible py-1 ${className}`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
     >
-      <h1 className="text-xl sm:text-xl md:text-2xl lg:text-4xl font-cursive gradient-gold-text whitespace-nowrap">
+      <h1 className="text-xl sm:text-xl md:text-2xl lg:text-4xl font-cursive gradient-gold-text whitespace-nowrap overflow-visible leading-relaxed">
         Nina Armend
       </h1>
       <div className="flex items-center gap-2 mt-1">

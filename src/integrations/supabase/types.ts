@@ -116,6 +116,7 @@ export type Database = {
           sizes: string[] | null
           status: string | null
           title: string
+          unit_cost: string | null
           updated_at: string
         }
         Insert: {
@@ -135,6 +136,7 @@ export type Database = {
           sizes?: string[] | null
           status?: string | null
           title: string
+          unit_cost?: string | null
           updated_at?: string
         }
         Update: {
@@ -154,6 +156,7 @@ export type Database = {
           sizes?: string[] | null
           status?: string | null
           title?: string
+          unit_cost?: string | null
           updated_at?: string
         }
         Relationships: []
