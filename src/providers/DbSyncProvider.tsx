@@ -161,6 +161,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         });
       };
 
+      // Try admin-level access first (full table), fall back to public view
       const { data: settings, error: settingsError } = await supabase
         .from('store_settings')
         .select('*')
@@ -172,7 +173,19 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         return;
       }
 
-      console.warn('Could not fetch store settings (RLS):', settingsError?.message);
+      // Fall back to public view (excludes sensitive Square API fields)
+      const { data: publicSettings, error: publicError } = await supabase
+        .from('public_store_settings' as any)
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+      if (!publicError && publicSettings) {
+        applySettings(publicSettings as unknown as Record<string, unknown>);
+        return;
+      }
+
+      console.warn('Could not fetch store settings:', publicError?.message || settingsError?.message);
 
     } catch (err) {
       console.error('Failed to fetch settings:', err);
