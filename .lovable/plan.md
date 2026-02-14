@@ -1,115 +1,140 @@
 
 
-# Implementation Plan
+# Email System Implementation with Resend
 
-This plan covers all requested changes, organized into sequential tasks that will each be implemented and tested before moving to the next.
+## Overview
 
----
-
-## Task 1: Sustainability Page Updates
-
-**What changes:**
-- Remove "gold-foiled" from the Conscious Packaging description (line 35) -- change to "Our signature packaging is 100% recyclable and plastic-free, designed to be kept and reused."
-- Replace the Slow Fashion Philosophy image (line 71) with `user-uploads://IMG_1366.jpeg`
-- Replace the Water Conservation image (line 85) with `user-uploads://IMG_1320.jpeg` (the beach photo)
-- Change image containers from rectangular (`aspect-video rounded-xl`) to circular (`w-48 h-48 rounded-full mx-auto`) with `object-cover` for consistent display across all devices
-
-**File:** `src/pages/Sustainability.tsx`
+Build a complete transactional email system using Resend, sending all support-related emails from `support@ninaarmend.co`. The domain `ninaarmend.co` is already configured in Resend.
 
 ---
 
-## Task 2: Admin Products -- Hide/Show Toggle
+## Step 0: Add Resend API Key Secret
 
-**What changes:**
-- Add an `Eye`/`EyeOff` icon button to each product row in the admin products table
-- Clicking toggles the product `status` between `Active` and `Inactive`, syncing to the database via `upsertProduct`
-- Hidden products show with a visual indicator (dimmed row, "Hidden" badge)
-- Update `useProducts` hook (line 75) to filter out `status === 'Inactive'` products from the storefront
-- The admin Products page continues to show all products including hidden ones
-
-**Files:** `src/pages/admin/Products.tsx`, `src/hooks/useProducts.ts`
+Before any code changes, request the RESEND_API_KEY secret from the user. This is required for the edge function to send emails.
 
 ---
 
-## Task 3: Points System Overhaul
+## Step 1: Create `send-email` Edge Function
 
-**What changes:**
+A single edge function (`supabase/functions/send-email/index.ts`) that handles all email types. It will:
 
-**Database migration:**
-- Add `points_reset_at` column to `profiles` table (default `now()`)
-- Update `handle_new_user` function to give 50 points instead of 250 and set `points_reset_at`
-- Create a `check_and_reset_points` database function that resets points to 0 if 60+ days have passed since `points_reset_at`
+- Accept a `type` parameter to determine which email template to render
+- Use the Resend API (`https://api.resend.com/emails`) to send emails
+- Always send from `support@ninaarmend.co` with sender name "Nina Armend"
+- Support these email types:
+  - `welcome` -- new account creation
+  - `order_confirmation` -- after successful purchase
+  - `contact_form` -- contact us submissions (sends to support AND confirmation to customer)
+  - `password_reset` -- custom password reset with token link
+  - `referral_success` -- when a referral signs up
+  - `shipping_update` -- order status changes
 
-**Points earning structure:**
-- Account creation: 50 points (down from 250)
-- Purchase: 1 point per $1 spent (awarded in `finalize-square-order` edge function)
-- Review submission: 10 points (awarded in ReviewSection component via database update)
-- Referral signup: 25 points (when a referred user creates an account)
-
-**Frontend updates:**
-- Update signup card description from "250 welcome points" to "50 welcome points"
-- Add 60-day reset timer display in the Rewards tab of Account page
-- Call `check_and_reset_points` on Account page load to auto-reset if needed
-
-**Files:** Database migration, `supabase/functions/finalize-square-order/index.ts`, `src/components/ReviewSection.tsx`, `src/pages/Account.tsx`, `src/stores/cloudAuthStore.ts`
-
----
-
-## Task 4: Reviews & Testimonials
-
-**What changes:**
-- The review form already works (rating + text comment for authenticated users) -- verified functional
-- After submitting a review, award 10 points by updating the `profiles` table
-- Update the Testimonials component on the homepage to display real user reviews from localStorage alongside hardcoded fallback testimonials
-- Ensure the review form is visible and accessible on product pages
-
-**Files:** `src/components/ReviewSection.tsx`, `src/components/Testimonials.tsx`, `src/stores/reviewStore.ts`
+**Email Design Standards (matching existing brand memory):**
+- Black background (`#000000`), bronze-gold accent (`#C9A96E`)
+- Nina Armend logo at top
+- High contrast white text on black
+- Rounded buttons with bronze-gold color
+- Mobile-responsive single-column layout
+- Generous padding/spacing
+- Footer with unsubscribe and social links
 
 ---
 
-## Task 5: Referral System Integration with Points
+## Step 2: Wire Up Contact Form
 
-**What changes:**
-- The referral code is already generated on signup (`NINA-XXX-123` format) and stored in `profiles.referral_code`
-- The referral link copy button already works in the Account Rewards tab
-- Add referral tracking: create a `referrals` table to track who referred whom (referrer_id, referred_id, status, created_at)
-- When a new user signs up with a referral code, award 25 points to the referrer
-- Add a "Your Referrals" section in the Rewards tab showing count of successful referrals and points earned from them
-- Implement referral code capture: when users visit `/invite/CODE`, store the code in localStorage and pre-fill it during signup
-- Add referral processing in the `handle_new_user` database function to credit the referrer
-
-**Database migration:**
-- Create `referrals` table with columns: id, referrer_id, referred_id, status, points_awarded, created_at
-- RLS policies: users can read their own referrals
-- Update `handle_new_user` to check for referral metadata and credit referrer
-
-**Files:** Database migration, `src/pages/Account.tsx`, `src/stores/cloudAuthStore.ts`, `src/App.tsx` (add `/invite/:code` route)
+Update `src/pages/Contact.tsx`:
+- Capture form values (name, email, message) with state
+- On submit, call the `send-email` edge function with `type: 'contact_form'`
+- Send two emails: one to `support@ninaarmend.co` with the inquiry, one to the customer confirming receipt
+- Show loading state while sending
+- Show success/error toast
 
 ---
 
-## Technical Details
+## Step 3: Wire Up Order Confirmation Email
 
-### Database Changes (Single Migration)
+Update `supabase/functions/finalize-square-order/index.ts`:
+- After successful order finalization, call the Resend API directly (or invoke the send-email function internally) to send an order confirmation email to the customer
+- Include order ID, items, total, and expected shipping timeline
 
-```text
-1. ALTER TABLE profiles ADD COLUMN points_reset_at timestamptz DEFAULT now()
-2. CREATE TABLE referrals (id uuid PK, referrer_id uuid, referred_id uuid, status text, points_awarded int, created_at timestamptz)
-3. RLS on referrals: users can SELECT their own rows (referrer_id = auth.uid())
-4. UPDATE handle_new_user: 50 points, set points_reset_at, process referral code from metadata
-5. CREATE FUNCTION check_and_reset_points(user_id uuid) -- resets if 60 days passed
-```
+---
 
-### Edge Function Update
-- `finalize-square-order`: After successful payment, look up customer email in profiles, award 1 point per $1 of order total
+## Step 4: Wire Up Welcome Email
 
-### Execution Order
-1. Sustainability page (visual fix)
-2. Admin hide/show toggle
-3. Database migration (points_reset_at + referrals table + updated functions)
-4. Points awarding on purchases (edge function)
-5. Points awarding on reviews
-6. Testimonials from real reviews
-7. Referral tracking UI in Account page
-8. Referral code capture route
-9. End-to-end testing of all features
+Two options -- I will use the edge function approach:
+- Create a database webhook trigger or call from the signup flow
+- After successful signup in `src/stores/cloudAuthStore.ts`, invoke the `send-email` function with `type: 'welcome'`
+- Include: welcome message, 50 loyalty points notification, referral link
+
+---
+
+## Step 5: Implement Password Reset
+
+Update `src/pages/Account.tsx`:
+- Replace the TODO in `handleResetPassword` with actual `supabase.auth.resetPasswordForEmail(email, { redirectTo })` call
+- This uses the built-in auth system's email (which can be customized via Supabase auth email templates)
+- Alternatively, create a custom reset flow via the `send-email` edge function with a secure token
+
+The simpler and more reliable approach: use `supabase.auth.resetPasswordForEmail()` which handles token generation securely. The email template can be branded through config.
+
+---
+
+## Step 6: Add Config for send-email in config.toml
+
+Add `verify_jwt = false` for the send-email function since some calls (contact form, order finalization) may not have auth context.
+
+---
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `supabase/functions/send-email/index.ts` | **Create** -- main email edge function with all templates |
+| `src/pages/Contact.tsx` | **Modify** -- wire form to edge function |
+| `supabase/functions/finalize-square-order/index.ts` | **Modify** -- add order confirmation email |
+| `src/stores/cloudAuthStore.ts` | **Modify** -- send welcome email after signup |
+| `src/pages/Account.tsx` | **Modify** -- implement real password reset |
+
+---
+
+## Email Templates (HTML)
+
+All templates share a common wrapper:
+- Max-width 600px, centered
+- Black background with 40px padding
+- Logo image at top (from public URL)
+- Bronze-gold divider line
+- Content section with white text (16px), serif headings
+- CTA button: bronze-gold background, white text, 16px padding, fully rounded corners (border-radius: 50px)
+- Footer: muted gray text, social links, unsubscribe
+
+### Welcome Email
+- Subject: "Welcome to Nina Armend"
+- Content: greeting by name, 50 points earned, referral link, CTA to shop
+
+### Order Confirmation
+- Subject: "Order Confirmed - {orderId}"
+- Content: order items list, total, shipping info, CTA to track order
+
+### Contact Form (to support)
+- Subject: "New Inquiry from {name}"
+- Content: customer name, email, message
+
+### Contact Form (to customer)
+- Subject: "We've received your message"
+- Content: confirmation, expected response time, message echo
+
+### Password Reset
+- Uses Supabase built-in `resetPasswordForEmail`
+
+---
+
+## Execution Order
+1. Request RESEND_API_KEY secret
+2. Create send-email edge function with all templates
+3. Wire up Contact form
+4. Wire up order confirmation in finalize-square-order
+5. Wire up welcome email on signup
+6. Implement password reset
+7. Deploy and test all email flows
 
