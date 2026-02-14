@@ -2,6 +2,7 @@ import { useEffect, useState, createContext, useContext, ReactNode } from 'react
 import { useAdminStore, type ProductOverride, type AdminOrder, type AdminCustomer } from '@/stores/adminStore';
 import { toast } from 'sonner';
 import { getSupabase } from '@/lib/supabaseClient';
+
 interface DbSyncContextType {
   isLoading: boolean;
   isInitialized: boolean;
