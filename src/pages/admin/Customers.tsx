@@ -181,7 +181,7 @@ export default function AdminCustomers() {
                         </Badge>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4 mt-8">
+                      <div className="grid grid-cols-2 gap-4 mt-8">
                         <div className="bg-background/80 backdrop-blur-sm p-3 rounded-xl border border-primary/5">
                           <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-1">Total Spent</p>
                           <p className="font-serif text-xl font-bold text-primary">${parseFloat(selectedCustomer.totalSpent).toFixed(2)}</p>
@@ -190,42 +190,24 @@ export default function AdminCustomers() {
                           <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-1">Orders</p>
                           <p className="font-serif text-xl font-bold">{selectedCustomer.orderCount}</p>
                         </div>
-                        <div className="bg-background/80 backdrop-blur-sm p-3 rounded-xl border border-primary/5">
-                          <p className="text-[10px] font-sans tracking-widest uppercase text-muted-foreground mb-1">Loyalty Tier</p>
-                          <div className="flex items-center gap-1 text-primary">
-                            <Award className="h-4 w-4" />
-                            <span className="font-serif text-lg font-bold">Gold</span>
-                          </div>
-                        </div>
                       </div>
                     </div>
 
                     <div className="p-8 space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <h3 className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-muted-foreground border-b pb-2">Customer Info</h3>
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-3 text-sm">
-                              <MapPin className="h-4 w-4 text-primary/60" />
-                              <span className="text-muted-foreground">Rio de Janeiro, Brazil</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-sm">
-                              <Phone className="h-4 w-4 text-primary/60" />
-                              <span className="text-muted-foreground">+55 21 9999-9999</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-sm">
-                              <Calendar className="h-4 w-4 text-primary/60" />
-                              <span className="text-muted-foreground italic text-xs">Joined {selectedCustomer.joinDate}</span>
-                            </div>
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-muted-foreground border-b pb-2">Customer Info</h3>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 text-sm">
+                            <Mail className="h-4 w-4 text-primary/60" />
+                            <span className="text-muted-foreground">{selectedCustomer.email}</span>
                           </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <h3 className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-muted-foreground border-b pb-2">Preferences</h3>
-                          <div className="flex flex-wrap gap-2">
-                          <Badge variant="secondary" className="font-sans text-[10px] uppercase tracking-wider">Size: M</Badge>
-                          <Badge variant="secondary" className="font-sans text-[10px] uppercase tracking-wider">Bikinis</Badge>
-                          <Badge variant="secondary" className="font-sans text-[10px] uppercase tracking-wider">Eco-Conscious</Badge>
+                          <div className="flex items-center gap-3 text-sm">
+                            <Calendar className="h-4 w-4 text-primary/60" />
+                            <span className="text-muted-foreground italic text-xs">Joined {selectedCustomer.joinDate}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm">
+                            <ShoppingBag className="h-4 w-4 text-primary/60" />
+                            <span className="text-muted-foreground">{selectedCustomer.orderCount} order{selectedCustomer.orderCount !== 1 ? 's' : ''} placed</span>
                           </div>
                         </div>
                       </div>
