@@ -44,8 +44,8 @@ export default function Maintenance() {
     setIsSubmitting(true);
     try {
       const { error } = await supabase
-        .from('waitlist' as any)
-        .insert({ email: parsed.data.email, name: parsed.data.name || null } as any)
+        .from('waitlist')
+        .insert({ email: parsed.data.email, name: parsed.data.name || null })
         .select('id')
         .maybeSingle();
 

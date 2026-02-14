@@ -184,7 +184,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         return;
       }
 
-      console.warn('Could not fetch store settings:', publicError?.message || settingsError?.message);
+      console.warn('Could not fetch store settings. Primary error:', settingsError?.message, '| Fallback error:', publicError?.message);
 
     } catch (err) {
       console.error('Failed to fetch settings:', err);
