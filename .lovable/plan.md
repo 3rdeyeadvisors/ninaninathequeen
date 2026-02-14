@@ -1,131 +1,55 @@
 
-# Admin Dashboard Audit and Fixes
 
-## Problem Summary
+# Platform-Wide Audit: Remove False and Misleading Information
 
-The admin dashboard has several areas with hardcoded/fake data, a non-functional AI chatbot, data sync gaps, and a vulnerability where abandoned Square checkouts leave orphaned "Pending" orders that inflate metrics.
+## Issues Found
 
----
+### 1. False "Last Updated" Dates
+- **Terms of Service** (`src/pages/Terms.tsx` line 29): Says "Last updated: May 2025" -- the current date is February 2026
+- **Privacy Policy** (`src/pages/Privacy.tsx` line 26): Says "Last updated: May 2025" -- same issue
+- **Fix**: Update both to "February 2026"
 
-## Part 1: Remove All Mock Data from Dashboard
+### 2. Inconsistent Fabric Claims -- "Italian" vs "Brazilian"
+- **Features component** (`src/components/Features.tsx` line 13): Says "Handcrafted with premium double-lined Italian fabrics" -- every other page on the site says Brazilian fabrics
+- **Admin SEO default** (`src/stores/adminStore.ts` line 112): SEO description says "finest Italian fabrics"
+- **Fix**: Change both to "Brazilian fabrics" for consistency with the About, Sustainability, and FAQ pages
 
-**File: `src/pages/admin/Dashboard.tsx`**
+### 3. Fake Testimonials with Made-Up Names
+- **Testimonials component** (`src/components/Testimonials.tsx` lines 7-24): Contains 3 hardcoded fake reviews with fabricated names ("Isabella Silva", "Sophia Martinez", "Alessandra Rossi") and fake locations ("Rio de Janeiro", "Miami, FL", "Milan, Italy")
+- These show on the homepage when there aren't enough real reviews
+- **Fix**: Remove the fake fallback testimonials entirely. If there are fewer than 3 real reviews, show only what's real, or hide the section altogether
 
-- Remove the hardcoded `data` array (Mon-Sun sales/traffic) used in charts
-- Replace charts with real data derived from `orders` in the store -- group orders by day-of-week and sum totals for sales chart; traffic chart removed (no real traffic data available)
-- Replace fake stat percentages ("+20.1%", "+12%", "+19%") with actual counts only -- no fake growth indicators
-- Replace hardcoded "842 Items" with real total inventory calculated from `allProducts`
-- Replace "12 items low in stock" with actual count of products below `settings.lowStockThreshold`
-- Replace hardcoded "Store Intelligence" insights with dynamic insights derived from real data (top-selling product, low stock warnings, etc.)
+### 4. About Page -- Founder's "Rio de Janeiro" Reference
+- **About page** (`src/pages/About.tsx` line 66): Says "Her deep connection to the coastal lifestyle of Rio de Janeiro" about the founder Lydia
+- This may be inaccurate given that the location was already removed from Contact
+- **Fix**: Change to a more general reference like "her deep connection to Brazilian beach culture" (removing the specific city claim)
 
----
-
-## Part 2: Fix Customer Detail Mock Data
-
-**File: `src/pages/admin/Customers.tsx`**
-
-- Remove hardcoded "Rio de Janeiro, Brazil" location
-- Remove hardcoded "+55 21 9999-9999" phone number
-- Remove hardcoded preference badges ("Size: M", "Bikinis", "Eco-Conscious")
-- Remove hardcoded "Gold" loyalty tier
-- Show only real data that exists in the customer record (name, email, order count, total spent, join date)
-- Display "No additional info available" where data is absent
+### 5. Unused Import Cleanup
+- **Footer** (`src/components/Footer.tsx` line 3): `MapPin` is imported but never used (leftover from the location removal)
+- **Fix**: Remove unused import
 
 ---
 
-## Part 3: Build a Real AI Chatbot
+## Files to Modify
 
-**File: `src/pages/admin/Dashboard.tsx`**
-
-Replace the fake pattern-matching chat with a real AI-powered assistant:
-
-- Create an edge function `supabase/functions/ai-chat/index.ts` that:
-  - Accepts the user message plus store context (orders summary, product count, inventory status, revenue)
-  - Uses the Lovable AI API (no API key needed) with a model like `google/gemini-2.5-flash`
-  - Includes a system prompt giving it context about Nina Armend store data
-  - Returns intelligent, data-driven responses
-- Update the chat handler in Dashboard to call this edge function instead of using setTimeout
-- Add proper loading states and error handling
-- Maintain conversation history in the chat session
-
-**File: `supabase/functions/ai-chat/index.ts`** (new)
-
----
-
-## Part 4: Fix Product AI Description Generator
-
-**File: `src/pages/admin/Products.tsx`**
-
-- Replace the fake setTimeout-based description generator with a real call to the `ai-chat` edge function (or a dedicated prompt within it)
-- Generate contextual descriptions based on the product name, category, and brand voice
-
----
-
-## Part 5: Protect Against Abandoned Checkouts
-
-The current flow:
-1. Customer clicks "Proceed to Payment" -- a Pending order is created in DB
-2. Customer is redirected to Square
-3. If they pay and return, `finalize-square-order` verifies payment and updates to "Processing" + decrements inventory
-4. If they abandon, the Pending order stays forever
-
-**Fix approach:**
-
-**File: `supabase/functions/finalize-square-order/index.ts`**
-- Add a cleanup step: before processing, query for any Pending orders older than 1 hour and delete them (or mark as "Cancelled")
-- This runs naturally whenever a successful order comes through
-
-**File: `src/pages/admin/Dashboard.tsx` and revenue calculations**
-- Exclude "Pending" orders from revenue totals, order counts, and all dashboard metrics
-- Only count orders with status "Processing", "Shipped", or "Delivered"
-
-**File: `src/providers/DbSyncProvider.tsx`**
-- In `syncOrders`, filter out Pending orders older than 1 hour on the client side as well
-
----
-
-## Part 6: Fix Data Sync (DbSyncProvider)
-
-**File: `src/providers/DbSyncProvider.tsx`**
-
-Current problem: `syncOrders` and `syncCustomers` only add new records. They never update existing ones, so stale local data persists.
-
-Fix:
-- Change `syncOrders` to use `setOrders()` (full replacement) instead of individually adding missing orders
-- Change `syncCustomers` to use `setCustomers()` (full replacement) instead of individually adding missing customers
-- This ensures the dashboard always reflects the latest database state
-
----
-
-## Part 7: Deploy and Verify
-
-- Deploy the new `ai-chat` edge function
-- Redeploy `finalize-square-order` with cleanup logic
-- Test the dashboard end-to-end:
-  - Verify all stats reflect real data
-  - Verify AI chat returns intelligent responses
-  - Verify customer details show only real data
-  - Verify abandoned checkouts don't inflate metrics
-
----
-
-## Files to Create/Modify
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `supabase/functions/ai-chat/index.ts` | **Create** -- real AI chatbot edge function |
-| `src/pages/admin/Dashboard.tsx` | **Modify** -- remove all mock data, real stats, real AI chat |
-| `src/pages/admin/Customers.tsx` | **Modify** -- remove fake customer details |
-| `src/pages/admin/Products.tsx` | **Modify** -- real AI description generator |
-| `supabase/functions/finalize-square-order/index.ts` | **Modify** -- add stale Pending order cleanup |
-| `src/providers/DbSyncProvider.tsx` | **Modify** -- full replace sync instead of additive |
+| `src/pages/Terms.tsx` | Update "May 2025" to "February 2026" |
+| `src/pages/Privacy.tsx` | Update "May 2025" to "February 2026" |
+| `src/components/Features.tsx` | Change "Italian fabrics" to "Brazilian fabrics" |
+| `src/stores/adminStore.ts` | Fix SEO description default from "Italian" to "Brazilian" |
+| `src/components/Testimonials.tsx` | Remove fake fallback testimonials; only show real reviews or hide section |
+| `src/pages/About.tsx` | Remove specific "Rio de Janeiro" claim from founder bio |
+| `src/components/Footer.tsx` | Remove unused `MapPin` import |
 
 ---
 
-## Technical Notes
+## What's Already Accurate (No Changes Needed)
+- FAQ page -- all answers are consistent and accurate
+- Shipping page -- policies are consistent with announcement bar
+- Contact page -- already cleaned up (location removed)
+- Sustainability page -- consistent messaging about Brazilian fabrics
+- Checkout flow and success page -- no misleading info
+- Hero section, Category Showcase, SEO component -- all clean
+- Mix and Match, Size Quiz, Product pages -- no false info
 
-- The AI chat edge function will use `LOVABLE_API_KEY` (already configured) to call Lovable AI models
-- Dashboard revenue/order metrics will exclude Pending and Cancelled orders
-- Inventory count will be computed from real product data summing all `inventory` fields
-- Low stock count will use `settings.lowStockThreshold` against each product's inventory
-- Charts will show real order data grouped by date (last 7 days)
