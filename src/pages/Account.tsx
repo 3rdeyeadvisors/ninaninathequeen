@@ -197,11 +197,23 @@ export default function Account() {
     }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (resetEmail) {
-      // TODO: Implement Supabase password reset
-      toast.success(`If an account exists for ${resetEmail}, a password reset link has been sent.`);
+      try {
+        const supabase = getSupabase();
+        const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+          redirectTo: `${window.location.origin}/account`,
+        });
+        if (error) {
+          console.error('Password reset error:', error);
+        }
+        // Always show success message to prevent email enumeration
+        toast.success(`If an account exists for ${resetEmail}, a password reset link has been sent.`);
+      } catch (err) {
+        console.error('Password reset error:', err);
+        toast.success(`If an account exists for ${resetEmail}, a password reset link has been sent.`);
+      }
       setIsResetDialogOpen(false);
       setResetEmail('');
     }

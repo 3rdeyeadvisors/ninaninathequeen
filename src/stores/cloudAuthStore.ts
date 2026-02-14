@@ -173,6 +173,23 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
       if (referralCode) {
         localStorage.removeItem('referral_code');
       }
+
+      // Send welcome email (fire-and-forget)
+      try {
+        const supabase = getSupabase();
+        const displayName = name || email.split('@')[0];
+        supabase.functions.invoke('send-email', {
+          body: {
+            type: 'welcome',
+            data: {
+              email,
+              name: displayName,
+            },
+          },
+        }).catch(err => console.error('Welcome email failed:', err));
+      } catch (e) {
+        console.error('Welcome email invoke error:', e);
+      }
       
       return { error: null };
     } catch (error) {
