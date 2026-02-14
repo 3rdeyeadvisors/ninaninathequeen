@@ -75,7 +75,7 @@ export function Header() {
         <div className="hidden lg:flex items-center justify-between w-full h-full">
           {/* Logo & Navigation Combined */}
           <div className="flex items-center gap-6 xl:gap-10 2xl:gap-14">
-            <Link to="/" className="flex flex-col items-center scale-[0.6] xl:scale-[0.75] 2xl:scale-[0.85] transition-all duration-300">
+            <Link to="/" className="flex flex-col items-center scale-[0.6] xl:scale-[0.75] 2xl:scale-[0.85] transition-all duration-300 overflow-visible">
               <Logo />
             </Link>
 
@@ -153,7 +153,7 @@ export function Header() {
           </div>
 
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-            <Link to="/" className="scale-75 transition-transform duration-300 origin-center">
+            <Link to="/" className="scale-75 transition-transform duration-300 origin-center overflow-visible">
               <Logo />
             </Link>
           </div>
