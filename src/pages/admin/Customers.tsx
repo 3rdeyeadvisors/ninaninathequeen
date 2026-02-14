@@ -50,23 +50,22 @@ export default function AdminCustomers() {
     setIsLoadingWaitlist(true);
     try {
       const { data, error } = await supabase
-        .from('waitlist' as any)
+        .from('waitlist')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setWaitlist((data || []) as unknown as WaitlistEntry[]);
+      setWaitlist((data || []) as WaitlistEntry[]);
     } catch (err) {
       console.error('Failed to fetch waitlist:', err);
+      toast.error('Failed to load waitlist');
     } finally {
       setIsLoadingWaitlist(false);
     }
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'waitlist') {
-      fetchWaitlist();
-    }
-  }, [activeTab, fetchWaitlist]);
+    fetchWaitlist();
+  }, [fetchWaitlist]);
 
   const getCustomerRole = (email: string) => {
     const authUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -95,7 +94,7 @@ export default function AdminCustomers() {
     if (!confirm('Remove this person from the waitlist?')) return;
     try {
       const { error } = await supabase
-        .from('waitlist' as any)
+        .from('waitlist')
         .delete()
         .eq('id', id)
         .select('id')
