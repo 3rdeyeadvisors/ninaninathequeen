@@ -1,67 +1,71 @@
 
 
-# Fix Waitlist Issues + Add Notification Badges
+# Launch Announcement Email + Selectable Waitlist
 
-## Part 1: Fix Waitlist Issues
+## Overview
 
-### Problem
-The waitlist fetch in `src/pages/admin/Customers.tsx` uses `supabase.from('waitlist' as any)` -- the `as any` cast is unnecessary since `waitlist` exists in the generated types. More importantly, the waitlist data only loads when the user clicks the "Waitlist" tab (due to the `activeTab === 'waitlist'` guard in the useEffect). This means:
-- The waitlist badge count shows `0` on initial load until the tab is clicked
-- If the fetch silently fails (e.g. auth timing), the user sees an empty list with no feedback
+Add a "Send Launch Email" feature to the Waitlist tab that lets you select specific waitlist entries and send them a branded launch announcement email. The email will tell them Nina Armend is live, invite them to create an account to earn points, and link to the signup page.
 
-### Fix
-1. **Remove `as any` casts** -- Use proper typed `supabase.from('waitlist')` calls (lines 53 and 98)
-2. **Fetch waitlist on mount**, not just when the tab is active -- so the badge count is accurate immediately
-3. **Add error toast** when waitlist fetch fails so the user knows something went wrong instead of seeing a blank list
+## Part 1: New Email Template (Edge Function)
+
+**File:** `supabase/functions/send-email/index.ts`
+
+Add a new `launchAnnouncementEmail` function that generates the launch email:
+- Subject: "Nina Armend Is Now Live"
+- Content: Announces the store is open, highlights the 50 welcome points for creating an account, and includes a CTA button linking to the signup/shop page
+- Uses the existing branded `baseWrapper` layout (black bg, gold accents, Parisienne logo)
+
+Add a new case `'launch_announcement'` in the switch statement that accepts `{ emails: string[] }` -- an array of recipient emails. It loops through each email and sends the launch email individually via the existing `sendEmail` helper.
+
+## Part 2: Selectable Waitlist UI
 
 **File:** `src/pages/admin/Customers.tsx`
-- Line 53: Change `from('waitlist' as any)` to `from('waitlist')`
-- Line 98: Change `from('waitlist' as any)` to `from('waitlist')`
-- Lines 65-69: Remove the `activeTab === 'waitlist'` guard so waitlist fetches on component mount
-- Line 59: Add `toast.error('Failed to load waitlist')` in the catch block
 
----
+Changes to the Waitlist tab:
 
-## Part 2: Add Notification Badges to Admin Sidebar
+1. **New state**: `selectedIds` (Set of waitlist entry IDs) and `isSendingLaunch` (boolean loading state)
 
-### What's Changing
-The admin sidebar navigation links will show notification badge counts on the top-right corner of each category when there's new activity:
+2. **Checkbox column**: Add a checkbox to each waitlist row for selection, plus a "select all" checkbox in the table header
 
-- **Orders** -- Shows count of orders with "Pending" status
-- **Customers** -- Shows total waitlist count (since in maintenance mode, waitlist signups are the key metric)
+3. **"Send Launch Email" button**: Appears in the toolbar next to "Download CSV" when at least one entry is selected. Shows count of selected entries (e.g., "Send Launch Email (5)"). On click:
+   - Confirms with the user ("Send launch email to X recipients?")
+   - Calls the `send-email` edge function with `type: 'launch_announcement'` and the selected emails array
+   - Shows success/error toast
+   - Disables button and shows spinner while sending
 
-### Implementation
+4. **Select All / Deselect All**: The header checkbox toggles between selecting all filtered entries and deselecting all
 
-**File:** `src/components/admin/AdminSidebar.tsx`
+## Technical Details
 
-1. Import `supabase` client and add state for notification counts
-2. On mount, fetch:
-   - Pending orders count: `supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'Pending')`
-   - Waitlist count: `supabase.from('waitlist').select('id', { count: 'exact', head: true })`
-3. Display a small red/primary badge circle with the count on the top-right of the relevant sidebar link icons
-4. Only show the badge when count > 0
+### Launch Email Content
+```
+Subject: Nina Armend Is Now Live
 
-### Technical Details
-
-The sidebar links array will be extended with an optional `badgeCount` property. A small absolute-positioned badge element renders over the link when the count is greater than zero. The badge will use the brand's primary/gold color for consistency with the luxury aesthetic.
-
-```text
-+-------------------+
-| Orders  [3]       |  <-- badge shows pending order count
-+-------------------+
-| Customers [5]     |  <-- badge shows waitlist signups
-+-------------------+
+Body:
+- "The wait is over" headline
+- Brief message that the store is open
+- Card highlighting 50 welcome points for creating an account
+- Primary CTA button: "Create Your Account" -> /shop (or signup route)
+- Secondary note about exclusive collections
 ```
 
-The counts are fetched with `head: true` (count-only query) for efficiency -- no row data is transferred.
+### Edge Function Changes
+- New template function: `launchAnnouncementEmail(data: { name?: string })`
+- New case in switch: `'launch_announcement'` that expects `{ emails: string[] }` and sends to each recipient
+- Sends emails sequentially to avoid rate limiting, returns combined results
 
----
+### UI Component Changes
+- Import `Checkbox` from `@/components/ui/checkbox`
+- Add `Send` icon from lucide-react
+- New column in waitlist table (leftmost) with checkboxes
+- Toolbar button conditionally rendered when `selectedIds.size > 0`
 
 ## Testing Plan
 
 After implementation:
-1. Navigate to admin dashboard and verify badge counts appear on sidebar
-2. Click to the Customers page and verify the Waitlist tab loads data immediately (not just on tab click)
-3. Verify the waitlist count matches between the sidebar badge and the waitlist tab
-4. Confirm no console errors related to waitlist queries
+1. Navigate to admin Customers page, Waitlist tab
+2. Verify checkboxes appear on each row and "select all" works
+3. Select a few entries and verify the "Send Launch Email" button appears with correct count
+4. Click the button and confirm the email is sent successfully via edge function logs
+5. Verify the email content renders correctly with the branded template
 
