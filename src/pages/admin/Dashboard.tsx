@@ -177,23 +177,47 @@ export default function AdminDashboard() {
     return { topOpportunity, growthSignal };
   }, [confirmedOrders, orders, customers, lowStockCount]);
 
-  // Build store context for AI chat
+  // Build store context for AI chat — comprehensive brand + store intelligence
   const storeContext = useMemo(() => {
     const activeProducts = Object.values(productOverrides).filter(p => !p.isDeleted);
+    const pendingOrders = orders.filter(o => o.status === 'Pending');
+    const isMaintenanceMode = settings.isMaintenanceMode ?? false;
+
+    const productCatalog = activeProducts
+      .map(p => `- ${p.title} | $${p.price} | ${p.category || 'Uncategorized'} | ${p.inventory} in stock${p.description ? ` | ${p.description.slice(0, 80)}` : ''}`)
+      .join('\n');
+
     return `
+=== BRAND IDENTITY ===
+Brand: Nina Armend — Luxury Brazilian Swimwear
+Mission: Celebrating body beauty with pride, grace, and individuality. The human body is not meant to be hidden, but to be shown with grace.
+Target Audience: Fashion-forward women aged 25-40 who value body confidence, luxury, and sustainability.
+Brand Values: Body positivity, Brazilian craftsmanship, eco-conscious fabrics, individuality, empowerment.
+Key Differentiators: Premium Brazilian fabrics, handcrafted in Brazil, designed to flatter all body types, luxury positioning.
+Founder: Lydia — Brazilian-born designer passionate about celebrating feminine beauty through swimwear.
+
+=== BUSINESS STAGE ===
+Stage: ${isMaintenanceMode ? 'Pre-launch (maintenance mode active, collecting waitlist signups)' : 'Live (store is open to the public)'}
+Waitlist Signups: ${waitlistCount}
+${isMaintenanceMode ? 'Strategy: Building anticipation and audience before official launch. Waitlist is the primary growth channel.' : ''}
+
+=== STORE METRICS ===
 Revenue: $${totalRevenue.toFixed(2)}
 Net Profit: $${totalNetProfit.toFixed(2)}
 Confirmed Orders: ${confirmedOrders.length}
-Pending Orders: ${orders.filter(o => o.status === 'Pending').length}
-Total Products: ${activeProducts.length}
+Pending Orders: ${pendingOrders.length}
+Total Customers: ${customers.length}
+Total Audience (Customers + Waitlist): ${customers.length + waitlistCount}
 Total Inventory: ${totalInventory} items
-Low Stock Products: ${lowStockCount}
-Customers: ${customers.length}
-Low Stock Threshold: ${settings.lowStockThreshold}
-Top Products by inventory: ${activeProducts.sort((a, b) => b.inventory - a.inventory).slice(0, 5).map(p => `${p.title} (${p.inventory} units)`).join(', ')}
-Recent Orders: ${confirmedOrders.slice(0, 5).map(o => `${o.customerName} - $${o.total} (${o.status})`).join('; ')}
+Low Stock Products: ${lowStockCount} (threshold: ${settings.lowStockThreshold || 10})
+
+=== PRODUCT CATALOG ===
+${productCatalog || 'No active products yet.'}
+
+=== RECENT ORDERS ===
+${confirmedOrders.slice(0, 5).map(o => `- ${o.customerName} — $${o.total} (${o.status})`).join('\n') || 'No recent orders.'}
     `.trim();
-  }, [totalRevenue, totalNetProfit, confirmedOrders, orders, productOverrides, totalInventory, lowStockCount, customers, settings]);
+  }, [totalRevenue, totalNetProfit, confirmedOrders, orders, productOverrides, totalInventory, lowStockCount, customers, settings, waitlistCount]);
 
   // Show loading skeleton while data is being restored from storage
   if (!_hasHydrated) {
