@@ -2,6 +2,7 @@
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { motion } from 'framer-motion';
+import ninaVisionAboutImg from '@/assets/nina-vision-about.jpeg';
 
 export default function About() {
   return (
@@ -43,7 +44,7 @@ export default function About() {
               <div className="aspect-square w-full max-w-[320px] lg:max-w-[420px] bg-secondary rounded-full overflow-hidden border-8 border-secondary/20 shadow-elegant relative group">
                 <div className="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors duration-500 z-10" />
                 <img
-                  src="https://images.unsplash.com/photo-1590650213165-c1fef80648c4?auto=format&fit=crop&q=80&w=800"
+                  src={ninaVisionAboutImg}
                   alt="Nina Armend Vision"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Leaf, Recycle, Heart } from 'lucide-react';
 import slowFashionImg from '@/assets/slow-fashion.jpeg';
 import waterConservationImg from '@/assets/water-conservation.jpeg';
-import ninaVisionImg from '@/assets/nina-vision.jpeg';
+
 
 export default function Sustainability() {
   return (
@@ -89,19 +89,6 @@ export default function Sustainability() {
                 </div>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-8 items-center">
-                <div className="flex-1">
-                  <h3 className="font-serif text-2xl mb-4">The Nina Armend Vision</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Our vision is rooted in celebrating natural beauty and the joy of living in harmony
-                    with the world around us. Every piece we create is an invitation to embrace the sun,
-                    the sea, and the confidence that comes from wearing something made with intention.
-                  </p>
-                </div>
-                <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-secondary overflow-hidden mx-auto flex-shrink-0">
-                  <img src={ninaVisionImg} alt="The Nina Armend Vision" className="w-full h-full object-cover" style={{ objectPosition: '65% center' }} />
-                </div>
-              </div>
             </div>
           </div>
         </div>
