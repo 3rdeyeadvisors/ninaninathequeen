@@ -1,12 +1,12 @@
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, User, Mail, DollarSign, ShoppingBag, MapPin, Phone, Calendar, Award, Shield, Trash2, UserPlus, MoreVertical } from 'lucide-react';
+import { Search, User, Mail, DollarSign, ShoppingBag, Calendar, Shield, Trash2, UserPlus, Download, Users, Clock } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminCustomer as Customer } from '@/stores/adminStore';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from "sonner";
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+
+interface WaitlistEntry {
+  id: string;
+  email: string;
+  name: string | null;
+  created_at: string;
+}
 
 export default function AdminCustomers() {
   const { customers, deleteCustomer, addCustomer, _hasHydrated } = useAdminStore();
@@ -29,7 +38,35 @@ export default function AdminCustomers() {
   const [inviteName, setInviteName] = useState('');
   const [inviteRole, setInviteRole] = useState('User');
 
+  // Waitlist state
+  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
+  const [waitlistSearch, setWaitlistSearch] = useState('');
+  const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false);
+  const [activeTab, setActiveTab] = useState('customers');
+
   const isOwner = cloudUser?.isAdmin || cloudUser?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  const fetchWaitlist = useCallback(async () => {
+    setIsLoadingWaitlist(true);
+    try {
+      const { data, error } = await supabase
+        .from('waitlist' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setWaitlist((data || []) as unknown as WaitlistEntry[]);
+    } catch (err) {
+      console.error('Failed to fetch waitlist:', err);
+    } finally {
+      setIsLoadingWaitlist(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'waitlist') {
+      fetchWaitlist();
+    }
+  }, [activeTab, fetchWaitlist]);
 
   const getCustomerRole = (email: string) => {
     const authUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -44,6 +81,55 @@ export default function AdminCustomers() {
       c.email.toLowerCase().includes(q)
     );
   }, [customers, searchQuery]);
+
+  const filteredWaitlist = useMemo(() => {
+    if (!waitlistSearch) return waitlist;
+    const q = waitlistSearch.toLowerCase();
+    return waitlist.filter(w =>
+      w.email.toLowerCase().includes(q) ||
+      (w.name && w.name.toLowerCase().includes(q))
+    );
+  }, [waitlist, waitlistSearch]);
+
+  const handleDeleteWaitlistEntry = async (id: string) => {
+    if (!confirm('Remove this person from the waitlist?')) return;
+    try {
+      const { error } = await supabase
+        .from('waitlist' as any)
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
+      if (error) throw error;
+      setWaitlist(prev => prev.filter(w => w.id !== id));
+      toast.success('Removed from waitlist');
+    } catch (err) {
+      console.error('Delete waitlist entry failed:', err);
+      toast.error('Failed to remove entry');
+    }
+  };
+
+  const downloadWaitlistCsv = () => {
+    if (waitlist.length === 0) {
+      toast.error('No waitlist entries to download');
+      return;
+    }
+    const escapeCsv = (val: string) => val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
+    const headers = 'Email,Name,Signup Date';
+    const rows = waitlist.map(w =>
+      [escapeCsv(w.email), escapeCsv(w.name || ''), new Date(w.created_at).toLocaleDateString()].join(',')
+    );
+    const csv = [headers, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nina_armend_waitlist_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success(`Downloaded ${waitlist.length} waitlist entries`);
+  };
 
   // Show loading skeleton while data is being restored from storage
   if (!_hasHydrated) {
@@ -101,64 +187,200 @@ export default function AdminCustomers() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 bg-background border rounded-lg px-3 py-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none outline-none text-sm w-full font-sans"
-              />
-            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="font-sans">
+                <TabsTrigger value="customers" className="text-xs uppercase tracking-widest">
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
+                  Customers
+                </TabsTrigger>
+                <TabsTrigger value="waitlist" className="text-xs uppercase tracking-widest">
+                  <Clock className="h-3.5 w-3.5 mr-1.5" />
+                  Waitlist
+                  {waitlist.length > 0 && (
+                    <Badge variant="secondary" className="ml-2 text-[10px] h-5 px-1.5">{waitlist.length}</Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
 
-            <div className="overflow-x-auto rounded-lg border">
-              <Table className="min-w-[800px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Customer</TableHead>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Email</TableHead>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Role</TableHead>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Orders</TableHead>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Total Spent</TableHead>
-                    <TableHead className="font-sans text-[10px] uppercase tracking-widest">Joined</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCustomers.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center font-sans text-muted-foreground">
-                        No customers found matching your search.
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredCustomers.map((customer) => (
-                    <TableRow
-                      key={customer.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors group"
-                      onClick={() => setSelectedCustomer(customer)}
+              <TabsContent value="customers" className="space-y-6 mt-6">
+                <div className="flex items-center gap-4 bg-background border rounded-lg px-3 py-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <input
+                    placeholder="Search by name or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-transparent border-none outline-none text-sm w-full font-sans"
+                  />
+                </div>
+
+                <div className="overflow-x-auto rounded-lg border">
+                  <Table className="min-w-[800px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Customer</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Email</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Role</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Orders</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Total Spent</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Joined</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCustomers.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-24 text-center font-sans text-muted-foreground">
+                            No customers found matching your search.
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredCustomers.map((customer) => (
+                        <TableRow
+                          key={customer.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors group"
+                          onClick={() => setSelectedCustomer(customer)}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="h-4 w-4 text-primary" />
+                              </div>
+                              <span className="font-medium font-sans text-sm">{customer.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-sans text-sm text-muted-foreground">{customer.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-sans text-[10px] uppercase tracking-widest border-primary/20 text-primary">
+                              {getCustomerRole(customer.email)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-sans text-sm">{customer.orderCount}</TableCell>
+                          <TableCell className="font-sans text-sm font-medium">${parseFloat(customer.totalSpent).toFixed(2)}</TableCell>
+                          <TableCell className="font-sans text-xs text-muted-foreground">{customer.joinDate}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                  <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-emerald-100 rounded-lg">
+                        <DollarSign className="h-4 w-4 text-emerald-600" />
+                      </div>
+                      <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Avg. Lifetime Value</h3>
+                    </div>
+                    <p className="font-serif text-2xl">
+                      ${customers.length > 0
+                        ? (customers.reduce((sum, c) => sum + parseFloat(c.totalSpent || '0'), 0) / customers.length).toFixed(2)
+                        : '0.00'}
+                    </p>
+                  </div>
+                  <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <ShoppingBag className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Repeat Purchase Rate</h3>
+                    </div>
+                    <p className="font-serif text-2xl">
+                      {customers.length > 0
+                        ? `${Math.round((customers.filter(c => c.orderCount > 1).length / customers.length) * 100)}%`
+                        : '0%'}
+                    </p>
+                  </div>
+                  <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-amber-100 rounded-lg">
+                        <DollarSign className="h-4 w-4 text-amber-600" />
+                      </div>
+                      <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Total Revenue</h3>
+                    </div>
+                    <p className="font-serif text-2xl">
+                      ${customers.reduce((sum, c) => sum + parseFloat(c.totalSpent || '0'), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="waitlist" className="space-y-6 mt-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex items-center gap-4 bg-background border rounded-lg px-3 py-2 flex-1 w-full sm:w-auto">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      placeholder="Search waitlist..."
+                      value={waitlistSearch}
+                      onChange={(e) => setWaitlistSearch(e.target.value)}
+                      className="bg-transparent border-none outline-none text-sm w-full font-sans"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadWaitlistCsv}
+                      className="font-sans text-[10px] uppercase tracking-widest"
                     >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-4 w-4 text-primary" />
-                          </div>
-                          <span className="font-medium font-sans text-sm">{customer.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-sans text-sm text-muted-foreground">{customer.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-sans text-[10px] uppercase tracking-widest border-primary/20 text-primary">
-                          {getCustomerRole(customer.email)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-sans text-sm">{customer.orderCount}</TableCell>
-                      <TableCell className="font-sans text-sm font-medium">${parseFloat(customer.totalSpent).toFixed(2)}</TableCell>
-                      <TableCell className="font-sans text-xs text-muted-foreground">{customer.joinDate}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Download CSV
+                    </Button>
+                    <div className="bg-primary/10 px-4 py-2 rounded-lg border border-primary/20">
+                      <p className="text-[10px] font-sans uppercase tracking-widest text-primary font-bold">Waitlist</p>
+                      <p className="font-serif text-2xl">{waitlist.length}</p>
+                    </div>
+                  </div>
+                </div>
 
+                {isLoadingWaitlist ? (
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="font-sans text-[10px] uppercase tracking-widest">Email</TableHead>
+                          <TableHead className="font-sans text-[10px] uppercase tracking-widest">Name</TableHead>
+                          <TableHead className="font-sans text-[10px] uppercase tracking-widest">Signup Date</TableHead>
+                          <TableHead className="font-sans text-[10px] uppercase tracking-widest w-[60px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredWaitlist.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="h-24 text-center font-sans text-muted-foreground">
+                              {waitlist.length === 0 ? 'No one has joined the waitlist yet.' : 'No results matching your search.'}
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredWaitlist.map((entry) => (
+                          <TableRow key={entry.id}>
+                            <TableCell className="font-sans text-sm">{entry.email}</TableCell>
+                            <TableCell className="font-sans text-sm text-muted-foreground">{entry.name || '—'}</TableCell>
+                            <TableCell className="font-sans text-xs text-muted-foreground">
+                              {new Date(entry.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleDeleteWaitlistEntry(entry.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {/* Customer Detail Dialog */}
             <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
               <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-primary/20">
                 {selectedCustomer && (
@@ -230,7 +452,6 @@ export default function AdminCustomers() {
                                   value={getCustomerRole(selectedCustomer.email)}
                                   onChange={(e) => {
                                     updateUserRole(selectedCustomer.email, e.target.value);
-                                    // Refresh the UI by forcing a re-render or notification
                                   }}
                                 >
                                   <option value="Customer">Customer</option>
@@ -258,7 +479,6 @@ export default function AdminCustomers() {
                           </div>
                         </div>
                       )}
-
                     </div>
                   </div>
                 )}
@@ -315,7 +535,6 @@ export default function AdminCustomers() {
                       onClick={() => {
                         if (!inviteEmail || !inviteName) return;
 
-                        // Add to auth store
                         addUser({
                           name: inviteName,
                           email: inviteEmail,
@@ -324,7 +543,6 @@ export default function AdminCustomers() {
                           referralCode: `NINA-STAFF-${Math.floor(Math.random() * 1000)}`
                         });
 
-                        // Also add to admin customers list so they show up in the table
                         addCustomer({
                           id: `staff-${Date.now()}`,
                           name: inviteName,
@@ -353,46 +571,6 @@ export default function AdminCustomers() {
                 </div>
               </DialogContent>
             </Dialog>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-              <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-emerald-100 rounded-lg">
-                    <DollarSign className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Avg. Lifetime Value</h3>
-                </div>
-                <p className="font-serif text-2xl">
-                  ${customers.length > 0
-                    ? (customers.reduce((sum, c) => sum + parseFloat(c.totalSpent || '0'), 0) / customers.length).toFixed(2)
-                    : '0.00'}
-                </p>
-              </div>
-              <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <ShoppingBag className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Repeat Purchase Rate</h3>
-                </div>
-                <p className="font-serif text-2xl">
-                  {customers.length > 0
-                    ? `${Math.round((customers.filter(c => c.orderCount > 1).length / customers.length) * 100)}%`
-                    : '0%'}
-                </p>
-              </div>
-              <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <DollarSign className="h-4 w-4 text-amber-600" />
-                  </div>
-                  <h3 className="font-sans text-[10px] uppercase tracking-widest font-bold">Total Revenue</h3>
-                </div>
-                <p className="font-serif text-2xl">
-                  ${customers.reduce((sum, c) => sum + parseFloat(c.totalSpent || '0'), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
           </main>
         </div>
       </div>

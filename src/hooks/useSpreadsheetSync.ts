@@ -288,16 +288,21 @@ export function useSpreadsheetSync() {
       return;
     }
 
-    // Build CSV rows from actual product data
-    const headers = ['Item Name', 'Type', 'Price', 'Unit Cost', 'Stock', 'Collection', 'Status', 'Item Number', 'Color'];
+    // Build CSV rows from actual product data with per-size inventory columns
+    const sizeColumns = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL'];
+    const headers = ['Item Name', 'Type', 'Price', 'Unit Cost', ...sizeColumns, 'Total Stock', 'Collection', 'Status', 'Item Number', 'Color'];
     const rows = products.map(p => {
       const escapeCsv = (val: string) => val.includes(',') || val.includes('"') ? `"${val.replace(/"/g, '""')}"` : val;
+      const sizeInv = (p.sizeInventory || {}) as Record<string, number>;
+      const sizeCells = sizeColumns.map(size => String(sizeInv[size] || 0));
+      const totalStock = Object.values(sizeInv).reduce((sum: number, qty) => sum + (Number(qty) || 0), 0);
       return [
         escapeCsv(p.title || ''),
         escapeCsv(p.productType || p.category || ''),
         p.price || '0.00',
         p.unitCost || '0.00',
-        String(p.inventory || 0),
+        ...sizeCells,
+        String(totalStock || p.inventory || 0),
         escapeCsv(p.collection || ''),
         p.status || 'Active',
         escapeCsv(p.itemNumber || ''),
