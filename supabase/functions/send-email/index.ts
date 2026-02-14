@@ -27,11 +27,12 @@ function baseWrapper(content: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap" rel="stylesheet">
 <style>
   body{margin:0;padding:0;background:${colors.bg};font-family:'Georgia',serif;}
   .container{max-width:600px;margin:0 auto;background:${colors.bg};padding:40px 32px;}
   .logo-row{text-align:center;padding-bottom:24px;}
-  .logo-text{font-size:28px;color:${colors.accent};letter-spacing:4px;font-weight:300;text-transform:uppercase;font-family:'Georgia',serif;}
+  .logo-text{font-size:36px;color:${colors.accent};font-weight:400;font-family:'Parisienne',cursive,'Georgia',serif;}
   .divider{height:1px;background:${colors.accent};margin:0 0 32px 0;opacity:0.4;}
   h1{color:${colors.text};font-size:24px;font-weight:400;margin:0 0 16px 0;font-family:'Georgia',serif;}
   h2{color:${colors.text};font-size:20px;font-weight:400;margin:0 0 12px 0;font-family:'Georgia',serif;}
@@ -65,7 +66,7 @@ function baseWrapper(content: string): string {
       <a href="${BRAND.siteUrl}/contact">Contact</a>
     </p>
     <p style="margin-top:16px;">© ${new Date().getFullYear()} Nina Armend. All rights reserved.</p>
-    <p style="margin-top:8px;">Leblon, Rio de Janeiro, Brazil</p>
+    <p style="margin-top:8px;">San Antonio, Texas</p>
   </div>
 </div>
 </body>
