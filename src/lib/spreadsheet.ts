@@ -26,8 +26,12 @@ export function parseSpreadsheet(data: ArrayBuffer): Record<string, string>[] {
       if (['type', 'product type', 'producttype', 'category'].includes(normalizedKey)) {
         normalizedKey = 'producttype';
       }
-      // Map "Price" or "Price Per Unit" as requested by user
-      if (['price', 'price per unit', 'priceperunit'].includes(normalizedKey)) {
+      // "Price Per Unit" = what she paid per item (unit cost / COGS)
+      if (['price per unit', 'priceperunit', 'unit cost', 'unitcost', 'cost', 'cogs'].includes(normalizedKey)) {
+        normalizedKey = 'unitcost';
+      }
+      // "Price" or "Selling Price" = the selling price to customers
+      if (['price', 'selling price', 'sellingprice', 'retail price', 'retailprice'].includes(normalizedKey)) {
         normalizedKey = 'price';
       }
       if (['stock', 'qty', 'quantity', 'inventory', 'stock amount', 'stockamount'].includes(normalizedKey)) {
@@ -36,7 +40,8 @@ export function parseSpreadsheet(data: ArrayBuffer): Record<string, string>[] {
       if (['collection', 'collections'].includes(normalizedKey)) {
         normalizedKey = 'collection';
       }
-      if (['status', 'product status'].includes(normalizedKey)) {
+      // "Status" = additional units ordered on top of existing stock
+      if (['status', 'product status', 'ordered', 'on order'].includes(normalizedKey)) {
         normalizedKey = 'status';
       }
       if (['item number', 'item#', 'item #', 'itemnumber', 'sku'].includes(normalizedKey)) {

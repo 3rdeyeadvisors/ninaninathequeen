@@ -561,7 +561,7 @@ export default function AdminProducts() {
                   className="font-sans text-[10px] uppercase tracking-widest text-primary"
                 >
                   <Download className="h-3 w-3 mr-2" />
-                  Template
+                  Download Spreadsheet
                 </Button>
                 <Button className="bg-primary" onClick={startAdding}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -809,7 +809,8 @@ export default function AdminProducts() {
                               sizes: sizes,
                               category: override?.category,
                               itemNumber: override?.itemNumber,
-                              colorCodes: override?.colorCodes || []
+                              colorCodes: override?.colorCodes || [],
+                              unitCost: override?.unitCost || '0.00',
                             });
                           }}>
                             <Edit2 className="h-4 w-4 text-muted-foreground" />
@@ -868,7 +869,7 @@ export default function AdminProducts() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="price" className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Price (USD)</Label>
+                        <Label htmlFor="price" className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Selling Price (USD)</Label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-sans">$</span>
                           <Input
@@ -876,6 +877,19 @@ export default function AdminProducts() {
                             type="text"
                             value={editingProduct?.price || ""}
                             onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
+                            className="font-sans text-sm bg-secondary/10 border-border/50 focus:bg-background transition-all h-11 pl-7"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="unitCost" className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Unit Cost (COGS)</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-sans">$</span>
+                          <Input
+                            id="unitCost"
+                            type="text"
+                            value={editingProduct?.unitCost || "0.00"}
+                            onChange={(e) => setEditingProduct({...editingProduct, unitCost: e.target.value})}
                             className="font-sans text-sm bg-secondary/10 border-border/50 focus:bg-background transition-all h-11 pl-7"
                           />
                         </div>

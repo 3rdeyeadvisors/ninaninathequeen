@@ -303,7 +303,7 @@ export default function AdminOrders() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-4 border-b pb-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-b pb-6">
                       <div>
                         <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Revenue</h4>
                         <p className="font-sans text-sm font-medium">${parseFloat(selectedOrder.total).toFixed(2)}</p>
@@ -314,7 +314,33 @@ export default function AdminOrders() {
                       </div>
                       <div>
                         <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Item Cost (COGS)</h4>
-                        <p className="font-sans text-sm font-medium text-destructive">-${parseFloat(selectedOrder.itemCost || '0').toFixed(2)}</p>
+                        <p className="font-sans text-sm font-medium text-destructive">
+                          -${(() => {
+                            const manualCost = parseFloat(selectedOrder.itemCost || '0');
+                            if (manualCost > 0) return manualCost.toFixed(2);
+                            // Auto-calculate from unit costs
+                            const autoCost = selectedOrder.items.reduce((sum, item) => {
+                              const match = Object.values(productOverrides).find(p => p.title === item.title);
+                              return sum + (parseFloat(match?.unitCost || '0') * item.quantity);
+                            }, 0);
+                            return autoCost.toFixed(2);
+                          })()}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Profit</h4>
+                        <p className="font-sans text-sm font-medium text-emerald-600">
+                          ${(() => {
+                            const revenue = parseFloat(selectedOrder.total);
+                            const shipping = parseFloat(selectedOrder.shippingCost || '0');
+                            const manualCost = parseFloat(selectedOrder.itemCost || '0');
+                            const cost = manualCost > 0 ? manualCost : selectedOrder.items.reduce((sum, item) => {
+                              const match = Object.values(productOverrides).find(p => p.title === item.title);
+                              return sum + (parseFloat(match?.unitCost || '0') * item.quantity);
+                            }, 0);
+                            return (revenue - shipping - cost).toFixed(2);
+                          })()}
+                        </p>
                       </div>
                     </div>
 

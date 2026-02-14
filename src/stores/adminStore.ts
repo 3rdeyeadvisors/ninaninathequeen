@@ -55,6 +55,7 @@ export interface ProductOverride {
   status?: 'Active' | 'Inactive' | 'Draft';
   itemNumber?: string;
   colorCodes?: string[];
+  unitCost?: string;
 }
 
 export interface AdminSettings {
