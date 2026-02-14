@@ -1,55 +1,30 @@
 
 
-# Platform-Wide Audit: Remove False and Misleading Information
+## Remove Square API Credentials from Admin Settings
 
-## Issues Found
+### What's Changing
+The Square API key, Application ID, and Location ID fields will be removed from the admin settings page and database. These credentials are already securely stored as backend secrets and used by backend functions, so storing them in the database is redundant and a security risk.
 
-### 1. False "Last Updated" Dates
-- **Terms of Service** (`src/pages/Terms.tsx` line 29): Says "Last updated: May 2025" -- the current date is February 2026
-- **Privacy Policy** (`src/pages/Privacy.tsx` line 26): Says "Last updated: May 2025" -- same issue
-- **Fix**: Update both to "February 2026"
+Going forward, if you need to update Square credentials, you can do so through this chat.
 
-### 2. Inconsistent Fabric Claims -- "Italian" vs "Brazilian"
-- **Features component** (`src/components/Features.tsx` line 13): Says "Handcrafted with premium double-lined Italian fabrics" -- every other page on the site says Brazilian fabrics
-- **Admin SEO default** (`src/stores/adminStore.ts` line 112): SEO description says "finest Italian fabrics"
-- **Fix**: Change both to "Brazilian fabrics" for consistency with the About, Sustainability, and FAQ pages
+### Steps
 
-### 3. Fake Testimonials with Made-Up Names
-- **Testimonials component** (`src/components/Testimonials.tsx` lines 7-24): Contains 3 hardcoded fake reviews with fabricated names ("Isabella Silva", "Sophia Martinez", "Alessandra Rossi") and fake locations ("Rio de Janeiro", "Miami, FL", "Milan, Italy")
-- These show on the homepage when there aren't enough real reviews
-- **Fix**: Remove the fake fallback testimonials entirely. If there are fewer than 3 real reviews, show only what's real, or hide the section altogether
+1. **Database migration** -- Drop the three columns (`square_api_key`, `square_application_id`, `square_location_id`) from the `store_settings` table. Also update the `public_store_settings` view to remove references to these columns (though they were already excluded).
 
-### 4. About Page -- Founder's "Rio de Janeiro" Reference
-- **About page** (`src/pages/About.tsx` line 66): Says "Her deep connection to the coastal lifestyle of Rio de Janeiro" about the founder Lydia
-- This may be inaccurate given that the location was already removed from Contact
-- **Fix**: Change to a more general reference like "her deep connection to Brazilian beach culture" (removing the specific city claim)
+2. **Remove the "Payment Gateway (Square)" card** from the admin Settings page (`src/pages/admin/Settings.tsx`), including the masked token display logic and the `isEditingToken` state.
 
-### 5. Unused Import Cleanup
-- **Footer** (`src/components/Footer.tsx` line 3): `MapPin` is imported but never used (leftover from the location removal)
-- **Fix**: Remove unused import
+3. **Clean up the admin store** (`src/stores/adminStore.ts`) -- Remove `squareApiKey`, `squareApplicationId`, and `squareLocationId` from the `AdminSettings` type and default values.
 
----
+4. **Clean up data sync code** -- Remove Square credential mapping in `src/hooks/useSettingsDb.ts` and `src/providers/DbSyncProvider.tsx`.
 
-## Files to Modify
+5. **Update edge functions** (`create-square-checkout`, `process-payment`, `finalize-square-order`) -- Remove the database fallback logic that reads `square_api_key` from the `store_settings` table. These functions will rely solely on the backend secrets (`SQUARE_ACCESS_TOKEN`, `SQUARE_APPLICATION_ID`, `SQUARE_LOCATION_ID`), which are already configured.
 
-| File | Change |
-|------|--------|
-| `src/pages/Terms.tsx` | Update "May 2025" to "February 2026" |
-| `src/pages/Privacy.tsx` | Update "May 2025" to "February 2026" |
-| `src/components/Features.tsx` | Change "Italian fabrics" to "Brazilian fabrics" |
-| `src/stores/adminStore.ts` | Fix SEO description default from "Italian" to "Brazilian" |
-| `src/components/Testimonials.tsx` | Remove fake fallback testimonials; only show real reviews or hide section |
-| `src/pages/About.tsx` | Remove specific "Rio de Janeiro" claim from founder bio |
-| `src/components/Footer.tsx` | Remove unused `MapPin` import |
+6. **Update POS page** (`src/pages/admin/POS.tsx`) -- Use backend secrets via an edge function call instead of reading `squareApplicationId`/`squareLocationId` from the store. Alternatively, hardcode the sandbox values since POS initialization requires client-side SDK access.
 
----
+7. **Update the test** (`src/test/adminStore.test.ts`) -- Remove the `squareLocationId` assertion.
 
-## What's Already Accurate (No Changes Needed)
-- FAQ page -- all answers are consistent and accurate
-- Shipping page -- policies are consistent with announcement bar
-- Contact page -- already cleaned up (location removed)
-- Sustainability page -- consistent messaging about Brazilian fabrics
-- Checkout flow and success page -- no misleading info
-- Hero section, Category Showcase, SEO component -- all clean
-- Mix and Match, Size Quiz, Product pages -- no false info
+8. **Delete the security finding** (`square_api_plaintext`) since it will be fully resolved.
+
+### Technical Detail: POS Client-Side SDK
+The Square Web Payments SDK requires an Application ID and Location ID on the client side to initialize card payments. Since these are not sensitive (they're public-facing IDs), they can either be passed from an edge function endpoint or kept as environment variables (`VITE_SQUARE_APPLICATION_ID`, `VITE_SQUARE_LOCATION_ID`). The access token (the sensitive credential) is already backend-only.
 
