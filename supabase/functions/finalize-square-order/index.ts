@@ -216,6 +216,36 @@ Deno.serve(async (req) => {
         // Non-critical, don't fail the order
       }
 
+      // Send order confirmation email
+      try {
+        const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+        if (RESEND_API_KEY && order.customer_email) {
+          const items = Array.isArray(order.items) ? (order.items as Array<{ title?: string; name?: string; quantity: number; price: string; size?: string }>) : [];
+          const emailBody = {
+            type: 'order_confirmation',
+            data: {
+              orderId: order.id,
+              customerName: order.customer_name,
+              customerEmail: order.customer_email,
+              items: items.map(i => ({ title: i.title || i.name || 'Item', quantity: i.quantity || 1, price: i.price || '0', size: i.size })),
+              total: order.total,
+            },
+          };
+          const emailRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
+            body: JSON.stringify(emailBody),
+          });
+          if (!emailRes.ok) {
+            console.error('[FinalizeSquareOrder] Email send failed:', await emailRes.text());
+          } else {
+            console.log('[FinalizeSquareOrder] Order confirmation email sent to', order.customer_email);
+          }
+        }
+      } catch (emailErr) {
+        console.error('[FinalizeSquareOrder] Email error (non-critical):', emailErr);
+      }
+
       console.timeEnd('FinalizeOrder_TotalExecutionTime');
       return new Response(JSON.stringify({ success: true, orderId }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
