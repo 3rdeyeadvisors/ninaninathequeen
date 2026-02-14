@@ -1,28 +1,45 @@
 
 
-## Fix: Waitlist RLS Policy
+# Fix Logo Clipping + Update Email Branding
 
-### Root Cause
+## 1. Fix the "N" clipping in the Logo component
 
-The "Anyone can join waitlist" INSERT policy on the `waitlist` table was created as a **RESTRICTIVE** policy. PostgreSQL RLS requires at least one **PERMISSIVE** policy to grant base access -- restrictive policies can only narrow existing access. Since there is no permissive INSERT policy, all inserts are denied regardless of the `true` check expression.
+**File:** `src/components/Logo.tsx`
 
-### Fix
+The Parisienne cursive font has tall flourishes (especially on capital letters like "N") that get clipped by the container. The fix:
 
-**Database migration** -- Drop the restrictive INSERT policy and recreate it as PERMISSIVE:
+- Add more generous vertical padding (`py-2` or `py-3` instead of `py-1`) to give the flourishes room
+- Add `leading-[1.4]` or similar increased line-height to prevent the top of the "N" from being cut
+- Ensure the parent containers in Header.tsx aren't constraining height (the `scale-[0.6]` wrappers should be fine since scale doesn't affect layout)
 
-```sql
-DROP POLICY "Anyone can join waitlist" ON public.waitlist;
+Specific change on line 11: increase `leading-relaxed` to a custom value like `leading-[1.5]` and add top padding to the h1 itself with `pt-2` to give the capital N descender room above.
 
-CREATE POLICY "Anyone can join waitlist"
-  ON public.waitlist
-  FOR INSERT
-  TO anon, authenticated
-  WITH CHECK (true);
-```
+## 2. Update email templates with cursive font + San Antonio address
 
-This single migration is the only change needed. The form code is correct -- the database is just blocking the insert due to the wrong policy type.
+**File:** `supabase/functions/send-email/index.ts`
 
-### Verification
+Three changes in the `baseWrapper` function:
 
-After applying the migration, the waitlist signup will be tested by submitting a form entry to confirm a 200/201 response instead of the current 401/42501 error.
+- **Line 29 (head section):** Add a Google Fonts link for Parisienne before the style block:
+  ```html
+  <link href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap" rel="stylesheet">
+  ```
+
+- **Line 34 (.logo-text CSS):** Change from:
+  ```css
+  font-size:28px;letter-spacing:4px;font-weight:300;text-transform:uppercase;font-family:'Georgia',serif;
+  ```
+  To:
+  ```css
+  font-size:36px;font-weight:400;font-family:'Parisienne',cursive,'Georgia',serif;
+  ```
+  (Remove uppercase, remove letter-spacing, increase size for cursive readability)
+
+- **Line 68:** Change `Leblon, Rio de Janeiro, Brazil` to `San Antonio, Texas`
+
+## 3. Testing
+
+After both changes are made:
+- Visually verify the Logo on the site to confirm the "N" is no longer clipped at any screen size
+- Trigger a test waitlist signup to verify the email renders with the cursive font and the San Antonio address in the footer
 
