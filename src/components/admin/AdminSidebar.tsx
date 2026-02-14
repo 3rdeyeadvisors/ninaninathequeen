@@ -2,9 +2,26 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, ShoppingBag, Settings, Store, Users, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export function AdminSidebar() {
   const location = useLocation();
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      const [ordersRes, waitlistRes] = await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'Pending'),
+        supabase.from('waitlist').select('id', { count: 'exact', head: true }),
+      ]);
+      setBadgeCounts({
+        '/admin/orders': ordersRes.count || 0,
+        '/admin/customers': waitlistRes.count || 0,
+      });
+    };
+    fetchCounts();
+  }, []);
 
   const links = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,13 +45,14 @@ export function AdminSidebar() {
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = location.pathname === link.href;
+          const count = badgeCounts[link.href] || 0;
 
           return (
             <Link
               key={link.href}
               to={link.href}
               className={cn(
-                "flex items-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 font-sans text-[9px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.2em] whitespace-nowrap",
+                "relative flex items-center gap-2 px-3 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-300 font-sans text-[9px] sm:text-[10px] uppercase tracking-[0.1em] sm:tracking-[0.2em] whitespace-nowrap",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-gold font-bold scale-105"
                   : "text-muted-foreground hover:bg-primary/5 hover:text-primary hover:scale-105"
@@ -42,6 +60,11 @@ export function AdminSidebar() {
             >
               <Icon className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", isActive ? "text-primary-foreground" : "text-muted-foreground/70")} />
               <span>{link.label}</span>
+              {count > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[9px] font-bold px-1 shadow-md border-2 border-background">
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
             </Link>
           );
         })}
