@@ -45,9 +45,7 @@ export default function Maintenance() {
     try {
       const { error } = await supabase
         .from('waitlist')
-        .insert({ email: parsed.data.email, name: parsed.data.name || null })
-        .select('id')
-        .maybeSingle();
+        .insert({ email: parsed.data.email, name: parsed.data.name || null });
 
       if (error) {
         if (error.code === '23505') {
