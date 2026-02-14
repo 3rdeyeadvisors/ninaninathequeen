@@ -1,7 +1,7 @@
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, User, Mail, DollarSign, ShoppingBag, Calendar, Shield, Trash2, UserPlus, Download, Users, Clock } from 'lucide-react';
+import { Search, User, Mail, DollarSign, ShoppingBag, Calendar, Shield, Trash2, UserPlus, Download, Users, Clock, Send, Loader2 } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminCustomer as Customer } from '@/stores/adminStore';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface WaitlistEntry {
   id: string;
@@ -43,6 +44,8 @@ export default function AdminCustomers() {
   const [waitlistSearch, setWaitlistSearch] = useState('');
   const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false);
   const [activeTab, setActiveTab] = useState('customers');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSendingLaunch, setIsSendingLaunch] = useState(false);
 
   const isOwner = cloudUser?.isAdmin || cloudUser?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
@@ -128,6 +131,50 @@ export default function AdminCustomers() {
     a.click();
     document.body.removeChild(a);
     toast.success(`Downloaded ${waitlist.length} waitlist entries`);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredWaitlist.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredWaitlist.map(w => w.id)));
+    }
+  };
+
+  const handleSendLaunchEmail = async () => {
+    const selected = waitlist.filter(w => selectedIds.has(w.id));
+    if (selected.length === 0) return;
+    if (!confirm(`Send launch announcement email to ${selected.length} recipient${selected.length > 1 ? 's' : ''}?`)) return;
+
+    setIsSendingLaunch(true);
+    try {
+      const emails = selected.map(w => w.email);
+      const names: Record<string, string> = {};
+      selected.forEach(w => { if (w.name) names[w.email] = w.name; });
+
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: { type: 'launch_announcement', data: { emails, names } },
+      });
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.error || 'Failed to send');
+
+      toast.success(`Launch email sent to ${selected.length} recipient${selected.length > 1 ? 's' : ''}!`);
+      setSelectedIds(new Set());
+    } catch (err) {
+      console.error('Send launch email failed:', err);
+      toast.error('Failed to send launch email');
+    } finally {
+      setIsSendingLaunch(false);
+    }
   };
 
   // Show loading skeleton while data is being restored from storage
@@ -313,6 +360,21 @@ export default function AdminCustomers() {
                     />
                   </div>
                   <div className="flex items-center gap-3">
+                    {selectedIds.size > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={handleSendLaunchEmail}
+                        disabled={isSendingLaunch}
+                        className="bg-primary font-sans text-[10px] uppercase tracking-widest"
+                      >
+                        {isSendingLaunch ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Send Launch Email ({selectedIds.size})
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -340,6 +402,12 @@ export default function AdminCustomers() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-[40px]">
+                            <Checkbox
+                              checked={filteredWaitlist.length > 0 && selectedIds.size === filteredWaitlist.length}
+                              onCheckedChange={toggleSelectAll}
+                            />
+                          </TableHead>
                           <TableHead className="font-sans text-[10px] uppercase tracking-widest">Email</TableHead>
                           <TableHead className="font-sans text-[10px] uppercase tracking-widest">Name</TableHead>
                           <TableHead className="font-sans text-[10px] uppercase tracking-widest">Signup Date</TableHead>
@@ -349,12 +417,18 @@ export default function AdminCustomers() {
                       <TableBody>
                         {filteredWaitlist.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={4} className="h-24 text-center font-sans text-muted-foreground">
+                            <TableCell colSpan={5} className="h-24 text-center font-sans text-muted-foreground">
                               {waitlist.length === 0 ? 'No one has joined the waitlist yet.' : 'No results matching your search.'}
                             </TableCell>
                           </TableRow>
                         ) : filteredWaitlist.map((entry) => (
                           <TableRow key={entry.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedIds.has(entry.id)}
+                                onCheckedChange={() => toggleSelect(entry.id)}
+                              />
+                            </TableCell>
                             <TableCell className="font-sans text-sm">{entry.email}</TableCell>
                             <TableCell className="font-sans text-sm text-muted-foreground">{entry.name || '—'}</TableCell>
                             <TableCell className="font-sans text-xs text-muted-foreground">

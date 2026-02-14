@@ -239,6 +239,28 @@ function waitlistNotificationEmail(data: { name: string; email: string }): { sub
   }
 }
 
+function launchAnnouncementEmail(data: { name?: string }): { subject: string; html: string } {
+  const greeting = data.name ? `${data.name}, the` : 'The'
+  return {
+    subject: 'Nina Armend Is Now Live',
+    html: baseWrapper(`
+      <h1 style="text-align:center;font-size:28px;margin-bottom:8px;">The Wait Is Over</h1>
+      <p style="text-align:center;color:${BRAND.colors.accent};font-size:18px;margin-bottom:24px;font-style:italic;">Nina Armend is officially open.</p>
+      <p>${greeting} moment you've been waiting for is here. Our curated collection of luxury swimwear is now live and ready for you to explore.</p>
+      <p>As one of our earliest supporters, we wanted you to be the first to know.</p>
+      <div class="card" style="text-align:center;">
+        <p style="margin:0 0 12px 0;font-size:13px;color:${BRAND.colors.textMuted};text-transform:uppercase;letter-spacing:2px;font-family:'Helvetica Neue',Arial,sans-serif;">Exclusive Welcome Reward</p>
+        <p style="margin:0 0 8px 0;"><span class="points-badge">50 POINTS</span></p>
+        <p style="margin:0;color:${BRAND.colors.text};font-size:15px;">Create your account today and receive <span class="highlight">50 welcome points</span> toward your first purchase.</p>
+      </div>
+      <div class="btn-center" style="padding:32px 0;">
+        <a href="${BRAND.siteUrl}/shop" class="btn">Create Your Account</a>
+      </div>
+      <p class="muted" style="text-align:center;">Explore our exclusive collections crafted with intention, designed to make you feel extraordinary.</p>
+    `),
+  }
+}
+
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<{ success: boolean; error?: string }> {
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (!RESEND_API_KEY) {
@@ -323,6 +345,17 @@ Deno.serve(async (req) => {
       case 'waitlist_notification': {
         const email = waitlistNotificationEmail(data)
         results.push(await sendEmail(BRAND.supportEmail, email.subject, email.html))
+        break
+      }
+      case 'launch_announcement': {
+        const emails: string[] = data.emails || []
+        const names: Record<string, string> = data.names || {}
+        for (const recipientEmail of emails) {
+          const email = launchAnnouncementEmail({ name: names[recipientEmail] || undefined })
+          const result = await sendEmail(recipientEmail, email.subject, email.html)
+          results.push(result)
+          console.log(`Launch email to ${recipientEmail}: ${result.success ? 'sent' : result.error}`)
+        }
         break
       }
       default:
