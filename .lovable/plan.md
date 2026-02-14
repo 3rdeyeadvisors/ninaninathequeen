@@ -1,73 +1,41 @@
 
-# Make the AI Assistant Insanely Smart
 
-## Problem
-The AI chatbox only receives bare numerical stats (revenue, order count, inventory). When you ask something like "What's our target audience?", it has zero brand knowledge to draw from and either gives a generic non-answer or fails entirely.
+# Fix Logo "N" Clipping + Create Branded Link Share Image
 
-## Solution: Enrich the AI with Full Brand + Store Intelligence
+## Issue 1: Logo "N" Being Cut Off
 
-### 1. Supercharge the Store Context (Dashboard.tsx)
+**Root cause**: The `.gradient-gold-text` CSS class uses `background-clip: text` which clips rendering to the text bounds. The Parisienne font's cursive "N" has a leftward flourish that extends beyond the normal text bounding box. The current horizontal padding of `0.1em` is insufficient for this flourish. Additionally, the header wraps the logo in scaled containers (`scale-[0.6]`, `scale-75`) which compound the issue.
 
-The `storeContext` string passed to the edge function will be expanded from just numbers to a comprehensive business intelligence brief:
+**Fix (multiple points)**:
 
-**Add brand knowledge block:**
-- Brand name, mission, positioning (luxury Brazilian swimwear)
-- Target audience profile (fashion-forward women 25-40 who value body confidence, luxury, sustainability)
-- Brand values (body positivity, Brazilian craftsmanship, eco-conscious fabrics)
-- Key differentiators (Italian fabrics, made in Brazil, flattering all body types)
+1. **`src/index.css`** - Increase the horizontal padding in `.gradient-gold-text` from `0.1em` to `0.3em` (and the negative margin accordingly) to give the "N" flourish enough room to render fully within the clipped area.
 
-**Add product catalog details:**
-- Full product names, prices, categories, and descriptions (not just inventory counts)
+2. **`src/components/Logo.tsx`** - Add explicit left padding (`pl-2`) on the h1 element to give extra breathing room for the flourish. Ensure the entire motion.div and its children have `overflow-visible`.
 
-**Add waitlist/audience data:**
-- Waitlist count and growth context
-- Customer demographics if available
+3. **`src/components/Header.tsx`** - Add `overflow-visible` to the Logo's parent link containers on both desktop (line 78) and mobile (line 156) to prevent any ancestor from clipping the scaled content.
 
-**Add business stage context:**
-- Pre-launch / maintenance mode status so the AI understands the current phase
+4. **`src/components/checkout/CheckoutHeader.tsx`** - Same fix: add `overflow-visible` to the logo link wrapper (line 23).
 
-### 2. Upgrade the System Prompt (Edge Function)
+After changes, I will visually verify in the browser that the "N" renders fully at all viewport sizes.
 
-**File:** `supabase/functions/ai-chat/index.ts`
+## Issue 2: Branded Link Share (OG) Image
 
-Enhance the system prompt to make the AI act as a strategic business advisor:
-- Give it the persona of a luxury brand strategist who knows Nina Armend intimately
-- Tell it to proactively offer strategic recommendations, not just recite data
-- Allow it to reason about target audience, marketing strategy, pricing, and growth based on the brand context
-- Tell it to answer confidently about the brand even when specific data points aren't in the context, using its knowledge of luxury swimwear markets
+**Current state**: The `og:image` meta tag in `index.html` points to a generic Unsplash beach photo that has nothing to do with the brand.
 
-### 3. Updated storeContext Builder (Dashboard.tsx)
+**Fix**: Create a proper branded OG image using a backend function that generates a clean, on-brand share card:
 
-The `storeContext` memo will be expanded to include:
+1. **Create `supabase/functions/og-image/index.ts`** - A backend function that generates a 1200x630 SVG rendered as an image with:
+   - Black background matching the site theme
+   - "Nina Armend" in elegant serif typography (centered)
+   - "Brazilian Swimwear" subtitle underneath with gold accent lines
+   - Clean, minimal luxury layout matching the brand aesthetic
 
-```
-Brand: Nina Armend - luxury Brazilian swimwear
-Mission: Celebrating body beauty with pride, grace, and individuality
-Target Audience: Fashion-forward women 25-40 who value luxury, body confidence, and sustainability
-Products: Premium swimwear made with Italian fabrics and Brazilian craftsmanship
-Stage: Pre-launch (maintenance mode, collecting waitlist signups)
+2. **Update `index.html`** - Change the `og:image` and `twitter:image` meta tags to point to the backend function URL so the image is always on-brand and consistent.
 
---- Store Metrics ---
-Revenue: $X
-Orders: X confirmed, X pending
-Products: [name - $price - X in stock] for each product
-Waitlist Signups: X
-Customers: X
-Low Stock: X products below threshold
-
---- Recent Activity ---
-Recent orders: ...
-```
-
-This gives the AI everything it needs to answer questions about audience, strategy, product positioning, marketing, and operations -- all grounded in real data.
-
-## Files Changed
-
-- `supabase/functions/ai-chat/index.ts` -- Enhanced system prompt with brand strategist persona
-- `src/pages/admin/Dashboard.tsx` -- Expanded storeContext with brand knowledge, product catalog, waitlist data, and business stage
+3. **Update `src/components/SEO.tsx`** - Ensure the OG image meta tag is set to the backend function URL dynamically.
 
 ## Testing Plan
-1. Navigate to admin dashboard
-2. Ask "What's our target audience?" -- should get a detailed, brand-aware answer
-3. Ask "What marketing strategy do you recommend?" -- should reference the pre-launch stage and waitlist
-4. Ask "How are we doing on inventory?" -- should reference specific product names and stock levels
+
+1. After Logo fix: Navigate to the homepage on both desktop and mobile viewports, take screenshots, and visually confirm the "N" is fully visible with no clipping
+2. After OG image: Call the backend function directly to verify it returns a valid PNG image with the branded design
+3. Test the OG image URL renders correctly in browser
