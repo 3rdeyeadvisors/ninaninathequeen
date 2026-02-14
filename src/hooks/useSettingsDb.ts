@@ -34,9 +34,8 @@ export function useSettingsDb() {
           shippingRate: Number(settingsData.shipping_rate) || 8.50,
           lowStockThreshold: (settingsData.low_stock_threshold as number) || 10,
           posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
-          squareApiKey: (settingsData.square_api_key as string) || '',
-          squareApplicationId: (settingsData.square_application_id as string) || '',
-          squareLocationId: (settingsData.square_location_id as string) || 'L09Y3ZCB23S11',
+
+
           
           seoTitle: (settingsData.seo_title as string) || '',
           seoDescription: (settingsData.seo_description as string) || '',
@@ -81,9 +80,8 @@ export function useSettingsDb() {
           shipping_rate: newSettings.shippingRate,
           low_stock_threshold: newSettings.lowStockThreshold,
           pos_provider: newSettings.posProvider,
-          square_api_key: newSettings.squareApiKey,
-          square_application_id: (newSettings as AdminSettings).squareApplicationId,
-          square_location_id: (newSettings as AdminSettings).squareLocationId,
+
+
           
           seo_title: newSettings.seoTitle,
           seo_description: newSettings.seoDescription,

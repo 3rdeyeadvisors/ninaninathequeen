@@ -78,7 +78,6 @@ describe("adminStore", () => {
 
   it("should have correct initial settings", () => {
     const { settings } = useAdminStore.getState();
-    expect(settings.squareLocationId).toBe("L09Y3ZCB23S11");
     expect(settings.posProvider).toBe("square");
   });
 });

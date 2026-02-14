@@ -11,7 +11,7 @@ import { useAdminStore } from '@/stores/adminStore';
 import { useSettingsDb } from '@/hooks/useSettingsDb';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { Store, Globe, Bell, Shield, Save, CreditCard, Key, ExternalLink, CheckCircle, Loader2, Search, Share2, Mail, Phone, AlertTriangle } from 'lucide-react';
+import { Store, Globe, Bell, Shield, Save, Loader2, Search, Share2, Mail, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -19,7 +19,7 @@ export default function AdminSettings() {
   const { settings, updateSettings } = useAdminStore();
   const { updateSettingsDb } = useSettingsDb();
   const [localSettings, setLocalSettings] = useState(settings);
-  const [isEditingToken, setIsEditingToken] = useState(false);
+  
   const [isSaving, setIsSaving] = useState(false);
   const hasEditedRef = useRef(false);
 
@@ -36,11 +36,6 @@ export default function AdminSettings() {
     setLocalSettings(prev => ({ ...prev, ...patch }));
   };
 
-  // Mask the token for display
-  const maskedToken = localSettings.squareApiKey 
-    ? `${localSettings.squareApiKey.slice(0, 4)}...${localSettings.squareApiKey.slice(-4)}` 
-    : '';
-
   const handleSave = async () => {
     setIsSaving(true);
     const timeout = setTimeout(() => {
@@ -54,7 +49,7 @@ export default function AdminSettings() {
       if (success) {
         updateSettings(localSettings);
         hasEditedRef.current = false;
-        setIsEditingToken(false);
+        
         toast.success('Store settings saved!');
       } else {
         toast.error('Failed to save settings. Check console for details.');
@@ -107,65 +102,6 @@ export default function AdminSettings() {
                         value={localSettings.currency}
                         onChange={(e) => updateLocal({ currency: e.target.value })}
                       />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-5 w-5 text-primary" />
-                      <CardTitle className="font-serif">Payment Gateway (Square)</CardTitle>
-                    </div>
-                    <CardDescription>Configure your Square integration for payments</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="squareAppId">Application ID</Label>
-                      <Input
-                        id="squareAppId"
-                        value={localSettings.squareApplicationId}
-                        onChange={(e) => updateLocal({ squareApplicationId: e.target.value })}
-                        placeholder="sq0idp-..."
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="squareLocId">Location ID</Label>
-                      <Input
-                        id="squareLocId"
-                        value={localSettings.squareLocationId}
-                        onChange={(e) => updateLocal({ squareLocationId: e.target.value })}
-                        placeholder="L..."
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="squareApiKey">API Key (Access Token)</Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-[10px] uppercase tracking-widest text-muted-foreground"
-                          onClick={() => setIsEditingToken(!isEditingToken)}
-                        >
-                          {isEditingToken ? 'Cancel' : 'Change'}
-                        </Button>
-                      </div>
-                      {isEditingToken ? (
-                        <Input
-                          id="squareApiKey"
-                          type="password"
-                          value={localSettings.squareApiKey}
-                          onChange={(e) => updateLocal({ squareApiKey: e.target.value })}
-                          placeholder="EAAA..."
-                        />
-                      ) : (
-                        <Input
-                          id="squareApiKey"
-                          value={maskedToken}
-                          disabled
-                          className="bg-secondary/20"
-                        />
-                      )}
                     </div>
                   </CardContent>
                 </Card>

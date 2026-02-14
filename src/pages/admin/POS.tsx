@@ -78,7 +78,10 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
     let isMounted = true;
     let cardInstance: { destroy: () => Promise<void> } | null = null;
 
-    if (paymentMethod === 'card' && isOpen && settings.squareApplicationId && settings.squareLocationId) {
+    const squareAppId = import.meta.env.VITE_SQUARE_APPLICATION_ID || 'sandbox-sq0idb-LsqqMfOxi1tiVN7vVPYgew';
+    const squareLocId = import.meta.env.VITE_SQUARE_LOCATION_ID || 'L09Y3ZCB23S11';
+
+    if (paymentMethod === 'card' && isOpen && squareAppId && squareLocId) {
       const initializePayments = async () => {
         // Poll for Square SDK availability
         let attempts = 0;
@@ -90,7 +93,7 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
         if (!window.Square || !isMounted) return;
 
         try {
-          const payments = window.Square.payments(settings.squareApplicationId, settings.squareLocationId);
+          const payments = window.Square.payments(squareAppId, squareLocId);
           const card = await payments.card();
           await card.attach('#card-container');
 
@@ -115,7 +118,7 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
         cardInstance.destroy().catch(console.error);
       }
     };
-  }, [paymentMethod, isOpen, settings.squareApplicationId, settings.squareLocationId]);
+  }, [paymentMethod, isOpen]);
 
   const handleConfirm = async () => {
     setIsProcessing(true);
@@ -320,7 +323,7 @@ export default function AdminPOS() {
             sourceId: paymentData.token,
             amount: cartTotal.toFixed(2),
             currency: 'USD',
-            locationId: settings.squareLocationId,
+            locationId: 'L09Y3ZCB23S11',
             orderDetails: {
               customerName: paymentData.customerName,
               customerEmail: paymentData.customerEmail,
