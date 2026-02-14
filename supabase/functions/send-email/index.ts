@@ -209,6 +209,35 @@ function shippingUpdateEmail(data: { customerName: string; orderId: string; stat
   }
 }
 
+function waitlistConfirmationEmail(data: { name: string; email: string }): { subject: string; html: string } {
+  return {
+    subject: "You're on the Nina Armend Waitlist",
+    html: baseWrapper(`
+      <h1>Welcome to the Waitlist</h1>
+      <p>Hey ${data.name}, thank you for your interest in Nina Armend. You've secured your spot on our exclusive launch list.</p>
+      <div class="card" style="text-align:center;">
+        <p style="margin:0 0 8px 0;color:${BRAND.colors.accent};font-size:18px;font-weight:600;">You're In</p>
+        <p class="muted" style="margin:0;">We'll send you an exclusive first look before our collection goes live.</p>
+      </div>
+      <p class="muted">Stay tuned — something beautiful is on its way.</p>
+    `),
+  }
+}
+
+function waitlistNotificationEmail(data: { name: string; email: string }): { subject: string; html: string } {
+  return {
+    subject: `New Waitlist Signup: ${data.email}`,
+    html: baseWrapper(`
+      <h1>New Waitlist Signup</h1>
+      <div class="card">
+        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Email:</strong> ${data.email}</p>
+        <p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Name:</strong> ${data.name}</p>
+      </div>
+      <p class="muted">A new visitor has joined the launch waitlist.</p>
+    `),
+  }
+}
+
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<{ success: boolean; error?: string }> {
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (!RESEND_API_KEY) {
@@ -283,6 +312,16 @@ Deno.serve(async (req) => {
       case 'shipping_update': {
         const email = shippingUpdateEmail(data)
         results.push(await sendEmail(data.customerEmail, email.subject, email.html))
+        break
+      }
+      case 'waitlist_confirmation': {
+        const email = waitlistConfirmationEmail(data)
+        results.push(await sendEmail(data.email, email.subject, email.html))
+        break
+      }
+      case 'waitlist_notification': {
+        const email = waitlistNotificationEmail(data)
+        results.push(await sendEmail(BRAND.supportEmail, email.subject, email.html))
         break
       }
       default:
