@@ -20,7 +20,7 @@ export function CheckoutHeader() {
         </div>
 
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Link to="/" className="scale-75 md:scale-90 transition-transform duration-300 origin-center">
+          <Link to="/" className="scale-75 md:scale-90 transition-transform duration-300 origin-center overflow-visible">
             <Logo />
           </Link>
         </div>
