@@ -228,7 +228,7 @@ export default function AdminCustomers() {
                 )}
                 <div className="bg-primary/10 px-4 py-2 rounded-lg border border-primary/20 hidden sm:block">
                   <p className="text-[10px] font-sans uppercase tracking-widest text-primary font-bold">Total Audience</p>
-                  <p className="font-serif text-2xl">{customers.length}</p>
+                  <p className="font-serif text-2xl">{customers.length + waitlist.length}</p>
                 </div>
               </div>
             </div>
