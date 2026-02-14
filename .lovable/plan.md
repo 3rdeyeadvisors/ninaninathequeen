@@ -1,118 +1,75 @@
 
 
-## Complete Plan: Logo Fix, Customer Stats, Spreadsheet Download/Upload, Unit Cost, and Profit Tracking
-
-This plan covers all the remaining items from your original request.
+## Spreadsheet Size Columns, Maintenance Waitlist, Admin Login on Maintenance Page, and Waitlist Tracking
 
 ---
 
-### 1. Fix the Logo Being Chopped Off
+### 1. Add Size Columns to Spreadsheet Download
 
-The cursive font (Parisienne) has descenders and ascenders that get clipped. Add `overflow-visible` and vertical padding to prevent any letters from being cut off.
-
-**File:** `src/components/Logo.tsx`
-- Add `overflow-visible py-1` to the outer container
-- Add `overflow-visible` to the h1 element
-
----
-
-### 2. Fix Customer Audience Hardcoded Stats
-
-Replace the three fake stat cards at the bottom of the Customers page with real calculated values:
-
-| Current (Fake) | New (Real) |
-|---|---|
-| Avg. Life Value: $425.50 | Calculated from customers' actual `totalSpent` averages |
-| Repeat Purchase Rate: 64% | Percentage of customers with more than 1 order |
-| Newsletter Subs: 892 | Replaced with **Total Revenue** (sum of all customer spending) |
-
-**File:** `src/pages/admin/Customers.tsx`
-- Add `useMemo` calculations using the existing `customers` array from the store
-- Update the three stat card values and rename "Newsletter Subs" to "Total Revenue"
-
----
-
-### 3. Download Spreadsheet Button
-
-Change the "Template" button to export actual product data instead of mock data.
+Currently the download exports a single "Stock" number. It will be updated to include individual columns for each size (XS, S, M, L, XL, XXL, 2XL) so she can easily see and edit stock per size.
 
 **File:** `src/hooks/useSpreadsheetSync.ts`
-- Rename `downloadTemplate` to `downloadSpreadsheet`
-- Export real product data (title, category, selling price, unit cost, stock, collection, status, item number, colors) as CSV
-
-**File:** `src/pages/admin/Products.tsx`
-- Change button label from "Template" to "Download Spreadsheet"
-- Update the function reference
+- Update the `downloadTemplate` function to replace the single "Stock" column with individual size columns (XS, S, M, L, XL, XXL, 2XL)
+- Each size column will show the inventory count from `sizeInventory` for that size, defaulting to 0
+- Keep a "Total Stock" column as a summary
 
 ---
 
-### 4. Fix Spreadsheet Upload Column Mapping
+### 2. Maintenance Page Waitlist Form
 
-Your spreadsheet columns have specific meanings that differ from what the system currently assumes:
-
-| Spreadsheet Column | What It Means | Current Behavior | New Behavior |
-|---|---|---|---|
-| **Price Per Unit** | What she paid per item (her cost) | Maps to selling price | Maps to `unitCost` (cost of goods) |
-| **Stock** | Current inventory count | Maps to inventory | No change -- stays as inventory |
-| **Status** | Additional units ordered on top of stock | Maps to Active/Inactive/Draft | Treated as ordered quantity, added to stock total |
-
-**File:** `src/lib/spreadsheet.ts`
-- Map "price per unit" to `unitcost` instead of `price`
-- Add mapping for "ordered" / "on order" to a new `ordered` field
-- Keep "status" as-is for Active/Inactive but also parse numeric status values as ordered quantity
-
-**File:** `src/hooks/useSpreadsheetSync.ts`
-- Use `unitcost` field from parsed rows to populate the new `unitCost` on products
-- If status is a number, treat it as ordered quantity and add to inventory
-- Selling price must come from a "Price" or "Selling Price" column (or be set manually in admin)
-
----
-
-### 5. Add Unit Cost to Products (Database + Store + UI)
+Add a waitlist signup section to the maintenance page where visitors can enter their email (required) and name (optional) to be notified when the store launches.
 
 **Database Migration:**
-- Add `unit_cost text DEFAULT '0.00'` to the `products` table
+- Create a `waitlist` table with columns: `id` (uuid), `email` (text, unique, not null), `name` (text, nullable), `created_at` (timestamptz)
+- Enable RLS with a permissive INSERT policy for anonymous users (so visitors can sign up without an account)
+- Add a restrictive SELECT/DELETE policy for admins only
 
-**File:** `src/stores/adminStore.ts`
-- Add `unitCost?: string` to `ProductOverride` interface
+**File:** `src/pages/Maintenance.tsx`
+- Add email input (required) and name input (optional) with a "Join the Waitlist" button
+- On submit, insert into the `waitlist` table via the Supabase client
+- Show success/error toast messages
+- Validate email format before submitting
+- Show a confirmation message after successful signup
 
-**File:** `src/hooks/useProductsDb.ts`
-- Map `unit_cost` / `unitCost` in fetch and upsert operations
-
-**File:** `src/pages/admin/Products.tsx`
-- Add "Unit Cost" field in the product editor dialog
-- Show unit cost column in the products table
-
----
-
-### 6. Profit Tracking
-
-With unit cost stored per product, the dashboard can calculate real profit:
-
-**Profit Formula:** Revenue - (Unit Cost x Quantity for each item) - Shipping Cost
-
-**File:** `src/pages/admin/Dashboard.tsx`
-- Update `totalNetProfit` calculation: instead of relying only on the manually entered `itemCost` per order, auto-calculate COGS by looking up each order item's `unitCost` from `productOverrides`
-- Fall back to the manual `itemCost` field if unit costs aren't available
-
-**File:** `src/pages/admin/Orders.tsx`
-- Show a calculated profit line in the order detail view
-- Auto-populate item cost from unit costs when available
-
-The admin can still manually set shipping cost per order (already works), and this feeds into the profit calculation.
+**File:** `supabase/functions/send-email/index.ts`
+- Add a `waitlist_confirmation` email type that sends a branded confirmation to the person who signed up
+- Add a `waitlist_notification` email type that notifies the admin (support@ninaarmend.co) about the new signup
 
 ---
 
-### Technical Summary of All Changes
+### 3. Admin Login Section on Maintenance Page
 
-1. **Database migration:** Add `unit_cost` column to `products` table
-2. **`src/components/Logo.tsx`** -- overflow-visible + padding fix
-3. **`src/stores/adminStore.ts`** -- Add `unitCost` to `ProductOverride`
-4. **`src/lib/spreadsheet.ts`** -- Remap "price per unit" to `unitcost`, handle numeric status as ordered quantity
-5. **`src/hooks/useSpreadsheetSync.ts`** -- Use `unitcost`, handle ordered qty, rename download function to export real data
-6. **`src/hooks/useProductsDb.ts`** -- Map `unit_cost` in fetch/upsert
-7. **`src/pages/admin/Products.tsx`** -- "Download Spreadsheet" label, unit cost in editor and table
-8. **`src/pages/admin/Customers.tsx`** -- Replace hardcoded stats with real calculations
-9. **`src/pages/admin/Dashboard.tsx`** -- Auto-calculate COGS from unit costs for profit
-10. **`src/pages/admin/Orders.tsx`** -- Show profit breakdown per order
+When maintenance mode is on, non-admin users see the maintenance page and cannot access the admin panel. Add a discreet admin login section so the owner can still log in and access admin features during maintenance.
+
+**File:** `src/pages/Maintenance.tsx`
+- Add a small "Admin Access" link or icon at the bottom of the page
+- Clicking it reveals a compact login form (email + password)
+- On successful admin login, redirect to `/admin` dashboard
+- Uses the existing Cloud Auth `signInWithEmail` method
+- After login, the `MaintenanceGuard` in App.tsx already bypasses maintenance for admin users, so they'll see the full site
+
+---
+
+### 4. Waitlist Section in Customer Audience
+
+Add a tab or section in the admin Customers page to view and manage waitlist signups.
+
+**File:** `src/pages/admin/Customers.tsx`
+- Add a "Waitlist" tab alongside the existing customer table
+- Fetch waitlist entries from the `waitlist` database table
+- Display: email, name (if provided), signup date
+- Add a search/filter for waitlist entries
+- Show total waitlist count in a stat card
+- Add ability to delete waitlist entries
+- Add a "Download Waitlist" button to export as CSV
+
+---
+
+### Technical Summary
+
+1. **Database migration:** Create `waitlist` table with RLS policies (anonymous INSERT, admin-only SELECT/DELETE)
+2. **`src/pages/Maintenance.tsx`** -- Add waitlist form (email + optional name) and admin login section
+3. **`src/hooks/useSpreadsheetSync.ts`** -- Add per-size columns (XS, S, M, L, XL, XXL, 2XL) to spreadsheet download
+4. **`supabase/functions/send-email/index.ts`** -- Add `waitlist_confirmation` and `waitlist_notification` email templates
+5. **`src/pages/admin/Customers.tsx`** -- Add waitlist tab with table, search, count, CSV export, and delete functionality
 
