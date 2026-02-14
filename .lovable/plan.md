@@ -1,45 +1,45 @@
 
 
-# Fix Logo Clipping + Update Email Branding
+# Fix the "N" Clipping in the Nina Armend Logo
 
-## 1. Fix the "N" clipping in the Logo component
+## The Problem
 
-**File:** `src/components/Logo.tsx`
+The capital "N" in "Nina Armend" has a tall cursive flourish (from the Parisienne font) that extends above the normal text line. The current gradient effect uses `background-clip: text`, which clips the gold gradient to the text's layout bounding box -- cutting off anything that extends beyond it. No amount of container padding fixes this because the clipping happens at the text element level, not the container level.
 
-The Parisienne cursive font has tall flourishes (especially on capital letters like "N") that get clipped by the container. The fix:
+## The Fix
 
-- Add more generous vertical padding (`py-2` or `py-3` instead of `py-1`) to give the flourishes room
-- Add `leading-[1.4]` or similar increased line-height to prevent the top of the "N" from being cut
-- Ensure the parent containers in Header.tsx aren't constraining height (the `scale-[0.6]` wrappers should be fine since scale doesn't affect layout)
+**File: `src/components/Logo.tsx`**
 
-Specific change on line 11: increase `leading-relaxed` to a custom value like `leading-[1.5]` and add top padding to the h1 itself with `pt-2` to give the capital N descender room above.
+Add explicit padding to the `h1` element itself so the background (and therefore the gradient) extends far enough to cover the full flourish. The key is combining generous top padding on the text element with a negative margin to keep visual alignment:
 
-## 2. Update email templates with cursive font + San Antonio address
+- Add `py-4` (or larger) padding directly on the `h1` to extend the background-clip area upward
+- Use negative margin (`-my-2`) to prevent the extra padding from pushing layout
+- Increase `leading-[1.8]` or higher to give the line-height enough room for flourishes
 
-**File:** `supabase/functions/send-email/index.ts`
+Alternatively, if padding alone isn't enough, update the `.gradient-gold-text` CSS class in `src/index.css` to add `padding: 0.3em 0` and `margin: -0.3em 0` directly, ensuring all uses of the gradient gold text get the fix.
 
-Three changes in the `baseWrapper` function:
+**File: `src/index.css`**
 
-- **Line 29 (head section):** Add a Google Fonts link for Parisienne before the style block:
-  ```html
-  <link href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap" rel="stylesheet">
-  ```
+Update the `.gradient-gold-text` class to include built-in padding so the background extends beyond the text bounding box:
 
-- **Line 34 (.logo-text CSS):** Change from:
-  ```css
-  font-size:28px;letter-spacing:4px;font-weight:300;text-transform:uppercase;font-family:'Georgia',serif;
-  ```
-  To:
-  ```css
-  font-size:36px;font-weight:400;font-family:'Parisienne',cursive,'Georgia',serif;
-  ```
-  (Remove uppercase, remove letter-spacing, increase size for cursive readability)
+```css
+.gradient-gold-text {
+  background: linear-gradient(135deg, ...);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding: 0.4em 0.1em;
+  margin: -0.4em -0.1em;
+  display: inline-block;
+}
+```
 
-- **Line 68:** Change `Leblon, Rio de Janeiro, Brazil` to `San Antonio, Texas`
+This ensures the gradient background area is larger than the text's natural bounding box, so the tall flourishes on "N" and other cursive letters are fully painted.
 
-## 3. Testing
+## Testing
 
-After both changes are made:
-- Visually verify the Logo on the site to confirm the "N" is no longer clipped at any screen size
-- Trigger a test waitlist signup to verify the email renders with the cursive font and the San Antonio address in the footer
+After making changes:
+- Visually verify the logo on the maintenance/landing page (where it appears largest at `scale-150`)
+- Verify the logo in the header at desktop and mobile sizes
+- Confirm no layout shifts or spacing regressions from the padding/margin trick
 
