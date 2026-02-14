@@ -1,45 +1,67 @@
 
 
-# Fix the "N" Clipping in the Nina Armend Logo
+# Fix Waitlist Issues + Add Notification Badges
 
-## The Problem
+## Part 1: Fix Waitlist Issues
 
-The capital "N" in "Nina Armend" has a tall cursive flourish (from the Parisienne font) that extends above the normal text line. The current gradient effect uses `background-clip: text`, which clips the gold gradient to the text's layout bounding box -- cutting off anything that extends beyond it. No amount of container padding fixes this because the clipping happens at the text element level, not the container level.
+### Problem
+The waitlist fetch in `src/pages/admin/Customers.tsx` uses `supabase.from('waitlist' as any)` -- the `as any` cast is unnecessary since `waitlist` exists in the generated types. More importantly, the waitlist data only loads when the user clicks the "Waitlist" tab (due to the `activeTab === 'waitlist'` guard in the useEffect). This means:
+- The waitlist badge count shows `0` on initial load until the tab is clicked
+- If the fetch silently fails (e.g. auth timing), the user sees an empty list with no feedback
 
-## The Fix
+### Fix
+1. **Remove `as any` casts** -- Use proper typed `supabase.from('waitlist')` calls (lines 53 and 98)
+2. **Fetch waitlist on mount**, not just when the tab is active -- so the badge count is accurate immediately
+3. **Add error toast** when waitlist fetch fails so the user knows something went wrong instead of seeing a blank list
 
-**File: `src/components/Logo.tsx`**
+**File:** `src/pages/admin/Customers.tsx`
+- Line 53: Change `from('waitlist' as any)` to `from('waitlist')`
+- Line 98: Change `from('waitlist' as any)` to `from('waitlist')`
+- Lines 65-69: Remove the `activeTab === 'waitlist'` guard so waitlist fetches on component mount
+- Line 59: Add `toast.error('Failed to load waitlist')` in the catch block
 
-Add explicit padding to the `h1` element itself so the background (and therefore the gradient) extends far enough to cover the full flourish. The key is combining generous top padding on the text element with a negative margin to keep visual alignment:
+---
 
-- Add `py-4` (or larger) padding directly on the `h1` to extend the background-clip area upward
-- Use negative margin (`-my-2`) to prevent the extra padding from pushing layout
-- Increase `leading-[1.8]` or higher to give the line-height enough room for flourishes
+## Part 2: Add Notification Badges to Admin Sidebar
 
-Alternatively, if padding alone isn't enough, update the `.gradient-gold-text` CSS class in `src/index.css` to add `padding: 0.3em 0` and `margin: -0.3em 0` directly, ensuring all uses of the gradient gold text get the fix.
+### What's Changing
+The admin sidebar navigation links will show notification badge counts on the top-right corner of each category when there's new activity:
 
-**File: `src/index.css`**
+- **Orders** -- Shows count of orders with "Pending" status
+- **Customers** -- Shows total waitlist count (since in maintenance mode, waitlist signups are the key metric)
 
-Update the `.gradient-gold-text` class to include built-in padding so the background extends beyond the text bounding box:
+### Implementation
 
-```css
-.gradient-gold-text {
-  background: linear-gradient(135deg, ...);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  padding: 0.4em 0.1em;
-  margin: -0.4em -0.1em;
-  display: inline-block;
-}
+**File:** `src/components/admin/AdminSidebar.tsx`
+
+1. Import `supabase` client and add state for notification counts
+2. On mount, fetch:
+   - Pending orders count: `supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'Pending')`
+   - Waitlist count: `supabase.from('waitlist').select('id', { count: 'exact', head: true })`
+3. Display a small red/primary badge circle with the count on the top-right of the relevant sidebar link icons
+4. Only show the badge when count > 0
+
+### Technical Details
+
+The sidebar links array will be extended with an optional `badgeCount` property. A small absolute-positioned badge element renders over the link when the count is greater than zero. The badge will use the brand's primary/gold color for consistency with the luxury aesthetic.
+
+```text
++-------------------+
+| Orders  [3]       |  <-- badge shows pending order count
++-------------------+
+| Customers [5]     |  <-- badge shows waitlist signups
++-------------------+
 ```
 
-This ensures the gradient background area is larger than the text's natural bounding box, so the tall flourishes on "N" and other cursive letters are fully painted.
+The counts are fetched with `head: true` (count-only query) for efficiency -- no row data is transferred.
 
-## Testing
+---
 
-After making changes:
-- Visually verify the logo on the maintenance/landing page (where it appears largest at `scale-150`)
-- Verify the logo in the header at desktop and mobile sizes
-- Confirm no layout shifts or spacing regressions from the padding/margin trick
+## Testing Plan
+
+After implementation:
+1. Navigate to admin dashboard and verify badge counts appear on sidebar
+2. Click to the Customers page and verify the Waitlist tab loads data immediately (not just on tab click)
+3. Verify the waitlist count matches between the sidebar badge and the waitlist tab
+4. Confirm no console errors related to waitlist queries
 
