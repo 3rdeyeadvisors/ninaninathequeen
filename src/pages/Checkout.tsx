@@ -76,8 +76,7 @@ export default function Checkout() {
 
       const { data, error } = await supabase.functions.invoke('create-square-checkout', {
         body: {
-          orderDetails,
-          locationId: settings.squareLocationId
+          orderDetails
         }
       });
 
