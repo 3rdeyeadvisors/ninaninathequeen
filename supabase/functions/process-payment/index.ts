@@ -19,22 +19,14 @@ Deno.serve(async (req) => {
     const { sourceId, amount, currency, locationId: requestLocationId, orderDetails } = await req.json()
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    let FINAL_SQUARE_TOKEN = SQUARE_ACCESS_TOKEN;
-    if (!FINAL_SQUARE_TOKEN) {
-      const { data: settings } = await supabase
-        .from('store_settings')
-        .select('square_api_key')
-        .limit(1)
-        .maybeSingle();
-      FINAL_SQUARE_TOKEN = settings?.square_api_key;
-    }
+    const FINAL_SQUARE_TOKEN = SQUARE_ACCESS_TOKEN?.trim();
 
     if (!FINAL_SQUARE_TOKEN) {
       throw new Error('Square Access Token is not configured.')
     }
 
-    // Trim whitespace from token
-    FINAL_SQUARE_TOKEN = FINAL_SQUARE_TOKEN.trim()
+
+
 
     const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
       ? 'https://connect.squareupsandbox.com'

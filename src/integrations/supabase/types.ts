@@ -240,9 +240,6 @@ export type Database = {
           seo_description: string | null
           seo_title: string | null
           shipping_rate: number | null
-          square_api_key: string | null
-          square_application_id: string | null
-          square_location_id: string | null
           store_name: string | null
           tax_rate: number | null
           tiktok_url: string | null
@@ -263,9 +260,6 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           shipping_rate?: number | null
-          square_api_key?: string | null
-          square_application_id?: string | null
-          square_location_id?: string | null
           store_name?: string | null
           tax_rate?: number | null
           tiktok_url?: string | null
@@ -286,9 +280,6 @@ export type Database = {
           seo_description?: string | null
           seo_title?: string | null
           shipping_rate?: number | null
-          square_api_key?: string | null
-          square_application_id?: string | null
-          square_location_id?: string | null
           store_name?: string | null
           tax_rate?: number | null
           tiktok_url?: string | null

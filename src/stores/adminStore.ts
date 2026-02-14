@@ -63,9 +63,6 @@ export interface AdminSettings {
   shippingRate: number;
   lowStockThreshold: number;
   posProvider: 'none' | 'square';
-  squareApiKey: string;
-  squareApplicationId: string;
-  squareLocationId: string;
   
   // New settings
   seoTitle?: string;
@@ -104,9 +101,6 @@ const INITIAL_SETTINGS: AdminSettings = {
   shippingRate: 8.50,
   lowStockThreshold: 10,
   posProvider: 'square',
-  squareApiKey: '',
-  squareApplicationId: '',
-  squareLocationId: 'L09Y3ZCB23S11',
   
   seoTitle: 'Nina Armend | Luxury Brazilian Swimwear',
   seoDescription: 'Discover our exclusive collection of premium Brazilian swimwear, handcrafted with the finest Brazilian fabrics.',

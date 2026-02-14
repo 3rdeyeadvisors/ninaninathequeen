@@ -78,26 +78,12 @@ Deno.serve(async (req) => {
     }
 
     // Get secrets
-    let SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')
+    const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')?.trim()
     const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox'
-
-    if (!SQUARE_ACCESS_TOKEN) {
-      console.time('FinalizeOrder_FetchSettingsFromDB');
-      const { data: settings } = await supabase
-        .from('store_settings')
-        .select('square_api_key')
-        .limit(1)
-        .maybeSingle();
-      SQUARE_ACCESS_TOKEN = settings?.square_api_key;
-      console.timeEnd('FinalizeOrder_FetchSettingsFromDB');
-    }
 
     if (!SQUARE_ACCESS_TOKEN) {
       throw new Error('Square Access Token is not configured.')
     }
-
-    // Trim whitespace from token
-    SQUARE_ACCESS_TOKEN = SQUARE_ACCESS_TOKEN.trim()
 
     const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
       ? "https://connect.squareupsandbox.com"
