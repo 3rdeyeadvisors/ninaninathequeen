@@ -10,7 +10,7 @@ const features = [
   {
     icon: Shield,
     title: 'Brazilian Excellence',
-    description: 'Handcrafted with premium double-lined Italian fabrics',
+    description: 'Handcrafted with premium double-lined Brazilian fabrics',
   },
   {
     icon: Gift,
