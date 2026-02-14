@@ -63,7 +63,7 @@ export default function About() {
               <p className="text-primary font-sans tracking-[0.3em] uppercase text-[10px] md:text-xs font-bold mb-10">Lydia — Founder & Owner</p>
               <div className="space-y-8">
                 <p className="text-muted-foreground leading-relaxed text-lg">
-                  Lydia founded Nina Armend with a clear vision: to bring the authentic soul of Brazilian beach culture to the global luxury market. Her background in fashion design and her deep connection to the coastal lifestyle of Rio de Janeiro drive the brand's creative direction.
+                  Lydia founded Nina Armend with a clear vision: to bring the authentic soul of Brazilian beach culture to the global luxury market. Her background in fashion design and her deep connection to the coastal lifestyle drive the brand's creative direction.
                 </p>
                 <p className="text-foreground leading-relaxed italic border-l-2 border-primary/40 pl-8 py-4 bg-secondary/10 rounded-r-xl text-lg">
                   "Nina Armend is a tribute to the confident, effortless elegance of the modern woman. We don't just make bikinis; we create memories of sun-kissed days and endless summers."

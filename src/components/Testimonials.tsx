@@ -3,33 +3,11 @@ import { Star, Quote } from 'lucide-react';
 import { useReviewStore } from '@/stores/reviewStore';
 import { useMemo } from 'react';
 
-const fallbackTestimonials = [
-  {
-    name: "Isabella Silva",
-    location: "Rio de Janeiro",
-    text: "The most luxurious swimwear I've ever owned. The fit is absolute perfection and the fabric feels like a dream.",
-    rating: 5
-  },
-  {
-    name: "Sophia Martinez",
-    location: "Miami, FL",
-    text: "Nina Armend captured the Brazilian spirit perfectly. I get compliments every time I wear my Copacabana set!",
-    rating: 5
-  },
-  {
-    name: "Alessandra Rossi",
-    location: "Milan, Italy",
-    text: "True luxury craftsmanship. You can tell every piece is made with intention and high-quality materials.",
-    rating: 5
-  }
-];
-
 export function Testimonials() {
   const { reviews } = useReviewStore();
 
   const testimonials = useMemo(() => {
-    // Use real reviews with 4+ stars if available, pad with fallbacks
-    const realTestimonials = reviews
+    return reviews
       .filter(r => r.rating >= 4 && r.comment.length >= 20)
       .slice(0, 3)
       .map(r => ({
@@ -38,13 +16,9 @@ export function Testimonials() {
         text: r.comment,
         rating: r.rating,
       }));
-
-    if (realTestimonials.length >= 3) return realTestimonials;
-    
-    // Mix real + fallback
-    const needed = 3 - realTestimonials.length;
-    return [...realTestimonials, ...fallbackTestimonials.slice(0, needed)];
   }, [reviews]);
+
+  if (testimonials.length === 0) return null;
 
   return (
     <section className="py-24 bg-secondary/20 overflow-hidden">

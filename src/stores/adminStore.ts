@@ -109,7 +109,7 @@ const INITIAL_SETTINGS: AdminSettings = {
   squareLocationId: 'L09Y3ZCB23S11',
   
   seoTitle: 'Nina Armend | Luxury Brazilian Swimwear',
-  seoDescription: 'Discover our exclusive collection of premium Brazilian swimwear, handcrafted with the finest Italian fabrics.',
+  seoDescription: 'Discover our exclusive collection of premium Brazilian swimwear, handcrafted with the finest Brazilian fabrics.',
   instagramUrl: 'https://instagram.com/ninaarmend',
   facebookUrl: '',
   tiktokUrl: '',
