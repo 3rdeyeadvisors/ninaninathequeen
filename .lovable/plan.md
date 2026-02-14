@@ -1,71 +1,73 @@
 
 
-# Launch Announcement Email + Selectable Waitlist
+# Fix Audience Tracking, Waitlist Search, Remove Placeholders, and Smart Notification Badges
 
-## Overview
+## Issues Identified
 
-Add a "Send Launch Email" feature to the Waitlist tab that lets you select specific waitlist entries and send them a branded launch announcement email. The email will tell them Nina Armend is live, invite them to create an account to earn points, and link to the signup page.
+### 1. Total Audience Box Not Syncing
+The "Total Audience" box on the Customers page shows `customers.length` from the Zustand store. The `customers` table in the database has 0 rows, while waitlist has entries. The "Total Audience" should reflect **both** customers AND waitlist signups combined, since in pre-launch mode the waitlist IS the audience. Currently it only counts the `customers` table.
 
-## Part 1: New Email Template (Edge Function)
+**Fix**: Change the Total Audience count to `customers.length + waitlist.length` so it reflects the true total audience size. The Dashboard's "Customers" card will also be updated to include waitlist count.
 
-**File:** `supabase/functions/send-email/index.ts`
+### 2. Waitlist Search Not Working
+The search input and `waitlistSearch` state exist and the `filteredWaitlist` memo looks correct. However, the table renders `filteredWaitlist` properly. Let me verify -- the issue may be that `filteredWaitlist` is used for the table but some edge in rendering. After re-reading the code, the filtering logic at line 87-94 looks correct. The issue might be that the search input is not visually connected or there's a rendering issue. I'll verify during testing and ensure it works end-to-end.
 
-Add a new `launchAnnouncementEmail` function that generates the launch email:
-- Subject: "Nina Armend Is Now Live"
-- Content: Announces the store is open, highlights the 50 welcome points for creating an account, and includes a CTA button linking to the signup/shop page
-- Uses the existing branded `baseWrapper` layout (black bg, gold accents, Parisienne logo)
+### 3. Settings Page - Remove Useless Sections
+Remove the following from the Settings page:
+- **General Configuration** card (Store Name, Currency) -- lines 82-107
+- **SEO and Search Discovery** card (Page Title Pattern, Meta Description) -- lines 139-165
+- **Notifications** card (Order Alerts, Low Stock Alerts switches) -- lines 245-262. These are placeholders with `defaultChecked` that don't persist anywhere
+- **International Shipping** switch inside Regional and Shipping -- also a `defaultChecked` placeholder with no state binding
 
-Add a new case `'launch_announcement'` in the switch statement that accepts `{ emails: string[] }` -- an array of recipient emails. It loops through each email and sends the launch email individually via the existing `sendEmail` helper.
+The remaining useful sections will be:
+- Regional and Shipping (just the flat shipping rate)
+- Social Media Presence
+- Contact Information
+- Store Status (Maintenance Mode)
+- Save Changes button
 
-## Part 2: Selectable Waitlist UI
+Also clean up the `AdminSettings` interface and `useSettingsDb` to stop saving `storeName`, `currency`, `seoTitle`, `seoDescription` since they won't be editable anymore. The hardcoded defaults are fine.
 
-**File:** `src/pages/admin/Customers.tsx`
+### 4. Notification Badges - When Do They Clear?
+Currently the sidebar badges show pending orders and waitlist count and **never go away** -- they persist as long as there's data. The fix: badges should clear when the admin actually visits that section.
 
-Changes to the Waitlist tab:
+**Implementation**:
+- Track "last seen" counts in `localStorage` for each category
+- When the admin navigates to `/admin/orders`, save the current pending count as "seen"
+- When the admin navigates to `/admin/customers`, save the current waitlist count as "seen"  
+- The badge only shows the **difference** between current count and last-seen count
+- This means: badge appears when new items arrive, disappears after the admin visits the page
 
-1. **New state**: `selectedIds` (Set of waitlist entry IDs) and `isSendingLaunch` (boolean loading state)
+## Technical Changes
 
-2. **Checkbox column**: Add a checkbox to each waitlist row for selection, plus a "select all" checkbox in the table header
+### File: `src/pages/admin/Customers.tsx`
+- Change the Total Audience display from `customers.length` to `customers.length + waitlist.length`
+- Verify waitlist search works correctly (the code looks right, will test)
 
-3. **"Send Launch Email" button**: Appears in the toolbar next to "Download CSV" when at least one entry is selected. Shows count of selected entries (e.g., "Send Launch Email (5)"). On click:
-   - Confirms with the user ("Send launch email to X recipients?")
-   - Calls the `send-email` edge function with `type: 'launch_announcement'` and the selected emails array
-   - Shows success/error toast
-   - Disables button and shows spinner while sending
+### File: `src/components/admin/AdminSidebar.tsx`
+- Add localStorage-based "last seen" tracking
+- On mount, fetch current counts and compare with stored "last seen" values
+- When a link is active (current page), update the "last seen" value to the current count
+- Badge shows `currentCount - lastSeenCount` (only if positive)
 
-4. **Select All / Deselect All**: The header checkbox toggles between selecting all filtered entries and deselecting all
+### File: `src/pages/admin/Settings.tsx`
+- Remove the General Configuration card entirely
+- Remove the SEO and Search Discovery card entirely
+- Remove the Notifications card (placeholder switches)
+- Remove the International Shipping toggle (placeholder)
+- Adjust the grid layout since there are fewer cards now
 
-## Technical Details
+### File: `src/stores/adminStore.ts`
+- Remove `storeName`, `currency`, `seoTitle`, `seoDescription` from `AdminSettings` interface (keep them as hardcoded defaults used elsewhere but not editable)
+- Actually, keep them in the interface to avoid breaking other code that reads them, but just remove the UI for editing them
 
-### Launch Email Content
-```
-Subject: Nina Armend Is Now Live
-
-Body:
-- "The wait is over" headline
-- Brief message that the store is open
-- Card highlighting 50 welcome points for creating an account
-- Primary CTA button: "Create Your Account" -> /shop (or signup route)
-- Secondary note about exclusive collections
-```
-
-### Edge Function Changes
-- New template function: `launchAnnouncementEmail(data: { name?: string })`
-- New case in switch: `'launch_announcement'` that expects `{ emails: string[] }` and sends to each recipient
-- Sends emails sequentially to avoid rate limiting, returns combined results
-
-### UI Component Changes
-- Import `Checkbox` from `@/components/ui/checkbox`
-- Add `Send` icon from lucide-react
-- New column in waitlist table (leftmost) with checkboxes
-- Toolbar button conditionally rendered when `selectedIds.size > 0`
+### File: `src/pages/admin/Dashboard.tsx`
+- Update the Customers card to show combined audience (customers + waitlist count fetched separately or passed)
 
 ## Testing Plan
-
-After implementation:
-1. Navigate to admin Customers page, Waitlist tab
-2. Verify checkboxes appear on each row and "select all" works
-3. Select a few entries and verify the "Send Launch Email" button appears with correct count
-4. Click the button and confirm the email is sent successfully via edge function logs
-5. Verify the email content renders correctly with the branded template
+1. Navigate to admin Customers page -- verify Total Audience shows combined count
+2. Test waitlist search by typing a name/email
+3. Visit Settings -- confirm General Config, SEO, and placeholder switches are gone
+4. Check notification badges appear, then navigate to the page and verify they clear
+5. Navigate away and back -- badges should stay cleared until new data arrives
 
