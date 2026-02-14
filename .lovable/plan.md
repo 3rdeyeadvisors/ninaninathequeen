@@ -1,50 +1,28 @@
 
-## Fix: Maintenance Page and Waitlist
+
+## Fix: Waitlist RLS Policy
 
 ### Root Cause
 
-The `public_store_settings` database view was created with `security_invoker=on`, meaning it runs queries as the calling user. Since the underlying `store_settings` table only allows admin-level SELECT access, **anonymous visitors get empty results**. This means `isMaintenanceMode` is never set to `true`, so the maintenance page never appears for non-admin visitors.
+The "Anyone can join waitlist" INSERT policy on the `waitlist` table was created as a **RESTRICTIVE** policy. PostgreSQL RLS requires at least one **PERMISSIVE** policy to grant base access -- restrictive policies can only narrow existing access. Since there is no permissive INSERT policy, all inserts are denied regardless of the `true` check expression.
 
-Because the maintenance page never shows, the waitlist form is inaccessible. When it was occasionally visible (due to cached local state), the "try again" error occurred because the waitlist insert and email calls were failing silently.
+### Fix
 
----
-
-### Fix 1: Allow Public Read Access to Store Settings
-
-**Database migration** -- Add a permissive SELECT policy on the `store_settings` table so that all visitors (anonymous and authenticated) can read the settings. This table does not contain sensitive data (no API keys or secrets), so public read access is safe.
+**Database migration** -- Drop the restrictive INSERT policy and recreate it as PERMISSIVE:
 
 ```sql
-CREATE POLICY "Public can read settings"
-  ON public.store_settings
-  FOR SELECT
+DROP POLICY "Anyone can join waitlist" ON public.waitlist;
+
+CREATE POLICY "Anyone can join waitlist"
+  ON public.waitlist
+  FOR INSERT
   TO anon, authenticated
-  USING (true);
+  WITH CHECK (true);
 ```
 
-This fixes the core problem: now `public_store_settings` (and `store_settings` directly) will return data for all users, so `isMaintenanceMode` will be correctly detected.
+This single migration is the only change needed. The form code is correct -- the database is just blocking the insert due to the wrong policy type.
 
----
+### Verification
 
-### Fix 2: Simplify Settings Fetch in DbSyncProvider
+After applying the migration, the waitlist signup will be tested by submitting a form entry to confirm a 200/201 response instead of the current 401/42501 error.
 
-**File:** `src/providers/DbSyncProvider.tsx`
-
-Since both anon and authenticated users can now read `store_settings` directly, simplify `syncSettings` to always use `store_settings` first and fall back to `public_store_settings` only if needed. The current code already does this, so the database fix alone should resolve it -- but we'll add better error logging to avoid silent failures.
-
----
-
-### Fix 3: Harden the Waitlist Insert
-
-**File:** `src/pages/Maintenance.tsx`
-
-- Remove the `as any` type casts on the waitlist insert (now that the types file includes the `waitlist` table, these are unnecessary and hide potential type errors)
-- Add more specific error logging so failures are easier to diagnose
-- Make the email calls fully independent of the insert success (they already are fire-and-forget, but ensure errors don't bubble up)
-
----
-
-### Technical Summary
-
-1. **Database migration**: Add `"Public can read settings"` SELECT policy on `store_settings` for `anon` and `authenticated`
-2. **`src/pages/Maintenance.tsx`**: Remove `as any` casts, improve error handling
-3. **`src/providers/DbSyncProvider.tsx`**: Add diagnostic logging for settings fetch failures
