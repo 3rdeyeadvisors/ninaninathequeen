@@ -30,6 +30,7 @@ export default function AdminDashboard() {
   const [chatInput, setChatInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [mostViewed, setMostViewed] = useState<{id: string, title: string, views: number, image: string}[]>([]);
+  const [waitlistCount, setWaitlistCount] = useState(0);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -41,6 +42,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     scrollToBottom();
   }, [chatMessages]);
+
+  useEffect(() => {
+    supabase.from('waitlist').select('id', { count: 'exact', head: true }).then(({ count }) => {
+      setWaitlistCount(count || 0);
+    });
+  }, []);
 
   useEffect(() => {
     const views = JSON.parse(localStorage.getItem('product_views') || '{}');
@@ -377,7 +384,7 @@ Recent Orders: ${confirmedOrders.slice(0, 5).map(o => `${o.customerName} - $${o.
                     <Users className="h-4 w-4 text-primary" />
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                    <div className="text-2xl font-serif mb-1">{customers.length}</div>
+                    <div className="text-2xl font-serif mb-1">{customers.length + waitlistCount}</div>
                     <p className="text-[10px] text-muted-foreground flex items-center mt-1">
                       Total audience
                     </p>

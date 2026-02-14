@@ -2,12 +2,18 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, ShoppingBag, Settings, Store, Users, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+
+const SEEN_KEYS: Record<string, string> = {
+  '/admin/orders': 'admin_seen_pending_orders',
+  '/admin/customers': 'admin_seen_waitlist',
+};
 
 export function AdminSidebar() {
   const location = useLocation();
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
+  const currentCountsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -15,13 +21,35 @@ export function AdminSidebar() {
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'Pending'),
         supabase.from('waitlist').select('id', { count: 'exact', head: true }),
       ]);
+
+      const currentOrders = ordersRes.count || 0;
+      const currentWaitlist = waitlistRes.count || 0;
+
+      currentCountsRef.current = {
+        '/admin/orders': currentOrders,
+        '/admin/customers': currentWaitlist,
+      };
+
+      const seenOrders = parseInt(localStorage.getItem(SEEN_KEYS['/admin/orders']) || '0', 10);
+      const seenWaitlist = parseInt(localStorage.getItem(SEEN_KEYS['/admin/customers']) || '0', 10);
+
       setBadgeCounts({
-        '/admin/orders': ordersRes.count || 0,
-        '/admin/customers': waitlistRes.count || 0,
+        '/admin/orders': Math.max(0, currentOrders - seenOrders),
+        '/admin/customers': Math.max(0, currentWaitlist - seenWaitlist),
       });
     };
     fetchCounts();
   }, []);
+
+  // Mark as seen when admin visits the page
+  useEffect(() => {
+    const path = location.pathname;
+    const seenKey = SEEN_KEYS[path];
+    if (seenKey && currentCountsRef.current[path] !== undefined) {
+      localStorage.setItem(seenKey, String(currentCountsRef.current[path]));
+      setBadgeCounts(prev => ({ ...prev, [path]: 0 }));
+    }
+  }, [location.pathname]);
 
   const links = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
