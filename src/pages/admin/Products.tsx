@@ -384,16 +384,73 @@ export default function AdminProducts() {
     }
   };
 
-  const handleAiDescription = () => {
+  const handleAiDescription = async () => {
+    if (!editingProduct?.title?.trim()) {
+      toast.error("Enter a product name first");
+      return;
+    }
     setIsAiGenerating(true);
-    setTimeout(() => {
-      setEditingProduct({
-        ...editingProduct,
-        description: `Experience ultimate Brazilian luxury with the ${editingProduct?.title || 'product'}. Handcrafted from our signature double-lined Italian fabric, this piece features a sophisticated silhouette designed to accentuate your natural curves while providing premium comfort and support.`
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: `Write a product description for: "${editingProduct.title}". Category: ${editingProduct.category || 'swimwear'}.` }],
+          mode: 'product_description',
+        }),
       });
+
+      if (!resp.ok) {
+        throw new Error('AI service error');
+      }
+
+      // Read streamed response
+      const reader = resp.body?.getReader();
+      if (!reader) throw new Error('No response');
+      const decoder = new TextDecoder();
+      let fullText = '';
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) fullText += content;
+          } catch { /* skip */ }
+        }
+      }
+
+      if (fullText) {
+        setEditingProduct({ ...editingProduct, description: fullText.trim() });
+        toast.success("AI description generated!");
+      } else {
+        toast.error("No description generated. Try again.");
+      }
+    } catch (err) {
+      console.error('AI description error:', err);
+      toast.error("Failed to generate description. Try again.");
+    } finally {
       setIsAiGenerating(false);
-      toast.success("Magic AI description generated!");
-    }, 1500);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

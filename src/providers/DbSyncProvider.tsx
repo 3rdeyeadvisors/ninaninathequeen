@@ -28,7 +28,7 @@ interface DbSyncProviderProps {
 export function DbSyncProvider({ children }: DbSyncProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
-  const { updateProductOverride, addOrder, addCustomer, updateSettings } = useAdminStore();
+  const { updateProductOverride, setOrders, setCustomers, updateSettings } = useAdminStore();
 
   // Sync products from database
   const syncProducts = async () => {
@@ -69,7 +69,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
     }
   };
 
-  // Sync orders from database
+  // Sync orders from database - FULL REPLACEMENT
   const syncOrders = async () => {
     try {
       const supabase = getSupabase();
@@ -83,33 +83,27 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         return;
       }
 
-      if (data && data.length > 0) {
-        const store = useAdminStore.getState();
-        
-        data.forEach((order) => {
-          const existingOrder = store.orders.find(o => o.id === order.id);
-          if (!existingOrder) {
-            addOrder({
-              id: order.id,
-              customerName: order.customer_name,
-              customerEmail: order.customer_email,
-              date: order.date,
-              total: order.total,
-              shippingCost: order.shipping_cost || undefined,
-              itemCost: order.item_cost || undefined,
-              status: order.status as AdminOrder['status'],
-              trackingNumber: order.tracking_number || '',
-              items: (order.items as AdminOrder['items']) || [],
-            });
-          }
-        });
+      if (data) {
+        const formattedOrders: AdminOrder[] = data.map((order) => ({
+          id: order.id,
+          customerName: order.customer_name,
+          customerEmail: order.customer_email,
+          date: order.date,
+          total: order.total,
+          shippingCost: order.shipping_cost || undefined,
+          itemCost: order.item_cost || undefined,
+          status: order.status as AdminOrder['status'],
+          trackingNumber: order.tracking_number || '',
+          items: (order.items as AdminOrder['items']) || [],
+        }));
+        setOrders(formattedOrders);
       }
     } catch (err) {
       console.error('Failed to fetch orders:', err);
     }
   };
 
-  // Sync customers from database
+  // Sync customers from database - FULL REPLACEMENT
   const syncCustomers = async () => {
     try {
       const supabase = getSupabase();
@@ -123,22 +117,16 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         return;
       }
 
-      if (data && data.length > 0) {
-        const store = useAdminStore.getState();
-        
-        data.forEach((customer) => {
-          const existingCustomer = store.customers.find(c => c.id === customer.id || c.email === customer.email);
-          if (!existingCustomer) {
-            addCustomer({
-              id: customer.id,
-              name: customer.name,
-              email: customer.email,
-              totalSpent: customer.total_spent || '0.00',
-              orderCount: customer.order_count || 0,
-              joinDate: customer.join_date,
-            });
-          }
-        });
+      if (data) {
+        const formattedCustomers: AdminCustomer[] = data.map((customer) => ({
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          totalSpent: customer.total_spent || '0.00',
+          orderCount: customer.order_count || 0,
+          joinDate: customer.join_date,
+        }));
+        setCustomers(formattedCustomers);
       }
     } catch (err) {
       console.error('Failed to fetch customers:', err);
@@ -172,7 +160,6 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         });
       };
 
-      // Try fetching from store_settings first (admin/authenticated access)
       const { data: settings, error: settingsError } = await supabase
         .from('store_settings')
         .select('*')
@@ -184,7 +171,6 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         return;
       }
 
-      // store_settings query failed (likely RLS for guest users) — use defaults
       console.warn('Could not fetch store settings (RLS):', settingsError?.message);
 
     } catch (err) {
@@ -198,7 +184,6 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
       setIsLoading(true);
       
       try {
-        // Load all data in parallel
         await Promise.all([
           syncProducts(),
           syncOrders(),
@@ -215,12 +200,10 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
       }
     };
 
-    // Only load after Zustand has hydrated from localStorage
     const store = useAdminStore.getState();
     if (store._hasHydrated) {
       loadAllData();
     } else {
-      // Wait for hydration
       const unsubscribe = useAdminStore.subscribe((state) => {
         if (state._hasHydrated && !isInitialized) {
           loadAllData();

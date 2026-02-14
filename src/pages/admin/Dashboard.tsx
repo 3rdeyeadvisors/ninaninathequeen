@@ -3,9 +3,9 @@ import { Footer } from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, AreaChart, Area
+  AreaChart, Area
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Users, DollarSign, Package, Brain, Sparkles, MessageSquare, Upload, Loader2, BarChart3, Download } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, Package, Brain, Sparkles, MessageSquare, Loader2, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,29 +15,22 @@ import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
 import { useProducts } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
+import ReactMarkdown from 'react-markdown';
 
-const data = [
-  { name: 'Mon', sales: 4000, traffic: 2400 },
-  { name: 'Tue', sales: 3000, traffic: 3398 },
-  { name: 'Wed', sales: 5000, traffic: 9800 },
-  { name: 'Thu', sales: 2780, traffic: 3908 },
-  { name: 'Fri', sales: 4890, traffic: 4800 },
-  { name: 'Sat', sales: 6390, traffic: 7800 },
-  { name: 'Sun', sales: 8490, traffic: 9300 },
-];
+const VALID_STATUSES = ['Processing', 'Shipped', 'Delivered'];
 
 export default function AdminDashboard() {
   const { data: allProducts } = useProducts(200);
-  const { orders, customers, _hasHydrated } = useAdminStore();
+  const { orders, customers, settings, productOverrides, _hasHydrated } = useAdminStore();
   
-  const [chatMessages, setChatMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
-    { role: 'ai', text: "Hello! How can I help you optimize your store today?" }
+  const [chatMessages, setChatMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
+    { role: 'assistant', content: "Hello! How can I help you optimize your store today?" }
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [mostViewed, setMostViewed] = useState<{id: string, title: string, views: number, image: string}[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
@@ -81,18 +74,100 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const totalRevenue = useMemo(() => {
-    return orders.reduce((acc, order) => acc + parseFloat(order.total), 0);
+  // Filter orders to only confirmed ones (exclude Pending and Cancelled)
+  const confirmedOrders = useMemo(() => {
+    return orders.filter(o => VALID_STATUSES.includes(o.status));
   }, [orders]);
 
+  const totalRevenue = useMemo(() => {
+    return confirmedOrders.reduce((acc, order) => acc + parseFloat(order.total), 0);
+  }, [confirmedOrders]);
+
   const totalNetProfit = useMemo(() => {
-    return orders.reduce((acc, order) => {
+    return confirmedOrders.reduce((acc, order) => {
       const revenue = parseFloat(order.total);
       const shipping = parseFloat(order.shippingCost || '0');
       const cost = parseFloat(order.itemCost || '0');
       return acc + (revenue - shipping - cost);
     }, 0);
-  }, [orders]);
+  }, [confirmedOrders]);
+
+  // Real inventory stats from product overrides
+  const totalInventory = useMemo(() => {
+    return Object.values(productOverrides).reduce((acc, p) => {
+      if (p.isDeleted) return acc;
+      return acc + (p.inventory || 0);
+    }, 0);
+  }, [productOverrides]);
+
+  const lowStockCount = useMemo(() => {
+    const threshold = settings.lowStockThreshold || 10;
+    return Object.values(productOverrides).filter(p => {
+      if (p.isDeleted) return false;
+      return p.inventory > 0 && p.inventory <= threshold;
+    }).length;
+  }, [productOverrides, settings.lowStockThreshold]);
+
+  // Real chart data - group confirmed orders by day (last 7 days)
+  const chartData = useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const salesByDay: Record<string, number> = {};
+    days.forEach(d => salesByDay[d] = 0);
+
+    confirmedOrders.forEach(order => {
+      try {
+        const date = new Date(order.date);
+        const dayName = days[date.getDay()];
+        salesByDay[dayName] += parseFloat(order.total);
+      } catch { /* skip invalid dates */ }
+    });
+
+    return days.map(name => ({ name, sales: Math.round(salesByDay[name] * 100) / 100 }));
+  }, [confirmedOrders]);
+
+  // Dynamic insights from real data
+  const insights = useMemo(() => {
+    const topOpportunity = (() => {
+      if (lowStockCount > 0) {
+        return `${lowStockCount} product${lowStockCount > 1 ? 's are' : ' is'} running low on stock. Consider restocking soon to avoid missed sales.`;
+      }
+      if (confirmedOrders.length > 0) {
+        return `You have ${confirmedOrders.length} confirmed order${confirmedOrders.length > 1 ? 's' : ''}. Keep the momentum going with targeted promotions.`;
+      }
+      return 'Add products and start promoting your store to drive your first sales.';
+    })();
+
+    const growthSignal = (() => {
+      const pendingCount = orders.filter(o => o.status === 'Pending').length;
+      if (pendingCount > 0) {
+        return `${pendingCount} pending order${pendingCount > 1 ? 's' : ''} awaiting payment confirmation. These will auto-clear if abandoned.`;
+      }
+      if (customers.length > 0) {
+        return `${customers.length} customer${customers.length > 1 ? 's' : ''} in your audience. Engage them with email campaigns or new arrivals.`;
+      }
+      return 'Build your customer base by sharing your store on social media.';
+    })();
+
+    return { topOpportunity, growthSignal };
+  }, [confirmedOrders, orders, customers, lowStockCount]);
+
+  // Build store context for AI chat
+  const storeContext = useMemo(() => {
+    const activeProducts = Object.values(productOverrides).filter(p => !p.isDeleted);
+    return `
+Revenue: $${totalRevenue.toFixed(2)}
+Net Profit: $${totalNetProfit.toFixed(2)}
+Confirmed Orders: ${confirmedOrders.length}
+Pending Orders: ${orders.filter(o => o.status === 'Pending').length}
+Total Products: ${activeProducts.length}
+Total Inventory: ${totalInventory} items
+Low Stock Products: ${lowStockCount}
+Customers: ${customers.length}
+Low Stock Threshold: ${settings.lowStockThreshold}
+Top Products by inventory: ${activeProducts.sort((a, b) => b.inventory - a.inventory).slice(0, 5).map(p => `${p.title} (${p.inventory} units)`).join(', ')}
+Recent Orders: ${confirmedOrders.slice(0, 5).map(o => `${o.customerName} - $${o.total} (${o.status})`).join('; ')}
+    `.trim();
+  }, [totalRevenue, totalNetProfit, confirmedOrders, orders, productOverrides, totalInventory, lowStockCount, customers, settings]);
 
   // Show loading skeleton while data is being restored from storage
   if (!_hasHydrated) {
@@ -124,31 +199,97 @@ export default function AdminDashboard() {
     );
   }
 
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || isAiTyping) return;
 
     const userMessage = chatInput;
-    setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    const userMsg = { role: 'user' as const, content: userMessage };
+    setChatMessages(prev => [...prev, userMsg]);
     setChatInput('');
     setIsAiTyping(true);
 
-    setTimeout(() => {
-      let aiResponse = "I'm analyzing that for you...";
-      const msg = userMessage.toLowerCase();
+    let assistantSoFar = '';
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      if (msg.includes('sales') || msg.includes('revenue')) {
-        aiResponse = "Your sales are up 20.1% this month! The 'Copacabana' collection is your top performer, accounting for 35% of revenue.";
-      } else if (msg.includes('inventory') || msg.includes('stock')) {
-        aiResponse = "I've detected 12 items low in stock, primarily in size Small. I recommend placing a restock order within the next 48 hours.";
-      } else if (msg.includes('marketing') || msg.includes('customer')) {
-        aiResponse = "Your most engaged customers are in Miami and Los Angeles. I suggest a targeted Instagram campaign focusing on 'Beach Club Chic' aesthetics.";
-      } else {
-        aiResponse = "Looking at your store data, my top recommendation today is to optimize the mobile checkout experience.";
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: [...chatMessages.filter(m => m.role !== 'assistant' || m.content !== 'Hello! How can I help you optimize your store today?'), userMsg].map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+          storeContext,
+          mode: 'chat',
+        }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({ error: 'AI service error' }));
+        throw new Error(errData.error || 'AI service error');
       }
 
-      setChatMessages(prev => [...prev, { role: 'ai', text: aiResponse }]);
+      if (!resp.body) throw new Error('No response body');
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              assistantSoFar += content;
+              setChatMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === 'assistant' && last !== chatMessages[0]) {
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                }
+                return [...prev, { role: 'assistant' as const, content: assistantSoFar }];
+              });
+            }
+          } catch {
+            textBuffer = line + '\n' + textBuffer;
+            break;
+          }
+        }
+      }
+
+      if (!assistantSoFar) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: "I couldn't generate a response. Please try again." }]);
+      }
+    } catch (e: any) {
+      console.error('AI chat error:', e);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `Sorry, I encountered an error: ${e.message}` }]);
+      if (e.message?.includes('Rate limit')) {
+        toast.error('AI rate limit reached. Please wait a moment.');
+      }
+    } finally {
       setIsAiTyping(false);
-    }, 1500);
+    }
   };
 
 
@@ -176,8 +317,8 @@ export default function AdminDashboard() {
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
                     <div className="text-2xl font-serif mb-1">${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    <p className="text-[10px] text-emerald-500 flex items-center mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1" /> +20.1% vs prev
+                    <p className="text-[10px] text-muted-foreground flex items-center mt-1">
+                      {confirmedOrders.length} confirmed order{confirmedOrders.length !== 1 ? 's' : ''}
                     </p>
                   </CardContent>
                 </Card>
@@ -190,8 +331,8 @@ export default function AdminDashboard() {
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
                     <div className="text-2xl font-serif mb-1 text-primary">${totalNetProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    <p className="text-[10px] text-emerald-500 flex items-center mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1" /> Healthy Margins
+                    <p className="text-[10px] text-muted-foreground flex items-center mt-1">
+                      After costs & shipping
                     </p>
                   </CardContent>
                 </Card>
@@ -203,9 +344,9 @@ export default function AdminDashboard() {
                     <ShoppingBag className="h-4 w-4 text-primary" />
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                    <div className="text-2xl font-serif mb-1">{orders.length}</div>
-                    <p className="text-[10px] text-emerald-500 flex items-center mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1" /> +12% vs prev
+                    <div className="text-2xl font-serif mb-1">{confirmedOrders.length}</div>
+                    <p className="text-[10px] text-muted-foreground flex items-center mt-1">
+                      {orders.filter(o => o.status === 'Pending').length} pending
                     </p>
                   </CardContent>
                 </Card>
@@ -218,8 +359,8 @@ export default function AdminDashboard() {
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
                     <div className="text-2xl font-serif mb-1">{customers.length}</div>
-                    <p className="text-[10px] text-emerald-500 flex items-center mt-1">
-                      <TrendingUp className="h-3 w-3 mr-1" /> +19% vs prev
+                    <p className="text-[10px] text-muted-foreground flex items-center mt-1">
+                      Total audience
                     </p>
                   </CardContent>
                 </Card>
@@ -231,9 +372,9 @@ export default function AdminDashboard() {
                     <Package className="h-4 w-4 text-primary" />
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                    <div className="text-3xl font-serif mb-1">842 Items</div>
-                    <p className="text-xs text-amber-500 flex items-center mt-1">
-                      12 items low in stock
+                    <div className="text-3xl font-serif mb-1">{totalInventory.toLocaleString()} Items</div>
+                    <p className={`text-xs flex items-center mt-1 ${lowStockCount > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                      {lowStockCount > 0 ? `${lowStockCount} item${lowStockCount > 1 ? 's' : ''} low in stock` : 'Stock levels healthy'}
                     </p>
                   </CardContent>
                 </Card>
@@ -241,7 +382,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Quick Actions / Store Status */}
+              {/* Quick Actions */}
               <Card className="border-primary/10 bg-secondary/5 h-full">
                 <CardHeader className="pb-2">
                   <CardTitle className="font-serif text-lg">Quick Actions</CardTitle>
@@ -318,11 +459,11 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <CardTitle className="font-serif text-xl">Store Intelligence</CardTitle>
-                        <CardDescription>Advanced AI-driven growth metrics</CardDescription>
+                        <CardDescription>Real-time insights from your store data</CardDescription>
                       </div>
                     </div>
-                    <Badge variant="outline" className="animate-pulse bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                      Live AI Analysis
+                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                      Live Data
                     </Badge>
                   </div>
                 </CardHeader>
@@ -333,20 +474,20 @@ export default function AdminDashboard() {
                         <Sparkles className="h-4 w-4 text-primary" />
                         <span className="text-[10px] uppercase tracking-widest font-sans font-bold">Top Opportunity</span>
                       </div>
-                      <p className="text-sm font-sans">Bundle 'Copacabana Set' with matching cover-up for +$45 AOV increase</p>
+                      <p className="text-sm font-sans">{insights.topOpportunity}</p>
                     </div>
                     <div className="p-4 bg-background rounded-xl border">
                       <div className="flex items-center gap-2 mb-3">
                         <TrendingUp className="h-4 w-4 text-emerald-500" />
                         <span className="text-[10px] uppercase tracking-widest font-sans font-bold">Growth Signal</span>
                       </div>
-                      <p className="text-sm font-sans">Instagram traffic up 34% - optimize product pages for mobile conversion</p>
+                      <p className="text-sm font-sans">{insights.growthSignal}</p>
                     </div>
                   </div>
 
                   <div className="h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={data}>
+                      <AreaChart data={chartData}>
                         <defs>
                           <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
@@ -378,12 +519,16 @@ export default function AdminDashboard() {
                   <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-6 pr-2 scrollbar-thin">
                     {chatMessages.map((msg, idx) => (
                       <div key={idx} className="flex justify-center px-4">
-                        <div className={`max-w-[90%] p-4 rounded-2xl text-sm font-sans text-center transition-all duration-300 ${
+                        <div className={`max-w-[90%] p-4 rounded-2xl text-sm font-sans transition-all duration-300 ${
                           msg.role === 'user' 
-                            ? 'bg-primary text-primary-foreground shadow-md'
-                            : 'bg-background border border-primary/10 shadow-sm'
+                            ? 'bg-primary text-primary-foreground shadow-md text-center'
+                            : 'bg-background border border-primary/10 shadow-sm text-left'
                         }`}>
-                          {msg.text}
+                          {msg.role === 'assistant' ? (
+                            <div className="prose prose-sm max-w-none dark:prose-invert">
+                              <ReactMarkdown>{msg.content}</ReactMarkdown>
+                            </div>
+                          ) : msg.content}
                         </div>
                       </div>
                     ))}
@@ -398,20 +543,20 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     )}
-                    <div ref={chatEndRef} />
                   </div>
                   <div className="flex flex-col items-center gap-3 mt-auto">
                     <div className="flex w-full gap-2 bg-background border rounded-xl p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all">
                       <input
                         type="text"
-                        placeholder="Ask about store optimization..."
+                        placeholder="Ask about your store data..."
                         className="flex-1 bg-transparent border-none px-3 py-2 text-sm font-sans outline-none"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                        disabled={isAiTyping}
                       />
-                      <Button size="icon" className="bg-primary hover:scale-105 transition-transform shrink-0" onClick={handleSendMessage}>
-                        <MessageSquare className="h-4 w-4" />
+                      <Button size="icon" className="bg-primary hover:scale-105 transition-transform shrink-0" onClick={handleSendMessage} disabled={isAiTyping}>
+                        {isAiTyping ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
                       </Button>
                     </div>
                     <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium">Powered by Nina Intelligence</p>
@@ -445,13 +590,13 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-serif">Weekly Sales</CardTitle>
-                  <CardDescription>Revenue performance over the past week</CardDescription>
+                  <CardTitle className="font-serif">Sales by Day</CardTitle>
+                  <CardDescription>Revenue from confirmed orders by day of week</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data}>
+                      <BarChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis dataKey="name" className="text-xs" />
                         <YAxis className="text-xs" />
@@ -465,20 +610,29 @@ export default function AdminDashboard() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="font-serif">Traffic Trends</CardTitle>
-                  <CardDescription>Website visitor patterns</CardDescription>
+                  <CardTitle className="font-serif">Order Summary</CardTitle>
+                  <CardDescription>Quick overview of order statuses</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={data}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="name" className="text-xs" />
-                        <YAxis className="text-xs" />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="traffic" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className="space-y-6 py-4">
+                    {['Processing', 'Shipped', 'Delivered', 'Pending', 'Cancelled'].map(status => {
+                      const count = orders.filter(o => o.status === status).length;
+                      return (
+                        <div key={status} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-3 h-3 rounded-full ${
+                              status === 'Delivered' ? 'bg-emerald-500' :
+                              status === 'Processing' ? 'bg-blue-500' :
+                              status === 'Shipped' ? 'bg-purple-500' :
+                              status === 'Pending' ? 'bg-amber-500' :
+                              'bg-red-500'
+                            }`} />
+                            <span className="text-sm font-sans">{status}</span>
+                          </div>
+                          <span className="font-serif text-lg">{count}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
