@@ -1,41 +1,68 @@
 
 
-# Fix Logo "N" Clipping + Create Branded Link Share Image
+# Make the AI Super Intelligent (with Silent Memory)
 
-## Issue 1: Logo "N" Being Cut Off
+## What Changes
 
-**Root cause**: The `.gradient-gold-text` CSS class uses `background-clip: text` which clips rendering to the text bounds. The Parisienne font's cursive "N" has a leftward flourish that extends beyond the normal text bounding box. The current horizontal padding of `0.1em` is insufficient for this flourish. Additionally, the header wraps the logo in scaled containers (`scale-[0.6]`, `scale-75`) which compound the issue.
+### 1. Remove Visual Chat History Loading (Dashboard.tsx)
 
-**Fix (multiple points)**:
+The `useEffect` that loads old messages from `chat_messages` table and displays them on screen will be removed. The chat will always start fresh with just the greeting. However, messages will still be saved to the database so the AI can reference them.
 
-1. **`src/index.css`** - Increase the horizontal padding in `.gradient-gold-text` from `0.1em` to `0.3em` (and the negative margin accordingly) to give the "N" flourish enough room to render fully within the clipped area.
+### 2. Feed the AI Its Own Memory Silently (Dashboard.tsx + Edge Function)
 
-2. **`src/components/Logo.tsx`** - Add explicit left padding (`pl-2`) on the h1 element to give extra breathing room for the flourish. Ensure the entire motion.div and its children have `overflow-visible`.
+Instead of loading old messages into the visible chat, the edge function will query the `chat_messages` table server-side and inject the last ~20 messages as hidden context in the system prompt. This way the AI "remembers" past conversations without cluttering the UI.
 
-3. **`src/components/Header.tsx`** - Add `overflow-visible` to the Logo's parent link containers on both desktop (line 78) and mobile (line 156) to prevent any ancestor from clipping the scaled content.
+### 3. Supercharge the Store Context with Deep Analytics (Dashboard.tsx)
 
-4. **`src/components/checkout/CheckoutHeader.tsx`** - Same fix: add `overflow-visible` to the logo link wrapper (line 23).
+The `storeContext` currently has product names/prices and order summaries but lacks the detail needed for questions like "What's my most sold item?" or "Which customer spends the most?" 
 
-After changes, I will visually verify in the browser that the "N" renders fully at all viewport sizes.
+**Add these data blocks:**
 
-## Issue 2: Branded Link Share (OG) Image
+- **Sales by Product** -- aggregate all confirmed order items to show units sold per product, ranked by quantity. This directly answers "most sold item."
+- **Top Customers by Spend** -- rank customers by total spend and order count, so the AI can say "Customer X bought the most."
+- **Customer Purchase Details** -- for each recent order, include the full item list (product name, size, quantity, price) so the AI can cross-reference who bought what.
+- **Revenue by Category** -- aggregate sales by product category for strategic insights.
+- **Average Order Value** -- simple but powerful metric for strategy questions.
 
-**Current state**: The `og:image` meta tag in `index.html` points to a generic Unsplash beach photo that has nothing to do with the brand.
+Example of enriched context:
 
-**Fix**: Create a proper branded OG image using a backend function that generates a clean, on-brand share card:
+```
+=== SALES ANALYTICS ===
+Most Sold Products (by units):
+1. Copacabana Bikini Set — 12 units sold — $2,388 revenue
+2. Ipanema One-Piece — 8 units sold — $1,592 revenue
 
-1. **Create `supabase/functions/og-image/index.ts`** - A backend function that generates a 1200x630 SVG rendered as an image with:
-   - Black background matching the site theme
-   - "Nina Armend" in elegant serif typography (centered)
-   - "Brazilian Swimwear" subtitle underneath with gold accent lines
-   - Clean, minimal luxury layout matching the brand aesthetic
+Top Customers by Spend:
+1. Sarah Johnson — $856 total — 4 orders
+2. Maria Santos — $598 total — 2 orders
 
-2. **Update `index.html`** - Change the `og:image` and `twitter:image` meta tags to point to the backend function URL so the image is always on-brand and consistent.
+Average Order Value: $199.00
+Revenue by Category: Bikini Sets $3,200 | One-Pieces $1,800
 
-3. **Update `src/components/SEO.tsx`** - Ensure the OG image meta tag is set to the backend function URL dynamically.
+=== DETAILED ORDER LOG ===
+- Order #ABC: Sarah Johnson — Copacabana Bikini (S) x2, Ipanema One-Piece (M) x1 — $597
+```
 
-## Testing Plan
+### 4. Upgrade to Smarter Model (Edge Function)
 
-1. After Logo fix: Navigate to the homepage on both desktop and mobile viewports, take screenshots, and visually confirm the "N" is fully visible with no clipping
-2. After OG image: Call the backend function directly to verify it returns a valid PNG image with the branded design
-3. Test the OG image URL renders correctly in browser
+Switch from `google/gemini-3-flash-preview` to `google/gemini-3-pro-preview` for deeper reasoning and more nuanced strategic answers.
+
+### 5. Enhanced System Prompt (Edge Function)
+
+Update the system prompt to:
+- Instruct the AI to cross-reference data proactively (e.g., when asked about best sellers, also mention who bought them)
+- Think like a data analyst -- look for patterns, correlations, and actionable insights
+- Query its memory (injected past conversations) to maintain continuity across sessions
+- Go beyond what's asked -- if someone asks about inventory, also flag sales velocity
+
+## Files Changed
+
+- **`src/pages/admin/Dashboard.tsx`** -- Remove visual history loading, enrich storeContext with sales analytics, top customers, detailed order items
+- **`supabase/functions/ai-chat/index.ts`** -- Query chat_messages for silent memory, upgrade model, enhance system prompt for proactive intelligence
+
+## Testing
+
+1. Open admin dashboard -- chat should start fresh (no old messages loaded)
+2. Ask "What's my most sold item?" -- should get specific product name with units sold
+3. Ask "Who is my best customer?" -- should get customer name with spend and order details
+4. Ask a follow-up referencing a previous conversation topic -- AI should remember from its silent memory
