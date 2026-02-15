@@ -30,7 +30,7 @@ export default function AdminDashboard() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
-  const [chatLoaded, setChatLoaded] = useState(false);
+  
   const [mostViewed, setMostViewed] = useState<{id: string, title: string, views: number, image: string}[]>([]);
   const [waitlistCount, setWaitlistCount] = useState(0);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -51,29 +51,8 @@ export default function AdminDashboard() {
     });
   }, []);
 
-  // Load persistent chat history
-  useEffect(() => {
-    const loadChatHistory = async () => {
-      try {
-        const { data } = await supabase
-          .from('chat_messages')
-          .select('role, content')
-          .order('created_at', { ascending: true })
-          .limit(100);
-        if (data && data.length > 0) {
-          setChatMessages([
-            { role: 'assistant', content: GREETING },
-            ...data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
-          ]);
-        }
-      } catch (e) {
-        console.error('Failed to load chat history:', e);
-      } finally {
-        setChatLoaded(true);
-      }
-    };
-    loadChatHistory();
-  }, []);
+
+
 
   useEffect(() => {
     const views = JSON.parse(localStorage.getItem('product_views') || '{}');
@@ -210,8 +189,62 @@ export default function AdminDashboard() {
     const isMaintenanceMode = settings.isMaintenanceMode ?? false;
 
     const productCatalog = activeProducts
-      .map(p => `- ${p.title} | $${p.price} | ${p.category || 'Uncategorized'} | ${p.inventory} in stock${p.description ? ` | ${p.description.slice(0, 80)}` : ''}`)
+      .map(p => `- ${p.title} | $${p.price} | ${p.category || 'Uncategorized'} | ${p.inventory} in stock | Unit Cost: $${p.unitCost || '0.00'}${p.description ? ` | ${p.description.slice(0, 80)}` : ''}`)
       .join('\n');
+
+    // === SALES ANALYTICS: aggregate order items to find best sellers ===
+    const salesByProduct: Record<string, { units: number; revenue: number; buyers: string[] }> = {};
+    const customerSpend: Record<string, { total: number; orders: number; email: string }> = {};
+    const revenueByCategory: Record<string, number> = {};
+
+    confirmedOrders.forEach(order => {
+      const custName = order.customerName || 'Unknown';
+      if (!customerSpend[custName]) customerSpend[custName] = { total: 0, orders: 0, email: order.customerEmail || '' };
+      customerSpend[custName].total += parseFloat(order.total);
+      customerSpend[custName].orders += 1;
+
+      (order.items || []).forEach((item: any) => {
+        const title = item.title || item.name || 'Unknown';
+        if (!salesByProduct[title]) salesByProduct[title] = { units: 0, revenue: 0, buyers: [] };
+        salesByProduct[title].units += item.quantity || 1;
+        salesByProduct[title].revenue += (parseFloat(item.price || '0') * (item.quantity || 1));
+        if (!salesByProduct[title].buyers.includes(custName)) salesByProduct[title].buyers.push(custName);
+
+        // Revenue by category
+        const product = activeProducts.find(p => p.title === title);
+        const cat = product?.category || 'Other';
+        revenueByCategory[cat] = (revenueByCategory[cat] || 0) + (parseFloat(item.price || '0') * (item.quantity || 1));
+      });
+    });
+
+    const topProducts = Object.entries(salesByProduct)
+      .sort((a, b) => b[1].units - a[1].units)
+      .slice(0, 10)
+      .map(([title, d], i) => `${i + 1}. ${title} — ${d.units} units sold — $${d.revenue.toFixed(2)} revenue — Bought by: ${d.buyers.join(', ')}`)
+      .join('\n');
+
+    const topCustomers = Object.entries(customerSpend)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 10)
+      .map(([name, d], i) => `${i + 1}. ${name} (${d.email}) — $${d.total.toFixed(2)} total — ${d.orders} order${d.orders > 1 ? 's' : ''}`)
+      .join('\n');
+
+    const avgOrderValue = confirmedOrders.length > 0
+      ? (totalRevenue / confirmedOrders.length).toFixed(2)
+      : '0.00';
+
+    const categoryBreakdown = Object.entries(revenueByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, rev]) => `${cat}: $${rev.toFixed(2)}`)
+      .join(' | ');
+
+    const detailedOrderLog = confirmedOrders.slice(0, 20).map(o => {
+      const itemList = (o.items || []).map((item: any) => {
+        const size = item.size ? ` (${item.size})` : '';
+        return `${item.title || item.name}${size} x${item.quantity || 1}`;
+      }).join(', ');
+      return `- Order #${o.id.slice(0, 8)}: ${o.customerName} — ${itemList} — $${o.total} (${o.status})`;
+    }).join('\n');
 
     return `
 === BRAND IDENTITY ===
@@ -231,17 +264,27 @@ ${isMaintenanceMode ? 'Strategy: Building anticipation and audience before offic
 Revenue: $${totalRevenue.toFixed(2)}
 Net Profit: $${totalNetProfit.toFixed(2)}
 Confirmed Orders: ${confirmedOrders.length}
-Pending Orders: ${pendingOrders.length}
+Pending Orders: ${orders.filter(o => o.status === 'Pending').length}
 Total Customers: ${customers.length}
 Total Audience (Customers + Waitlist): ${customers.length + waitlistCount}
 Total Inventory: ${totalInventory} items
 Low Stock Products: ${lowStockCount} (threshold: ${settings.lowStockThreshold || 10})
+Average Order Value: $${avgOrderValue}
 
 === PRODUCT CATALOG ===
 ${productCatalog || 'No active products yet.'}
 
-=== RECENT ORDERS ===
-${confirmedOrders.slice(0, 5).map(o => `- ${o.customerName} — $${o.total} (${o.status})`).join('\n') || 'No recent orders.'}
+=== SALES ANALYTICS ===
+Most Sold Products (by units):
+${topProducts || 'No sales data yet.'}
+
+Revenue by Category: ${categoryBreakdown || 'No category data yet.'}
+
+Top Customers by Spend:
+${topCustomers || 'No customer data yet.'}
+
+=== DETAILED ORDER LOG ===
+${detailedOrderLog || 'No orders yet.'}
     `.trim();
   }, [totalRevenue, totalNetProfit, confirmedOrders, orders, productOverrides, totalInventory, lowStockCount, customers, settings, waitlistCount]);
 
