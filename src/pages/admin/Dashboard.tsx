@@ -24,11 +24,13 @@ export default function AdminDashboard() {
   const { data: allProducts } = useProducts(200);
   const { orders, customers, settings, productOverrides, _hasHydrated } = useAdminStore();
   
+  const GREETING = "Hello! How can I help you optimize your store today?";
   const [chatMessages, setChatMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
-    { role: 'assistant', content: "Hello! How can I help you optimize your store today?" }
+    { role: 'assistant', content: GREETING }
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [chatLoaded, setChatLoaded] = useState(false);
   const [mostViewed, setMostViewed] = useState<{id: string, title: string, views: number, image: string}[]>([]);
   const [waitlistCount, setWaitlistCount] = useState(0);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -47,6 +49,30 @@ export default function AdminDashboard() {
     supabase.from('waitlist').select('id', { count: 'exact', head: true }).then(({ count }) => {
       setWaitlistCount(count || 0);
     });
+  }, []);
+
+  // Load persistent chat history
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        const { data } = await supabase
+          .from('chat_messages')
+          .select('role, content')
+          .order('created_at', { ascending: true })
+          .limit(100);
+        if (data && data.length > 0) {
+          setChatMessages([
+            { role: 'assistant', content: GREETING },
+            ...data.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+          ]);
+        }
+      } catch (e) {
+        console.error('Failed to load chat history:', e);
+      } finally {
+        setChatLoaded(true);
+      }
+    };
+    loadChatHistory();
   }, []);
 
   useEffect(() => {
@@ -259,10 +285,20 @@ ${confirmedOrders.slice(0, 5).map(o => `- ${o.customerName} — $${o.total} (${o
     setIsAiTyping(true);
 
     let assistantSoFar = '';
+    let addedAssistant = false;
+
+    // Save user message to DB
+    supabase.from('chat_messages').insert({ user_id: (await supabase.auth.getUser()).data.user?.id, role: 'user', content: userMessage }).then(() => {});
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
+
+      // Send full history (excluding greeting) for context
+      const historyForAI = chatMessages
+        .filter(m => m.content !== GREETING)
+        .concat(userMsg)
+        .map(m => ({ role: m.role, content: m.content }));
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`, {
         method: 'POST',
@@ -271,10 +307,7 @@ ${confirmedOrders.slice(0, 5).map(o => `- ${o.customerName} — $${o.total} (${o
           Authorization: `Bearer ${token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
-          messages: [...chatMessages.filter(m => m.role !== 'assistant' || m.content !== 'Hello! How can I help you optimize your store today?'), userMsg].map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
+          messages: historyForAI,
           storeContext,
           mode: 'chat',
         }),
@@ -313,13 +346,14 @@ ${confirmedOrders.slice(0, 5).map(o => `- ${o.customerName} — $${o.total} (${o
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               assistantSoFar += content;
-              setChatMessages(prev => {
-                const last = prev[prev.length - 1];
-                if (last?.role === 'assistant' && last !== chatMessages[0]) {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-                }
-                return [...prev, { role: 'assistant' as const, content: assistantSoFar }];
-              });
+              if (!addedAssistant) {
+                addedAssistant = true;
+                setChatMessages(prev => [...prev, { role: 'assistant' as const, content: assistantSoFar }]);
+              } else {
+                setChatMessages(prev =>
+                  prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m)
+                );
+              }
             }
           } catch {
             textBuffer = line + '\n' + textBuffer;
@@ -328,7 +362,10 @@ ${confirmedOrders.slice(0, 5).map(o => `- ${o.customerName} — $${o.total} (${o
         }
       }
 
-      if (!assistantSoFar) {
+      if (assistantSoFar) {
+        // Save assistant response to DB
+        supabase.from('chat_messages').insert({ user_id: (await supabase.auth.getUser()).data.user?.id, role: 'assistant', content: assistantSoFar }).then(() => {});
+      } else {
         setChatMessages(prev => [...prev, { role: 'assistant', content: "I couldn't generate a response. Please try again." }]);
       }
     } catch (e: any) {
