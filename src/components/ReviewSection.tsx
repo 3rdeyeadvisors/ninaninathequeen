@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { getSupabase } from '@/lib/supabaseClient';
-import { useReviewStore, type Review } from '@/stores/reviewStore';
-import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
+import { ADMIN_EMAIL } from '@/stores/authStore';
+import { useProductReviews, useAddReview, useToggleLike, useAddAdminComment, type DbReview } from '@/hooks/useReviewsDb';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,9 +22,9 @@ interface ReviewSectionProps {
 export function ReviewSection({ productId }: ReviewSectionProps) {
   const cloudAuth = useCloudAuthStore();
   
-  // Primary auth check via Cloud Auth
   const isAuthenticated = cloudAuth.isAuthenticated;
   const user = cloudAuth.user ? {
+    id: cloudAuth.user.id,
     email: cloudAuth.user.email,
     name: cloudAuth.user.name || cloudAuth.user.email.split('@')[0],
     avatar: cloudAuth.user.avatar,
@@ -34,25 +33,27 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
   
   const isAdmin = cloudAuth.isAuthenticated && (cloudAuth.user?.isAdmin || cloudAuth.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase());
   
-  const { reviews, addReview, likeReview, addAdminComment } = useReviewStore();
+  const { data: productReviews = [], isLoading } = useProductReviews(productId);
+  const addReviewMutation = useAddReview();
+  const toggleLikeMutation = useToggleLike();
+  const addAdminCommentMutation = useAddAdminComment();
+
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [adminReply, setAdminReply] = useState('');
 
-  const productReviews = reviews.filter(r => r.productId === productId);
   const averageRating = productReviews.length > 0
     ? productReviews.reduce((acc, r) => acc + r.rating, 0) / productReviews.length
     : 0;
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       toast.error("Please sign in to leave a review");
       return;
     }
     
-    // Input validation
     const trimmedComment = newComment.trim();
     
     if (trimmedComment.length < MIN_REVIEW_LENGTH) {
@@ -65,45 +66,29 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
       return;
     }
 
-    if (!user) return;
-    
-    addReview({
-      productId,
-      userId: user.email,
-      userName: user.name || 'Anonymous',
-      userAvatar: user.avatar,
-      rating: newRating,
-      comment: trimmedComment
-    });
-
-    // Award 10 points for submitting a review
     try {
-      const supabase = getSupabase();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id, points')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        if (profile) {
-          await supabase
-            .from('profiles')
-            .update({ points: (profile.points || 0) + 10 })
-            .eq('id', profile.id);
-        }
-      }
+      await addReviewMutation.mutateAsync({
+        product_id: productId,
+        user_id: user.id,
+        user_name: user.name || 'Anonymous',
+        user_avatar: user.avatar,
+        rating: newRating,
+        comment: trimmedComment,
+      });
+      setNewComment('');
+      setNewRating(5);
+      toast.success("Review submitted! +10 points earned 🎉");
     } catch (err) {
-      console.error('Failed to award review points:', err);
+      toast.error("Failed to submit review. Please try again.");
     }
+  };
 
-    setNewComment('');
-    setNewRating(5);
-    toast.success("Review submitted! +10 points earned 🎉");
+  const handleLike = (review: DbReview) => {
+    if (!isAuthenticated || !user) return;
+    toggleLikeMutation.mutate({ reviewId: review.id, userId: user.id, productId });
   };
 
   const handleAdminReply = (reviewId: string) => {
-    // Input validation for admin reply
     const trimmedReply = adminReply.trim();
     
     if (!trimmedReply) {
@@ -118,10 +103,16 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
     
     if (!user) return;
     
-    addAdminComment(reviewId, trimmedReply, user.name, user.role || 'Owner');
-    setAdminReply('');
-    setReplyingTo(null);
-    toast.success("Reply posted.");
+    addAdminCommentMutation.mutate(
+      { reviewId, text: trimmedReply, authorName: user.name, authorRole: user.role || 'Owner', productId },
+      {
+        onSuccess: () => {
+          setAdminReply('');
+          setReplyingTo(null);
+          toast.success("Reply posted.");
+        },
+      }
+    );
   };
 
   return (
@@ -136,7 +127,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
               ))}
             </div>
             <span className="text-sm font-sans text-muted-foreground">
-              Based on {productReviews.length} reviews
+              {isLoading ? 'Loading...' : `Based on ${productReviews.length} reviews`}
             </span>
           </div>
         </div>
@@ -174,8 +165,12 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                       <span>{newComment.length} / {MAX_REVIEW_LENGTH}</span>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-sans uppercase tracking-widest text-xs">
-                    Post Review
+                  <Button 
+                    type="submit" 
+                    disabled={addReviewMutation.isPending}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-sans uppercase tracking-widest text-xs"
+                  >
+                    {addReviewMutation.isPending ? 'Posting...' : 'Post Review'}
                   </Button>
                 </form>
               </CardContent>
@@ -185,7 +180,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
       </div>
 
       <div className="space-y-8">
-        {productReviews.length === 0 ? (
+        {productReviews.length === 0 && !isLoading ? (
           <div className="text-center py-12 bg-secondary/20 rounded-2xl border border-dashed border-border">
             <p className="text-muted-foreground font-sans">No reviews yet. Be the first to review this product!</p>
           </div>
@@ -200,7 +195,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-shrink-0">
                   <Avatar className="h-12 w-12 border border-primary/10">
-                    <AvatarImage src={review.userAvatar} />
+                    <AvatarImage src={review.user_avatar || undefined} />
                     <AvatarFallback><User className="h-6 w-6 text-muted-foreground" /></AvatarFallback>
                   </Avatar>
                 </div>
@@ -208,7 +203,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                 <div className="flex-1">
                   <div className="flex flex-wrap justify-between items-start mb-4 gap-4">
                     <div>
-                      <h4 className="font-sans font-bold text-sm uppercase tracking-tight">{review.userName}</h4>
+                      <h4 className="font-sans font-bold text-sm uppercase tracking-tight">{review.user_name}</h4>
                       <div className="flex mt-1">
                         {[1, 2, 3, 4, 5].map((s) => (
                           <Star key={s} className={`h-3 w-3 ${s <= review.rating ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />
@@ -216,7 +211,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                       </div>
                     </div>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                      {new Date(review.createdAt).toLocaleDateString()}
+                      {new Date(review.created_at).toLocaleDateString()}
                     </span>
                   </div>
 
@@ -224,16 +219,16 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
 
                   <div className="flex items-center gap-6">
                     <button
-                      onClick={() => isAuthenticated && user && likeReview(review.id, user.email)}
+                      onClick={() => handleLike(review)}
                       className={`flex items-center gap-2 text-[10px] uppercase tracking-widest transition-colors ${
-                        user && review.likes.includes(user.email) ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+                        user && review.likes.includes(user.id) ? 'text-primary' : 'text-muted-foreground hover:text-primary'
                       }`}
                     >
-                      <ThumbsUp className={`h-4 w-4 ${user && review.likes.includes(user.email) ? 'fill-current' : ''}`} />
+                      <ThumbsUp className={`h-4 w-4 ${user && review.likes.includes(user.id) ? 'fill-current' : ''}`} />
                       <span>{review.likes.length} Likes</span>
                     </button>
 
-                    {isAdmin && !review.adminComment && (
+                    {isAdmin && !review.admin_comment && (
                       <button
                         onClick={() => setReplyingTo(replyingTo === review.id ? null : review.id)}
                         className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
@@ -244,7 +239,6 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                     )}
                   </div>
 
-                  {/* Admin Reply Form */}
                   <AnimatePresence>
                     {replyingTo === review.id && (
                       <motion.div
@@ -279,17 +273,16 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                     )}
                   </AnimatePresence>
 
-                  {/* Existing Admin Comment */}
-                  {review.adminComment && (
+                  {review.admin_comment && (
                     <div className="mt-8 pl-6 border-l-2 border-primary/20 py-2">
                       <div className="flex items-center gap-2 mb-2">
                         <ShieldCheck className="h-4 w-4 text-primary" />
                         <span className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-primary">
-                          {review.adminComment.authorName} — {review.adminComment.authorRole}
+                          {(review.admin_comment as any).authorName} — {(review.admin_comment as any).authorRole}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground font-sans">
-                        {review.adminComment.text}
+                        {(review.admin_comment as any).text}
                       </p>
                     </div>
                   )}
