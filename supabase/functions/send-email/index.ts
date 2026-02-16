@@ -9,8 +9,8 @@ const BRAND = {
   name: 'Nina Armend',
   from: 'Nina Armend <support@ninaarmend.co>',
   supportEmail: 'support@ninaarmend.co',
-  siteUrl: 'https://ninaninathequeen.lovable.app',
-  logo: 'https://ninaninathequeen.lovable.app/favicon-32x32.png',
+  siteUrl: 'https://ninaarmend.co',
+  logo: 'https://ninaarmend.co/favicon-32x32.png',
   colors: {
     bg: '#000000',
     accent: '#C9A96E',
