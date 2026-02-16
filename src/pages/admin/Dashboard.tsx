@@ -225,6 +225,12 @@ export default function AdminDashboard() {
       if (confirmedOrders.length > 0) {
         return `You have ${confirmedOrders.length} confirmed order${confirmedOrders.length > 1 ? 's' : ''}. Keep the momentum going with targeted promotions.`;
       }
+      const activeProducts = Object.values(productOverrides).filter(p => !p.isDeleted);
+      const productCount = activeProducts.length;
+      if (productCount > 0) {
+        const waitlistNote = waitlistCount > 0 ? ` With ${waitlistCount} ${waitlistCount === 1 ? 'person' : 'people'} on your waitlist, consider launching with an exclusive early-access offer to convert them into first customers.` : ' Share your store link and social media to attract your first customers.';
+        return `You have ${totalInventory.toLocaleString()} items across ${productCount} product${productCount > 1 ? 's' : ''} ready to sell.${waitlistNote}`;
+      }
       return 'Add products and start promoting your store to drive your first sales.';
     })();
 
@@ -239,11 +245,15 @@ export default function AdminDashboard() {
       if (customers.length > 0) {
         return `${customers.length} customer${customers.length > 1 ? 's' : ''} in your audience. Engage them with email campaigns or new arrivals.`;
       }
+      if (waitlistCount > 0) {
+        const igHandle = settings.instagramUrl ? ` Share your Instagram (${settings.instagramUrl}) and` : ' Share your';
+        return `Your waitlist has ${waitlistCount} signup${waitlistCount > 1 ? 's' : ''}.${igHandle} waitlist link to grow your audience before launch.`;
+      }
       return 'Build your customer base by sharing your store on social media.';
     })();
 
     return { topOpportunity, growthSignal };
-  }, [confirmedOrders, orders, customers, lowStockCount, behavioralInsights]);
+  }, [confirmedOrders, orders, customers, lowStockCount, behavioralInsights, productOverrides, totalInventory, waitlistCount, settings]);
 
   // Build store context for AI chat — comprehensive brand + store intelligence
   const storeContext = useMemo(() => {
