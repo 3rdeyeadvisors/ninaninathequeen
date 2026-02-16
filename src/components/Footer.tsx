@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
+import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 
 const footerLinks = {
   shop: [
@@ -27,6 +29,7 @@ const footerLinks = {
 
 export function Footer() {
   const { settings } = useAdminStore();
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
   return (
     <footer className="bg-card border-t border-border">
@@ -57,14 +60,32 @@ export function Footer() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
               className="flex gap-3"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                const email = (e.currentTarget.elements[0] as HTMLInputElement).value;
-                if (email) {
-                  toast.success('Welcome to the Inner Circle!', {
-                    description: "You've been successfully subscribed to our newsletter."
-                  });
-                  (e.currentTarget.elements[0] as HTMLInputElement).value = '';
+                const input = e.currentTarget.elements[0] as HTMLInputElement;
+                const email = input.value;
+                if (!email) return;
+                setIsSubscribing(true);
+                try {
+                  const { error } = await supabase
+                    .from('newsletter_subscribers' as any)
+                    .insert({ email } as any);
+                  if (error) {
+                    if (error.code === '23505') {
+                      toast.info('You\'re already subscribed!');
+                    } else {
+                      throw error;
+                    }
+                  } else {
+                    toast.success('Welcome to the Inner Circle!', {
+                      description: "You've been successfully subscribed to our newsletter."
+                    });
+                    input.value = '';
+                  }
+                } catch (err) {
+                  toast.error('Failed to subscribe. Please try again.');
+                } finally {
+                  setIsSubscribing(false);
                 }
               }}
             >
@@ -74,8 +95,8 @@ export function Footer() {
                 required
                 className="flex-1 bg-background border-border focus:border-primary"
               />
-              <Button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground font-sans tracking-wider px-8">
-                Subscribe
+              <Button type="submit" disabled={isSubscribing} className="bg-primary hover:bg-primary/90 text-primary-foreground font-sans tracking-wider px-8">
+                {isSubscribing ? 'Subscribing...' : 'Subscribe'}
               </Button>
             </motion.form>
           </div>
