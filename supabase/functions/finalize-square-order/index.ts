@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       const squareResponse = await fetch(`${SQUARE_API_URL}/v2/orders/${order.square_order_id}`, {
         headers: {
           'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
-          'Square-Version': '2024-01-18',
+          'Square-Version': '2025-01-23',
           'Content-Type': 'application/json'
         },
         signal: controller.signal

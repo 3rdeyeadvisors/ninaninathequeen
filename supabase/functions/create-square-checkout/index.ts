@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
         headers: {
           'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
-          'Square-Version': '2024-01-18'
+          'Square-Version': '2025-01-23'
         },
         body: JSON.stringify(body),
         signal: controller.signal

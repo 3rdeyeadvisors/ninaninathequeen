@@ -22,50 +22,14 @@ const ProductPage = () => {
 
   useEffect(() => {
     if (product) {
-      const views = JSON.parse(localStorage.getItem('product_views') || '{}');
-      views[product.id] = (views[product.id] || 0) + 1;
-      localStorage.setItem('product_views', JSON.stringify(views));
-
-      // Also store product info for the dashboard
-      const productInfo = JSON.parse(localStorage.getItem('tracked_products') || '{}');
-      productInfo[product.id] = {
-        title: product.title,
-        image: product.images[0]?.url,
-        price: product.price.amount
-      };
-      localStorage.setItem('tracked_products', JSON.stringify(productInfo));
-
-      // DB tracking for authenticated users (fire-and-forget)
+      // DB tracking for authenticated users via atomic RPC (fire-and-forget)
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user?.id) {
-          supabase.from('product_views' as any)
-            .upsert(
-              {
-                user_id: session.user.id,
-                product_id: product.id,
-                product_title: product.title,
-                view_count: 1,
-                first_viewed_at: new Date().toISOString(),
-                last_viewed_at: new Date().toISOString(),
-              },
-              { onConflict: 'user_id,product_id' }
-            )
-            .select('id')
-            .maybeSingle()
-            .then(() => {
-              // After upsert, increment view_count for existing rows
-              supabase.from('product_views' as any)
-                .update({ 
-                  view_count: views[product.id] || 1,
-                  last_viewed_at: new Date().toISOString(),
-                  product_title: product.title,
-                } as any)
-                .eq('user_id', session.user.id)
-                .eq('product_id', product.id)
-                .select('id')
-                .maybeSingle()
-                .then(() => {});
-            });
+          supabase.rpc('increment_product_view', {
+            p_user_id: session.user.id,
+            p_product_id: product.id,
+            p_product_title: product.title,
+          }).then(() => {});
         }
       });
     }

@@ -71,6 +71,24 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
@@ -502,6 +520,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_product_view: {
+        Args: {
+          p_product_id: string
+          p_product_title?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      toggle_review_like: {
+        Args: { p_review_id: string; p_user_id: string }
+        Returns: undefined
       }
     }
     Enums: {

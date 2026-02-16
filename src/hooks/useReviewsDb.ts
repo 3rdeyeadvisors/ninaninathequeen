@@ -73,7 +73,12 @@ export function useAddReview() {
           rating: review.rating,
           comment: review.comment,
         });
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('You have already reviewed this product.');
+        }
+        throw error;
+      }
 
       // Award 10 points
       try {
@@ -106,26 +111,10 @@ export function useToggleLike() {
 
   return useMutation({
     mutationFn: async ({ reviewId, userId, productId }: { reviewId: string; userId: string; productId: string }) => {
-      // Fetch current likes
-      const { data: review, error: fetchErr } = await supabase
-        .from('reviews')
-        .select('likes')
-        .eq('id', reviewId)
-        .maybeSingle();
-      if (fetchErr) throw fetchErr;
-      if (!review) return;
-
-      const currentLikes = (review.likes || []) as string[];
-      const newLikes = currentLikes.includes(userId)
-        ? currentLikes.filter(id => id !== userId)
-        : [...currentLikes, userId];
-
-      const { error } = await supabase
-        .from('reviews')
-        .update({ likes: newLikes })
-        .eq('id', reviewId)
-        .select('id')
-        .maybeSingle();
+      const { error } = await supabase.rpc('toggle_review_like', {
+        p_review_id: reviewId,
+        p_user_id: userId,
+      });
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
