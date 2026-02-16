@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Users, DollarSign, Package, Brain, Sparkles, MessageSquare, Loader2, BarChart3 } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, Package, Brain, Sparkles, MessageSquare, Loader2, BarChart3, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,7 @@ export default function AdminDashboard() {
   
   const [mostViewed, setMostViewed] = useState<{id: string, title: string, views: number, image: string}[]>([]);
   const [waitlistCount, setWaitlistCount] = useState(0);
+  const [behavioralInsights, setBehavioralInsights] = useState<{userName: string, userEmail: string, productTitle: string, viewCount: number}[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -51,6 +52,61 @@ export default function AdminDashboard() {
     });
   }, []);
 
+  // Fetch behavioral intelligence — browse-but-don't-buy detection
+  useEffect(() => {
+    const fetchBehavioral = async () => {
+      try {
+        const { data: views } = await supabase.from('product_views' as any).select('*');
+        if (!views || views.length === 0) return;
+
+        // Find high-intent browsers (3+ views in last 14 days)
+        const fourteenDaysAgo = new Date();
+        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+        const highIntent = (views as any[]).filter((v: any) => 
+          v.view_count >= 3 && new Date(v.last_viewed_at) >= fourteenDaysAgo
+        );
+
+        if (highIntent.length === 0) return;
+
+        // Get user profiles for these viewers
+        const userIds = [...new Set(highIntent.map((v: any) => v.user_id))];
+        const { data: profiles } = await supabase.from('profiles').select('id, name, email').in('id', userIds);
+
+        // Cross-reference with orders to see if they purchased
+        const insights: {userName: string, userEmail: string, productTitle: string, viewCount: number}[] = [];
+        
+        for (const view of highIntent) {
+          const profile = profiles?.find((p: any) => p.id === view.user_id);
+          if (!profile) continue;
+
+          // Check if this user purchased this product
+          const userOrders = orders.filter(o => 
+            o.customerEmail?.toLowerCase() === profile.email?.toLowerCase()
+          );
+          const purchased = userOrders.some(o => 
+            (o.items || []).some((item: any) => 
+              (item.title || item.name || '').toLowerCase().includes((view.product_title || '').toLowerCase())
+            )
+          );
+
+          if (!purchased) {
+            insights.push({
+              userName: profile.name || profile.email?.split('@')[0] || 'Unknown',
+              userEmail: profile.email,
+              productTitle: view.product_title || 'Unknown Product',
+              viewCount: view.view_count,
+            });
+          }
+        }
+
+        setBehavioralInsights(insights.slice(0, 5));
+      } catch (err) {
+        console.error('Behavioral fetch error:', err);
+      }
+    };
+    fetchBehavioral();
+  }, [orders]);
 
 
 
@@ -159,6 +215,10 @@ export default function AdminDashboard() {
   // Dynamic insights from real data
   const insights = useMemo(() => {
     const topOpportunity = (() => {
+      if (behavioralInsights.length > 0) {
+        const top = behavioralInsights[0];
+        return `${top.userName} viewed "${top.productTitle}" ${top.viewCount}x but hasn't purchased — consider reaching out with a personalized offer.`;
+      }
       if (lowStockCount > 0) {
         return `${lowStockCount} product${lowStockCount > 1 ? 's are' : ' is'} running low on stock. Consider restocking soon to avoid missed sales.`;
       }
@@ -169,6 +229,9 @@ export default function AdminDashboard() {
     })();
 
     const growthSignal = (() => {
+      if (behavioralInsights.length > 1) {
+        return `${behavioralInsights.length} users are browsing products repeatedly without purchasing. These are high-intent leads ready for conversion.`;
+      }
       const pendingCount = orders.filter(o => o.status === 'Pending').length;
       if (pendingCount > 0) {
         return `${pendingCount} pending order${pendingCount > 1 ? 's' : ''} awaiting payment confirmation. These will auto-clear if abandoned.`;
@@ -180,7 +243,7 @@ export default function AdminDashboard() {
     })();
 
     return { topOpportunity, growthSignal };
-  }, [confirmedOrders, orders, customers, lowStockCount]);
+  }, [confirmedOrders, orders, customers, lowStockCount, behavioralInsights]);
 
   // Build store context for AI chat — comprehensive brand + store intelligence
   const storeContext = useMemo(() => {
@@ -285,8 +348,14 @@ ${topCustomers || 'No customer data yet.'}
 
 === DETAILED ORDER LOG ===
 ${detailedOrderLog || 'No orders yet.'}
+
+=== BEHAVIORAL INTELLIGENCE ===
+${behavioralInsights.length > 0 
+  ? 'Browse-But-Don\'t-Buy Patterns (users who viewed 3+ times without purchasing):\n' + 
+    behavioralInsights.map((b, i) => `${i + 1}. ${b.userName} (${b.userEmail}) viewed "${b.productTitle}" ${b.viewCount} times — has NOT purchased`).join('\n')
+  : 'No high-intent browsing patterns detected yet.'}
     `.trim();
-  }, [totalRevenue, totalNetProfit, confirmedOrders, orders, productOverrides, totalInventory, lowStockCount, customers, settings, waitlistCount]);
+  }, [totalRevenue, totalNetProfit, confirmedOrders, orders, productOverrides, totalInventory, lowStockCount, customers, settings, waitlistCount, behavioralInsights]);
 
   // Show loading skeleton while data is being restored from storage
   if (!_hasHydrated) {
@@ -330,13 +399,23 @@ ${detailedOrderLog || 'No orders yet.'}
     let assistantSoFar = '';
     let addedAssistant = false;
 
-    // Save user message to DB
-    supabase.from('chat_messages').insert({ user_id: (await supabase.auth.getUser()).data.user?.id, role: 'user', content: userMessage }).then(() => {});
-    
+    // Fetch session ONCE at the top to avoid repeated auth calls that cause hangs
+    let token: string | undefined;
+    let userId: string | undefined;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      token = session?.access_token;
+      userId = session?.user?.id;
+    } catch (e) {
+      console.error('Failed to get session:', e);
+    }
 
+    // Save user message to DB (fire-and-forget)
+    if (userId) {
+      supabase.from('chat_messages').insert({ user_id: userId, role: 'user', content: userMessage }).select('id').maybeSingle().then(() => {});
+    }
+    
+    try {
       // Send full history (excluding greeting) for context
       const historyForAI = chatMessages
         .filter(m => m.content !== GREETING)
@@ -391,6 +470,7 @@ ${detailedOrderLog || 'No orders yet.'}
               assistantSoFar += content;
               if (!addedAssistant) {
                 addedAssistant = true;
+                setIsAiTyping(false); // Kill typing indicator on first token
                 setChatMessages(prev => [...prev, { role: 'assistant' as const, content: assistantSoFar }]);
               } else {
                 setChatMessages(prev =>
@@ -406,8 +486,10 @@ ${detailedOrderLog || 'No orders yet.'}
       }
 
       if (assistantSoFar) {
-        // Save assistant response to DB
-        supabase.from('chat_messages').insert({ user_id: (await supabase.auth.getUser()).data.user?.id, role: 'assistant', content: assistantSoFar }).then(() => {});
+        // Save assistant response to DB (fire-and-forget)
+        if (userId) {
+          supabase.from('chat_messages').insert({ user_id: userId, role: 'assistant', content: assistantSoFar }).select('id').maybeSingle().then(() => {});
+        }
       } else {
         setChatMessages(prev => [...prev, { role: 'assistant', content: "I couldn't generate a response. Please try again." }]);
       }

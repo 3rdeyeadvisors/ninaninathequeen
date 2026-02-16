@@ -23,6 +23,10 @@ export default function Privacy() {
               <h2 className="text-foreground font-serif text-2xl mb-4">Data Security</h2>
               <p>We implement a variety of security measures to maintain the safety of your personal information. Your personal data is contained behind secured networks and is only accessible by a limited number of persons who have special access rights to such systems.</p>
             </section>
+            <section>
+              <h2 className="text-foreground font-serif text-2xl mb-4">Browsing Activity</h2>
+              <p>For registered users, we collect browsing behavior such as product page views. This data helps us understand your preferences, improve our recommendations, and personalize offers. Browsing data is stored securely and is never shared with third parties. You may delete your account at any time to remove all associated tracking data.</p>
+            </section>
             <p className="mt-12 text-xs">Last updated: February 2026</p>
           </div>
         </div>
