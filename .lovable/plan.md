@@ -1,43 +1,65 @@
 
+# Fix Store Intelligence Sync: Orders RLS + Data Flow
 
-# Fix Store Intelligence: Make Insights Data-Rich Instead of Generic
+## Problem Identified
 
-## Problem
-The Store Intelligence cards currently show generic fallback messages that look like placeholders:
-- "Add products and start promoting your store to drive your first sales."
-- "Build your customer base by sharing your store on social media."
+The Store Intelligence section appears to show placeholders because the **orders table is completely inaccessible** -- every request returns a `403` error with `"permission denied for table users"`. This is caused by the "Users can view own orders" RLS policy, which contains a subquery referencing `auth.users`:
 
-These ignore the store's actual data: 2,207 inventory items across 31 products, 3 waitlist signups, and pre-launch status.
+```sql
+customer_email = (SELECT users.email FROM auth.users WHERE users.id = auth.uid())::text
+```
 
-## Solution
-Update the `insights` memo in `src/pages/admin/Dashboard.tsx` to produce specific, data-aware messages even when there are no orders or behavioral data.
+This subquery fails because the `authenticated` role does not have SELECT permission on `auth.users`. Since RLS evaluates ALL policies (including ones that don't apply), this broken policy blocks the admin policy too.
 
-### Updated Insight Logic
+Because orders can't load:
+- Orders count shows 0
+- Revenue shows $0
+- No confirmed orders data for insights
+- Behavioral cross-referencing with purchases fails
+- The entire Store Intelligence section falls back to pre-launch messages
 
-**Top Opportunity** (priority order):
-1. If behavioral insights exist: Show browse-but-don't-buy pattern (current logic, keep as-is)
-2. If low stock: Show low stock warning (current logic, keep as-is)
-3. If confirmed orders exist: Show momentum message (current logic, keep as-is)
-4. **NEW pre-launch fallback**: "You have 2,207 items across 31 products ready to sell. With 3 people on your waitlist, consider launching with an exclusive early-access offer to convert them into first customers."
+## Fix
 
-**Growth Signal** (priority order):
-1. If behavioral insights > 1: Show high-intent leads message (current, keep)
-2. If pending orders: Show pending info (current, keep)
-3. If customers exist: Show audience engagement (current, keep)
-4. **NEW pre-launch fallback**: "Your waitlist has 3 signups. Share your Instagram (@nina_armend) and waitlist link to grow your audience before launch."
+### 1. Database Migration -- Fix Orders RLS Policy
 
-### Technical Details
+Drop the broken "Users can view own orders" policy and replace it with one that uses the `profiles` table (which users DO have SELECT access to) instead of `auth.users`:
 
-**File**: `src/pages/admin/Dashboard.tsx` (lines 216-246)
+```sql
+DROP POLICY "Users can view own orders" ON public.orders;
 
-The `insights` useMemo will be updated to:
-- Reference `productOverrides` to count active products
-- Reference `totalInventory` for total units
-- Reference `waitlistCount` for waitlist size
-- Reference `settings.instagramUrl` for social links
-- Generate specific, actionable messages that reflect the actual store state
+CREATE POLICY "Users can view own orders" ON public.orders
+  FOR SELECT TO authenticated
+  USING (
+    customer_email = (
+      SELECT p.email FROM public.profiles p WHERE p.id = auth.uid()
+    )
+  );
+```
 
-Dependencies added to the memo: `productOverrides`, `totalInventory`, `waitlistCount`, `settings`
+This achieves the same result (users see their own orders by matching email) but uses a table they have permission to read.
 
-No database changes, no new files -- just smarter fallback copy in one memo.
+### 2. No Code Changes Needed
 
+The Store Intelligence logic in Dashboard.tsx is already correct -- it dynamically references:
+- `confirmedOrders` for revenue and momentum insights
+- `orders` for pending count
+- `customers` for audience size
+- `behavioralInsights` for browse-but-don't-buy patterns
+- `productOverrides` for inventory counts
+- `waitlistCount` for pre-launch context
+- `settings` for social links
+
+Once orders load successfully, all these data flows will populate correctly and the insights will automatically sync with real store data.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| Database migration | Fix orders RLS policy to use `profiles` table instead of `auth.users` |
+
+## Testing
+
+1. After migration, verify orders endpoint returns 200 (not 403)
+2. Dashboard metrics should reflect real order data
+3. Store Intelligence cards should show order-aware insights
+4. Regular users should still only see their own orders
