@@ -284,6 +284,45 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          admin_comment: Json | null
+          comment: string
+          created_at: string
+          id: string
+          likes: string[] | null
+          product_id: string
+          rating: number
+          user_avatar: string | null
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          admin_comment?: Json | null
+          comment: string
+          created_at?: string
+          id?: string
+          likes?: string[] | null
+          product_id: string
+          rating: number
+          user_avatar?: string | null
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          admin_comment?: Json | null
+          comment?: string
+          created_at?: string
+          id?: string
+          likes?: string[] | null
+          product_id?: string
+          rating?: number
+          user_avatar?: string | null
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       store_settings: {
         Row: {
           auto_sync: boolean | null
