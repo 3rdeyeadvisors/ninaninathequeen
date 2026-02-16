@@ -1,55 +1,77 @@
 
 
-# Fix Image Uploads -- Why They're Hanging
+# Move Reviews to Database
 
-## Root Cause
+## Problem
+Reviews are stored in localStorage only. This means:
+- Reviews are invisible to other customers
+- Reviews disappear if the browser cache is cleared
+- Reviews don't persist across devices
+- The Testimonials section on the homepage is empty for all visitors
 
-Two problems are causing uploads to hang or fail:
-
-### 1. No Image Compression Before Upload
-The upload sends the raw file directly to storage. Phone photos are typically 5-15MB each. On a normal connection, uploading even one uncompressed photo can take 30-60 seconds. Multiple photos could take minutes. There is zero compression, resizing, or optimization happening before upload.
-
-### 2. Sequential Uploads (Not Parallel)
-The current code uploads files one at a time in a `for` loop. If you select 3 photos at 8MB each, that is 24MB uploaded sequentially -- each one waits for the previous to finish.
-
-### 3. No Progress Feedback
-The only feedback is a spinning icon. No progress bar, no "uploading 1 of 3", nothing. So it looks completely frozen.
+## Solution
+Create a `reviews` table in the database and update the components to read/write from it instead of localStorage.
 
 ---
 
-## Fix
+## Step 1: Create the `reviews` table
 
-### Step 1: Add Client-Side Image Compression
-Before uploading, resize images to a max of 1200px wide and compress to JPEG at 80% quality. This typically reduces a 10MB phone photo down to 100-300KB -- a 30-50x reduction. No new dependencies needed; the browser Canvas API handles this natively.
+Create a new database table with the following columns:
+- `id` (uuid, primary key)
+- `product_id` (text, not null)
+- `user_id` (uuid, references auth.users, not null)
+- `user_name` (text, not null)
+- `user_avatar` (text, nullable)
+- `rating` (integer, not null, 1-5)
+- `comment` (text, not null)
+- `likes` (text array, default empty -- stores user IDs who liked)
+- `admin_comment` (jsonb, nullable -- stores reply text, author name, role, timestamp)
+- `created_at` (timestamptz, default now())
 
-### Step 2: Upload in Parallel
-Use `Promise.all` instead of a sequential `for` loop so all images upload simultaneously.
+RLS policies:
+- **Anyone can read reviews** (public SELECT) -- reviews should be visible to all visitors
+- **Authenticated users can insert their own reviews** (INSERT where `auth.uid() = user_id`)
+- **Authenticated users can update likes on any review** (UPDATE on `likes` column only)
+- **Admins can update reviews** (UPDATE for adding admin comments)
+- **Admins can delete reviews** (DELETE for moderation)
 
-### Step 3: Add Upload Progress
-Show "Uploading 1 of 3..." text and a progress counter so the user knows it is working.
+A validation trigger will enforce rating between 1 and 5.
 
-### Step 4: Add File Size Validation
-Reject files over 20MB before even attempting the upload, with a clear error message.
+## Step 2: Create a custom hook `useReviewsDb`
+
+New file: `src/hooks/useReviewsDb.ts`
+
+This hook will:
+- Fetch reviews for a given product ID using a TanStack Query
+- Provide `addReview` mutation (inserts into DB, also awards 10 points)
+- Provide `toggleLike` mutation (updates the likes array)
+- Provide `addAdminComment` mutation (updates admin_comment jsonb)
+- Fetch all high-rated reviews for the Testimonials component
+
+## Step 3: Update `ReviewSection.tsx`
+
+- Replace `useReviewStore` with the new `useReviewsDb` hook
+- Use TanStack Query data instead of Zustand store
+- Keep all existing UI, validation, and animation logic unchanged
+- Reviews will now be globally visible to all visitors
+
+## Step 4: Update `Testimonials.tsx`
+
+- Replace `useReviewStore` with a query that fetches reviews with rating >= 4 and comment length >= 20
+- Same visual output, but now pulling from the database
+
+## Step 5: Keep `reviewStore.ts` as fallback
+
+The Zustand store file will remain but won't be actively used. This avoids breaking any other imports during the transition.
 
 ---
 
 ## Technical Details
 
-**File changed**: `src/pages/admin/Products.tsx`
-
-**New helper function** (added in the same file):
-```
-compressImage(file, maxWidth=1200, quality=0.8) -> Promise<Blob>
-```
-Uses an off-screen canvas to resize and compress to JPEG before upload.
-
-**Updated `handleImageUpload`**:
-- Validates file sizes (reject > 20MB)
-- Compresses each image via canvas
-- Uploads all compressed images in parallel with `Promise.allSettled`
-- Shows progress text: "Uploading 2 of 4..."
-
-**Updated UI**:
-- Replace spinner with progress text during upload
-- Show count of successful/failed uploads in the toast
+| File | Action |
+|------|--------|
+| Database migration | Create `reviews` table with RLS policies |
+| `src/hooks/useReviewsDb.ts` | New hook for DB-backed review CRUD |
+| `src/components/ReviewSection.tsx` | Switch from Zustand store to DB hook |
+| `src/components/Testimonials.tsx` | Switch from Zustand store to DB query |
 
