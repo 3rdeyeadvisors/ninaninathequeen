@@ -1,132 +1,43 @@
 
 
-# Full Implementation: Behavioral Intelligence, AI Chat Fix, Store Intelligence Upgrade, and Legal Updates
+# Fix Store Intelligence: Make Insights Data-Rich Instead of Generic
 
-## Overview
+## Problem
+The Store Intelligence cards currently show generic fallback messages that look like placeholders:
+- "Add products and start promoting your store to drive your first sales."
+- "Build your customer base by sharing your store on social media."
 
-This plan implements the complete approved feature set: database-backed product view tracking, browse-but-don't-buy detection, AI chat stability fixes, enriched Store Intelligence cards, and updated Privacy Policy / Terms of Service to cover the new tracking.
+These ignore the store's actual data: 2,207 inventory items across 31 products, 3 waitlist signups, and pre-launch status.
 
----
+## Solution
+Update the `insights` memo in `src/pages/admin/Dashboard.tsx` to produce specific, data-aware messages even when there are no orders or behavioral data.
 
-## 1. Database Migration: `product_views` Table
+### Updated Insight Logic
 
-Create a new table to track authenticated user product browsing behavior.
+**Top Opportunity** (priority order):
+1. If behavioral insights exist: Show browse-but-don't-buy pattern (current logic, keep as-is)
+2. If low stock: Show low stock warning (current logic, keep as-is)
+3. If confirmed orders exist: Show momentum message (current logic, keep as-is)
+4. **NEW pre-launch fallback**: "You have 2,207 items across 31 products ready to sell. With 3 people on your waitlist, consider launching with an exclusive early-access offer to convert them into first customers."
 
-```sql
-CREATE TABLE public.product_views (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  product_id text NOT NULL,
-  product_title text,
-  view_count integer NOT NULL DEFAULT 1,
-  first_viewed_at timestamptz NOT NULL DEFAULT now(),
-  last_viewed_at timestamptz NOT NULL DEFAULT now()
-);
+**Growth Signal** (priority order):
+1. If behavioral insights > 1: Show high-intent leads message (current, keep)
+2. If pending orders: Show pending info (current, keep)
+3. If customers exist: Show audience engagement (current, keep)
+4. **NEW pre-launch fallback**: "Your waitlist has 3 signups. Share your Instagram (@nina_armend) and waitlist link to grow your audience before launch."
 
--- Unique constraint for upsert
-ALTER TABLE public.product_views ADD CONSTRAINT unique_user_product UNIQUE (user_id, product_id);
+### Technical Details
 
--- RLS
-ALTER TABLE public.product_views ENABLE ROW LEVEL SECURITY;
+**File**: `src/pages/admin/Dashboard.tsx` (lines 216-246)
 
--- Users can upsert their own views
-CREATE POLICY "Users can insert own views" ON public.product_views
-  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+The `insights` useMemo will be updated to:
+- Reference `productOverrides` to count active products
+- Reference `totalInventory` for total units
+- Reference `waitlistCount` for waitlist size
+- Reference `settings.instagramUrl` for social links
+- Generate specific, actionable messages that reflect the actual store state
 
-CREATE POLICY "Users can update own views" ON public.product_views
-  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+Dependencies added to the memo: `productOverrides`, `totalInventory`, `waitlistCount`, `settings`
 
--- Admins can read all views for analytics
-CREATE POLICY "Admins can read all views" ON public.product_views
-  FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'));
-```
-
-## 2. Product View Tracking (`src/pages/ProductPage.tsx`)
-
-When an authenticated user visits a product page, silently upsert a row in `product_views`. The existing localStorage tracking stays for anonymous visitors (used on dashboard "Most Viewed" section). The new DB tracking adds server-side behavioral data for logged-in users.
-
-**Changes:**
-- Import `supabase` and `useCloudAuthStore`
-- After the existing localStorage tracking block, add a DB upsert for authenticated users
-- Uses fire-and-forget pattern (no await blocking UI)
-- Upserts with `onConflict: 'user_id,product_id'` to increment `view_count`
-
-## 3. Fix AI Chat Execution (`src/pages/admin/Dashboard.tsx`)
-
-**Critical fix -- why the AI can't respond:**
-
-Line 334 calls `await supabase.auth.getUser()` inline during message save, and line 337 calls `await supabase.auth.getSession()`. Per project constraints, these cause execution hangs.
-
-**Fix:**
-- Fetch session ONCE at the very top of `handleSendMessage` using a single `supabase.auth.getSession()` call
-- Extract `token` and `userId` from the result
-- Use those variables for all subsequent operations (DB inserts, API call)
-- Make DB inserts fire-and-forget (no `await`, just `.then()`)
-- Add `.select('id').maybeSingle()` to inserts since admin has SELECT permission on `chat_messages`
-- Set `isAiTyping = false` when first assistant token arrives (`addedAssistant` flips true)
-
-## 4. Behavioral Intelligence in Dashboard (`src/pages/admin/Dashboard.tsx`)
-
-**New data fetching:**
-- Add a `useEffect` that queries `product_views` (all users, admin RLS) and cross-references with `orders` to find browse-but-don't-buy patterns
-- Store results in state: `behavioralInsights`
-
-**Detection logic:**
-- Find product_views where `view_count >= 3` and `last_viewed_at` is within last 14 days
-- Cross-reference with orders to check if that user has purchased that product
-- If not purchased, flag as "high intent" -- surface as an insight card
-
-**Store Intelligence cards upgrade:**
-- Replace the two generic "Top Opportunity" / "Growth Signal" cards with up to 4 data-driven cards:
-  - Best Seller (from salesByProduct data)
-  - Top Customer (from customerSpend data)
-  - High-Intent Browsers (from behavioral data -- "Sarah viewed X 5 times but hasn't purchased")
-  - Low Stock Alert (specific product names)
-
-**AI Context enrichment:**
-- Add a `=== BEHAVIORAL INTELLIGENCE ===` section to `storeContext` with the browse-but-don't-buy data so the AI can proactively recommend discount strategies
-
-## 5. Edge Function -- No Changes Needed
-
-The `ai-chat/index.ts` edge function is already correctly configured with:
-- Silent memory (queries last 30 messages)
-- `google/gemini-3-pro-preview` model
-- Enhanced system prompt with cross-referencing behaviors
-
-The problem was entirely client-side (auth call hangs). No edge function changes required.
-
-## 6. Privacy Policy Update (`src/pages/Privacy.tsx`)
-
-Add a new section for "Browsing Activity" that discloses:
-- We collect browsing behavior (product views) for registered users
-- This data is used to improve recommendations and personalize offers
-- Users can delete their account to remove all tracking data
-
-## 7. Terms of Service Update (`src/pages/Terms.tsx`)
-
-Add a new section "5. Analytics and Personalization" that covers:
-- Use of browsing data for store improvement and personalized offers
-- Data is only collected for authenticated users
-
----
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| **Database migration** | Create `product_views` table with RLS |
-| `src/pages/ProductPage.tsx` | Add DB upsert for authenticated user views |
-| `src/pages/admin/Dashboard.tsx` | Fix auth calls, add behavioral data fetch, upgrade Store Intelligence cards, enrich AI context |
-| `src/pages/Privacy.tsx` | Add "Browsing Activity" section |
-| `src/pages/Terms.tsx` | Add "Analytics and Personalization" section |
-
-## Testing Checklist
-
-1. Open admin dashboard -- AI chat should respond when you type a question (no more hanging)
-2. Ask "What's my most sold item?" -- should get specific product data with cross-references
-3. Log in as a regular user, visit a product page 3+ times -- verify `product_views` table gets rows
-4. Go to admin dashboard -- Store Intelligence should show behavioral insight if any user has 3+ views without purchase
-5. Ask AI "Are any customers interested but not buying?" -- should reference behavioral data
-6. Check Privacy and Terms pages for new sections about browsing data collection
-7. Typing indicator should disappear as soon as AI starts streaming its response
+No database changes, no new files -- just smarter fallback copy in one memo.
 
