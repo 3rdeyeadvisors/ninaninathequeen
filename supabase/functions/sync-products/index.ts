@@ -185,6 +185,7 @@ serve(async (req) => {
         sizes: Array.isArray(p.sizes) ? p.sizes : [],
         is_deleted: Boolean(p.is_deleted ?? p.isDeleted ?? false),
         unit_cost: String(p.unit_cost || p.unitCost || '0.00'),
+        images: Array.isArray(p.images) ? p.images : [],
         updated_at: new Date().toISOString()
       };
     }).filter(row => row.id); // Remove rows with missing IDs

@@ -161,6 +161,7 @@ export type Database = {
           description: string | null
           id: string
           image: string | null
+          images: string[] | null
           inventory: number
           is_deleted: boolean | null
           item_number: string | null
@@ -181,6 +182,7 @@ export type Database = {
           description?: string | null
           id: string
           image?: string | null
+          images?: string[] | null
           inventory?: number
           is_deleted?: boolean | null
           item_number?: string | null
@@ -201,6 +203,7 @@ export type Database = {
           description?: string | null
           id?: string
           image?: string | null
+          images?: string[] | null
           inventory?: number
           is_deleted?: boolean | null
           item_number?: string | null

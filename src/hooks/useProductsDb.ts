@@ -50,6 +50,7 @@ export function useProductsDb() {
             sizes: product.sizes || [],
             isDeleted: product.is_deleted || false,
             unitCost: (product as any).unit_cost || '0.00',
+            images: (product as any).images || [],
           };
         });
         setProductOverrides(overrides);
@@ -102,6 +103,7 @@ export function useProductsDb() {
             sizes: (product.sizes as string[]) || [],
             isDeleted: (product.is_deleted as boolean) || false,
             unitCost: (product.unit_cost as string) || '0.00',
+            images: (product.images as string[]) || [],
           });
         });
       }
