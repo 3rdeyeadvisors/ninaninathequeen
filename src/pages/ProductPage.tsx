@@ -13,6 +13,7 @@ import { ShoppingBag, Heart, Minus, Plus, Loader2, ChevronLeft, Truck, Shield, R
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
+import { supabase } from '@/integrations/supabase/client';
 
 const ProductPage = () => {
   const navigate = useNavigate();
@@ -33,6 +34,40 @@ const ProductPage = () => {
         price: product.price.amount
       };
       localStorage.setItem('tracked_products', JSON.stringify(productInfo));
+
+      // DB tracking for authenticated users (fire-and-forget)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.id) {
+          supabase.from('product_views' as any)
+            .upsert(
+              {
+                user_id: session.user.id,
+                product_id: product.id,
+                product_title: product.title,
+                view_count: 1,
+                first_viewed_at: new Date().toISOString(),
+                last_viewed_at: new Date().toISOString(),
+              },
+              { onConflict: 'user_id,product_id' }
+            )
+            .select('id')
+            .maybeSingle()
+            .then(() => {
+              // After upsert, increment view_count for existing rows
+              supabase.from('product_views' as any)
+                .update({ 
+                  view_count: views[product.id] || 1,
+                  last_viewed_at: new Date().toISOString(),
+                  product_title: product.title,
+                } as any)
+                .eq('user_id', session.user.id)
+                .eq('product_id', product.id)
+                .select('id')
+                .maybeSingle()
+                .then(() => {});
+            });
+        }
+      });
     }
   }, [product]);
   const addItem = useCartStore(state => state.addItem);

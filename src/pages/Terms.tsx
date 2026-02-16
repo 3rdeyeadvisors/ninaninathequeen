@@ -26,6 +26,10 @@ export default function Terms() {
               <h2 className="text-foreground font-serif text-2xl mb-4">4. Shipping and Returns</h2>
               <p>Please refer to our Shipping & Returns page for detailed information on our policies regarding the delivery and return of Nina Armend products.</p>
             </section>
+            <section>
+              <h2 className="text-foreground font-serif text-2xl mb-4">5. Analytics and Personalization</h2>
+              <p>For authenticated users, we may collect browsing data such as product page views to improve our store experience and provide personalized offers. This data is used solely to enhance your shopping experience and is never sold to third parties. By creating an account and using our site, you consent to this data collection as described in our Privacy Policy.</p>
+            </section>
             <p className="mt-12 text-xs">Last updated: February 2026</p>
           </div>
         </div>
