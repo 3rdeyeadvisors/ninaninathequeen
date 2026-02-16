@@ -1,77 +1,47 @@
 
 
-# Move Reviews to Database
+# Audit Fixes - Remaining Items
 
-## Problem
-Reviews are stored in localStorage only. This means:
-- Reviews are invisible to other customers
-- Reviews disappear if the browser cache is cleared
-- Reviews don't persist across devices
-- The Testimonials section on the homepage is empty for all visitors
+## Fix 1: Reviews RLS Policy (Security - Critical)
 
-## Solution
-Create a `reviews` table in the database and update the components to read/write from it instead of localStorage.
+The current "Authenticated users can update likes" policy has a `WITH CHECK` that compares columns to themselves (`user_id = user_id`), which is always true. Any authenticated user can modify any review field.
 
----
+**Solution:** Drop the broken policy and create a database function `toggle_review_like(review_id, user_id)` that runs as `SECURITY DEFINER`. Remove the general UPDATE policy for authenticated users entirely. The `useToggleLike` hook will call the RPC instead of doing a direct update.
 
-## Step 1: Create the `reviews` table
+## Fix 2: Duplicate Review Prevention (Points Abuse)
 
-Create a new database table with the following columns:
-- `id` (uuid, primary key)
-- `product_id` (text, not null)
-- `user_id` (uuid, references auth.users, not null)
-- `user_name` (text, not null)
-- `user_avatar` (text, nullable)
-- `rating` (integer, not null, 1-5)
-- `comment` (text, not null)
-- `likes` (text array, default empty -- stores user IDs who liked)
-- `admin_comment` (jsonb, nullable -- stores reply text, author name, role, timestamp)
-- `created_at` (timestamptz, default now())
+No constraint prevents a user from submitting multiple reviews for the same product, farming 10 points each time.
 
-RLS policies:
-- **Anyone can read reviews** (public SELECT) -- reviews should be visible to all visitors
-- **Authenticated users can insert their own reviews** (INSERT where `auth.uid() = user_id`)
-- **Authenticated users can update likes on any review** (UPDATE on `likes` column only)
-- **Admins can update reviews** (UPDATE for adding admin comments)
-- **Admins can delete reviews** (DELETE for moderation)
+**Solution:** Add a unique constraint on `(product_id, user_id)` in the reviews table. Update `useAddReview` to handle the unique violation error gracefully with a user-friendly message.
 
-A validation trigger will enforce rating between 1 and 5.
+## Fix 3: Newsletter Signup (Broken)
 
-## Step 2: Create a custom hook `useReviewsDb`
+The footer newsletter form shows a success toast but never saves the email. Customers are silently lost.
 
-New file: `src/hooks/useReviewsDb.ts`
+**Solution:** Create a `newsletter_subscribers` table with `id`, `email` (unique), and `created_at`. Add a permissive INSERT policy for anonymous users and a SELECT/DELETE policy for admins. Update `Footer.tsx` to insert into this table on submit.
 
-This hook will:
-- Fetch reviews for a given product ID using a TanStack Query
-- Provide `addReview` mutation (inserts into DB, also awards 10 points)
-- Provide `toggleLike` mutation (updates the likes array)
-- Provide `addAdminComment` mutation (updates admin_comment jsonb)
-- Fetch all high-rated reviews for the Testimonials component
+## Fix 4: Update Square API Version
 
-## Step 3: Update `ReviewSection.tsx`
+Both edge functions use `Square-Version: '2024-01-18'` which is over 2 years old.
 
-- Replace `useReviewStore` with the new `useReviewsDb` hook
-- Use TanStack Query data instead of Zustand store
-- Keep all existing UI, validation, and animation logic unchanged
-- Reviews will now be globally visible to all visitors
+**Solution:** Update the header to `'2025-01-23'` in both `create-square-checkout` and `finalize-square-order`.
 
-## Step 4: Update `Testimonials.tsx`
+## Fix 5: Product View Tracking Bug
 
-- Replace `useReviewStore` with a query that fetches reviews with rating >= 4 and comment length >= 20
-- Same visual output, but now pulling from the database
+`ProductPage.tsx` reads from localStorage and writes that local count to the DB `view_count`, which can overwrite the real count if a user clears their browser. Also causes two DB calls per page view.
 
-## Step 5: Keep `reviewStore.ts` as fallback
-
-The Zustand store file will remain but won't be actively used. This avoids breaking any other imports during the transition.
+**Solution:** Replace the upsert + update pattern with a single upsert that increments atomically using a database function `increment_product_view(p_user_id, p_product_id, p_product_title)`.
 
 ---
 
-## Technical Details
+## Technical Summary
 
-| File | Action |
-|------|--------|
-| Database migration | Create `reviews` table with RLS policies |
-| `src/hooks/useReviewsDb.ts` | New hook for DB-backed review CRUD |
-| `src/components/ReviewSection.tsx` | Switch from Zustand store to DB hook |
-| `src/components/Testimonials.tsx` | Switch from Zustand store to DB query |
+| File / Resource | Change |
+|---|---|
+| Database migration | Drop broken likes UPDATE policy; create `toggle_review_like` RPC; add unique constraint on `(product_id, user_id)`; create `newsletter_subscribers` table; create `increment_product_view` RPC |
+| `src/hooks/useReviewsDb.ts` | Switch `useToggleLike` to use RPC; handle duplicate review error in `useAddReview` |
+| `src/components/Footer.tsx` | Insert email into `newsletter_subscribers` table on submit |
+| `supabase/functions/create-square-checkout/index.ts` | Update `Square-Version` header |
+| `supabase/functions/finalize-square-order/index.ts` | Update `Square-Version` header |
+| `src/pages/ProductPage.tsx` | Replace localStorage-based view tracking with single RPC call |
 
