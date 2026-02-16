@@ -1,63 +1,55 @@
 
-# Fix Customer Upsert Bug in Manual Orders
 
-## Problem Found
-The `createManualOrder` function in `useOrdersDb.ts` generates a new customer ID each time and uses `onConflict: 'id'` for the customer upsert. However, the `customers` table has a **unique constraint on `email`**. This means:
-- First-time customers: works fine (new ID, new email)
-- Returning customers: the insert fails with a unique constraint violation on email, logged as a warning but the order still goes through -- the customer record just doesn't get updated
+# Fix Image Uploads -- Why They're Hanging
+
+## Root Cause
+
+Two problems are causing uploads to hang or fail:
+
+### 1. No Image Compression Before Upload
+The upload sends the raw file directly to storage. Phone photos are typically 5-15MB each. On a normal connection, uploading even one uncompressed photo can take 30-60 seconds. Multiple photos could take minutes. There is zero compression, resizing, or optimization happening before upload.
+
+### 2. Sequential Uploads (Not Parallel)
+The current code uploads files one at a time in a `for` loop. If you select 3 photos at 8MB each, that is 24MB uploaded sequentially -- each one waits for the previous to finish.
+
+### 3. No Progress Feedback
+The only feedback is a spinning icon. No progress bar, no "uploading 1 of 3", nothing. So it looks completely frozen.
+
+---
 
 ## Fix
 
-**File**: `src/hooks/useOrdersDb.ts` (lines 169-182)
+### Step 1: Add Client-Side Image Compression
+Before uploading, resize images to a max of 1200px wide and compress to JPEG at 80% quality. This typically reduces a 10MB phone photo down to 100-300KB -- a 30-50x reduction. No new dependencies needed; the browser Canvas API handles this natively.
 
-Change the customer upsert to:
-1. First check if a customer with that email already exists
-2. If yes, update their `order_count` and `total_spent`
-3. If no, insert a new customer record
+### Step 2: Upload in Parallel
+Use `Promise.all` instead of a sequential `for` loop so all images upload simultaneously.
 
-Replace the current upsert block with:
+### Step 3: Add Upload Progress
+Show "Uploading 1 of 3..." text and a progress counter so the user knows it is working.
 
-```typescript
-// 2. Create/update customer record
-const { data: existingCustomer } = await supabase
-  .from('customers')
-  .select('id, order_count, total_spent')
-  .eq('email', order.customerEmail)
-  .maybeSingle();
+### Step 4: Add File Size Validation
+Reject files over 20MB before even attempting the upload, with a clear error message.
 
-if (existingCustomer) {
-  // Update existing customer
-  await supabase
-    .from('customers')
-    .update({
-      name: order.customerName,
-      order_count: (existingCustomer.order_count || 0) + 1,
-      total_spent: (parseFloat(existingCustomer.total_spent || '0') + parseFloat(order.total)).toFixed(2),
-    })
-    .eq('id', existingCustomer.id)
-    .select('id')
-    .maybeSingle();
-} else {
-  // Create new customer
-  await supabase
-    .from('customers')
-    .insert({
-      id: `cust-${Date.now()}`,
-      name: order.customerName,
-      email: order.customerEmail,
-      join_date: new Date().toISOString().split('T')[0],
-      order_count: 1,
-      total_spent: order.total,
-    })
-    .select('id')
-    .maybeSingle();
-}
+---
+
+## Technical Details
+
+**File changed**: `src/pages/admin/Products.tsx`
+
+**New helper function** (added in the same file):
 ```
+compressImage(file, maxWidth=1200, quality=0.8) -> Promise<Blob>
+```
+Uses an off-screen canvas to resize and compress to JPEG before upload.
 
-This is a one-file fix that ensures returning customers get their stats updated instead of causing a silent failure.
+**Updated `handleImageUpload`**:
+- Validates file sizes (reject > 20MB)
+- Compresses each image via canvas
+- Uploads all compressed images in parallel with `Promise.allSettled`
+- Shows progress text: "Uploading 2 of 4..."
 
-## Files Changed
+**Updated UI**:
+- Replace spinner with progress text during upload
+- Show count of successful/failed uploads in the toast
 
-| File | Change |
-|------|--------|
-| `src/hooks/useOrdersDb.ts` | Fix customer upsert to handle existing customers by email |
