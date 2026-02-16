@@ -1,22 +1,16 @@
 import { motion } from 'framer-motion';
 import { Star, Quote } from 'lucide-react';
-import { useReviewStore } from '@/stores/reviewStore';
-import { useMemo } from 'react';
+import { useTestimonials } from '@/hooks/useReviewsDb';
 
 export function Testimonials() {
-  const { reviews } = useReviewStore();
+  const { data: reviews = [] } = useTestimonials();
 
-  const testimonials = useMemo(() => {
-    return reviews
-      .filter(r => r.rating >= 4 && r.comment.length >= 20)
-      .slice(0, 3)
-      .map(r => ({
-        name: r.userName,
-        location: "Verified Buyer",
-        text: r.comment,
-        rating: r.rating,
-      }));
-  }, [reviews]);
+  const testimonials = reviews.map(r => ({
+    name: r.user_name,
+    location: "Verified Buyer",
+    text: r.comment,
+    rating: r.rating,
+  }));
 
   if (testimonials.length === 0) return null;
 
