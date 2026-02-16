@@ -167,22 +167,40 @@ export function useOrdersDb() {
       }
 
       // 2. Create/update customer record
-      const customerId = `cust-${Date.now()}`;
-      const { error: customerError } = await supabase
-        .from('customers')
-        .upsert({
-          id: customerId,
-          name: order.customerName,
-          email: order.customerEmail,
-          join_date: new Date().toISOString().split('T')[0],
-          order_count: 1,
-          total_spent: order.total,
-        }, { onConflict: 'id', ignoreDuplicates: false })
-        .select('id')
-        .maybeSingle();
+      try {
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id, order_count, total_spent')
+          .eq('email', order.customerEmail)
+          .maybeSingle();
 
-      if (customerError) {
-        console.warn('Could not create customer record:', customerError);
+        if (existingCustomer) {
+          await supabase
+            .from('customers')
+            .update({
+              name: order.customerName,
+              order_count: (existingCustomer.order_count || 0) + 1,
+              total_spent: (parseFloat(existingCustomer.total_spent || '0') + parseFloat(order.total)).toFixed(2),
+            })
+            .eq('id', existingCustomer.id)
+            .select('id')
+            .maybeSingle();
+        } else {
+          await supabase
+            .from('customers')
+            .insert({
+              id: `cust-${Date.now()}`,
+              name: order.customerName,
+              email: order.customerEmail,
+              join_date: new Date().toISOString().split('T')[0],
+              order_count: 1,
+              total_spent: order.total,
+            })
+            .select('id')
+            .maybeSingle();
+        }
+      } catch (customerErr) {
+        console.warn('Could not create/update customer record:', customerErr);
         // Don't fail the order just because customer creation failed
       }
 
