@@ -1,104 +1,132 @@
 
 
-# Make the AI Super Intelligent (with Silent Memory)
+# Full Implementation: Behavioral Intelligence, AI Chat Fix, Store Intelligence Upgrade, and Legal Updates
 
-## What Changes
+## Overview
 
-### 1. Remove Visual Chat History Loading (Dashboard.tsx)
+This plan implements the complete approved feature set: database-backed product view tracking, browse-but-don't-buy detection, AI chat stability fixes, enriched Store Intelligence cards, and updated Privacy Policy / Terms of Service to cover the new tracking.
 
-The `useEffect` that loads old messages from `chat_messages` table and displays them on screen will be removed. The chat will always start fresh with just the greeting. However, messages will still be saved to the database so the AI can reference them.
+---
 
-### 2. Feed the AI Its Own Memory Silently (Dashboard.tsx + Edge Function)
+## 1. Database Migration: `product_views` Table
 
-Instead of loading old messages into the visible chat, the edge function will query the `chat_messages` table server-side and inject the last ~20 messages as hidden context in the system prompt. This way the AI "remembers" past conversations without cluttering the UI.
+Create a new table to track authenticated user product browsing behavior.
 
-### 3. Supercharge the Store Context with Deep Analytics (Dashboard.tsx)
+```sql
+CREATE TABLE public.product_views (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  product_id text NOT NULL,
+  product_title text,
+  view_count integer NOT NULL DEFAULT 1,
+  first_viewed_at timestamptz NOT NULL DEFAULT now(),
+  last_viewed_at timestamptz NOT NULL DEFAULT now()
+);
 
-The `storeContext` currently has product names/prices and order summaries but lacks the detail needed for questions like "What's my most sold item?" or "Which customer spends the most?" 
+-- Unique constraint for upsert
+ALTER TABLE public.product_views ADD CONSTRAINT unique_user_product UNIQUE (user_id, product_id);
 
-**Add these data blocks:**
+-- RLS
+ALTER TABLE public.product_views ENABLE ROW LEVEL SECURITY;
 
-- **Sales by Product** -- aggregate all confirmed order items to show units sold per product, ranked by quantity. This directly answers "most sold item."
-- **Top Customers by Spend** -- rank customers by total spend and order count, so the AI can say "Customer X bought the most."
-- **Customer Purchase Details** -- for each recent order, include the full item list (product name, size, quantity, price) so the AI can cross-reference who bought what.
-- **Revenue by Category** -- aggregate sales by product category for strategic insights.
-- **Average Order Value** -- simple but powerful metric for strategy questions.
+-- Users can upsert their own views
+CREATE POLICY "Users can insert own views" ON public.product_views
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
-Example of enriched context:
+CREATE POLICY "Users can update own views" ON public.product_views
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-```
-=== SALES ANALYTICS ===
-Most Sold Products (by units):
-1. Copacabana Bikini Set — 12 units sold — $2,388 revenue
-2. Ipanema One-Piece — 8 units sold — $1,592 revenue
-
-Top Customers by Spend:
-1. Sarah Johnson — $856 total — 4 orders
-2. Maria Santos — $598 total — 2 orders
-
-Average Order Value: $199.00
-Revenue by Category: Bikini Sets $3,200 | One-Pieces $1,800
-
-=== DETAILED ORDER LOG ===
-- Order #ABC: Sarah Johnson — Copacabana Bikini (S) x2, Ipanema One-Piece (M) x1 — $597
+-- Admins can read all views for analytics
+CREATE POLICY "Admins can read all views" ON public.product_views
+  FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'));
 ```
 
-### 4. Upgrade to Smarter Model (Edge Function)
+## 2. Product View Tracking (`src/pages/ProductPage.tsx`)
 
-Switch from `google/gemini-3-flash-preview` to `google/gemini-3-pro-preview` for deeper reasoning and more nuanced strategic answers.
+When an authenticated user visits a product page, silently upsert a row in `product_views`. The existing localStorage tracking stays for anonymous visitors (used on dashboard "Most Viewed" section). The new DB tracking adds server-side behavioral data for logged-in users.
 
-### 5. Enhanced System Prompt (Edge Function)
+**Changes:**
+- Import `supabase` and `useCloudAuthStore`
+- After the existing localStorage tracking block, add a DB upsert for authenticated users
+- Uses fire-and-forget pattern (no await blocking UI)
+- Upserts with `onConflict: 'user_id,product_id'` to increment `view_count`
 
-Update the system prompt to:
-- Instruct the AI to cross-reference data proactively (e.g., when asked about best sellers, also mention who bought them)
-- Think like a data analyst -- look for patterns, correlations, and actionable insights
-- Query its memory (injected past conversations) to maintain continuity across sessions
-- Go beyond what's asked -- if someone asks about inventory, also flag sales velocity
+## 3. Fix AI Chat Execution (`src/pages/admin/Dashboard.tsx`)
+
+**Critical fix -- why the AI can't respond:**
+
+Line 334 calls `await supabase.auth.getUser()` inline during message save, and line 337 calls `await supabase.auth.getSession()`. Per project constraints, these cause execution hangs.
+
+**Fix:**
+- Fetch session ONCE at the very top of `handleSendMessage` using a single `supabase.auth.getSession()` call
+- Extract `token` and `userId` from the result
+- Use those variables for all subsequent operations (DB inserts, API call)
+- Make DB inserts fire-and-forget (no `await`, just `.then()`)
+- Add `.select('id').maybeSingle()` to inserts since admin has SELECT permission on `chat_messages`
+- Set `isAiTyping = false` when first assistant token arrives (`addedAssistant` flips true)
+
+## 4. Behavioral Intelligence in Dashboard (`src/pages/admin/Dashboard.tsx`)
+
+**New data fetching:**
+- Add a `useEffect` that queries `product_views` (all users, admin RLS) and cross-references with `orders` to find browse-but-don't-buy patterns
+- Store results in state: `behavioralInsights`
+
+**Detection logic:**
+- Find product_views where `view_count >= 3` and `last_viewed_at` is within last 14 days
+- Cross-reference with orders to check if that user has purchased that product
+- If not purchased, flag as "high intent" -- surface as an insight card
+
+**Store Intelligence cards upgrade:**
+- Replace the two generic "Top Opportunity" / "Growth Signal" cards with up to 4 data-driven cards:
+  - Best Seller (from salesByProduct data)
+  - Top Customer (from customerSpend data)
+  - High-Intent Browsers (from behavioral data -- "Sarah viewed X 5 times but hasn't purchased")
+  - Low Stock Alert (specific product names)
+
+**AI Context enrichment:**
+- Add a `=== BEHAVIORAL INTELLIGENCE ===` section to `storeContext` with the browse-but-don't-buy data so the AI can proactively recommend discount strategies
+
+## 5. Edge Function -- No Changes Needed
+
+The `ai-chat/index.ts` edge function is already correctly configured with:
+- Silent memory (queries last 30 messages)
+- `google/gemini-3-pro-preview` model
+- Enhanced system prompt with cross-referencing behaviors
+
+The problem was entirely client-side (auth call hangs). No edge function changes required.
+
+## 6. Privacy Policy Update (`src/pages/Privacy.tsx`)
+
+Add a new section for "Browsing Activity" that discloses:
+- We collect browsing behavior (product views) for registered users
+- This data is used to improve recommendations and personalize offers
+- Users can delete their account to remove all tracking data
+
+## 7. Terms of Service Update (`src/pages/Terms.tsx`)
+
+Add a new section "5. Analytics and Personalization" that covers:
+- Use of browsing data for store improvement and personalized offers
+- Data is only collected for authenticated users
+
+---
 
 ## Files Changed
 
-- **`src/pages/admin/Dashboard.tsx`** -- Remove visual history loading, enrich storeContext with sales analytics, top customers, detailed order items
-- **`supabase/functions/ai-chat/index.ts`** -- Query chat_messages for silent memory, upgrade model, enhance system prompt for proactive intelligence
+| File | Change |
+|------|--------|
+| **Database migration** | Create `product_views` table with RLS |
+| `src/pages/ProductPage.tsx` | Add DB upsert for authenticated user views |
+| `src/pages/admin/Dashboard.tsx` | Fix auth calls, add behavioral data fetch, upgrade Store Intelligence cards, enrich AI context |
+| `src/pages/Privacy.tsx` | Add "Browsing Activity" section |
+| `src/pages/Terms.tsx` | Add "Analytics and Personalization" section |
 
-### 6. Behavioral Intelligence -- Track Browse-But-Don't-Buy Patterns
+## Testing Checklist
 
-**Database: `product_views` table**
-Track every product page view for logged-in users with `user_id`, `product_id`, `view_count`, `first_viewed_at`, `last_viewed_at`. Upsert on each visit so we get frequency + recency.
+1. Open admin dashboard -- AI chat should respond when you type a question (no more hanging)
+2. Ask "What's my most sold item?" -- should get specific product data with cross-references
+3. Log in as a regular user, visit a product page 3+ times -- verify `product_views` table gets rows
+4. Go to admin dashboard -- Store Intelligence should show behavioral insight if any user has 3+ views without purchase
+5. Ask AI "Are any customers interested but not buying?" -- should reference behavioral data
+6. Check Privacy and Terms pages for new sections about browsing data collection
+7. Typing indicator should disappear as soon as AI starts streaming its response
 
-**Tracking (`src/pages/ProductPage.tsx`)**
-When an authenticated user visits a product page, upsert a row in `product_views`. This runs silently in the background.
-
-**Detection Logic (`src/pages/admin/Dashboard.tsx`)**
-Cross-reference `product_views` with `orders` to find high-intent users:
-- Users who viewed a product 3+ times but never purchased it
-- Users who viewed recently (last 7 days) but have no matching order
-
-**Store Intelligence Cards**
-Surface these as actionable insights in the dashboard:
-- "Sarah viewed Copacabana Bikini Set 5 times this week but hasn't purchased -- consider offering a discount"
-- "3 users are repeatedly viewing Ipanema One-Piece -- high demand signal"
-
-**AI Context**
-Feed browse-but-don't-buy data into the AI's `storeContext` so it can proactively suggest retention strategies when asked about customers or sales.
-
-### 7. Fix AI Chat Execution (Critical)
-
-- Fetch session once at the top of `handleSendMessage` -- no repeated inline `getUser`/`getSession` calls
-- Make DB inserts fire-and-forget with `.select('id').maybeSingle()` to prevent promise hangs
-- Set `isAiTyping = false` on first streamed token
-
-## Files Changed
-
-- **`src/pages/admin/Dashboard.tsx`** -- Remove visual history loading, enrich storeContext with sales analytics + behavioral data, fix auth calls, upgrade Store Intelligence cards
-- **`supabase/functions/ai-chat/index.ts`** -- Query chat_messages for silent memory, upgrade model, enhance system prompt
-- **`src/pages/ProductPage.tsx`** -- Add product view tracking for authenticated users
-- **Database migration** -- Create `product_views` table with RLS policies
-
-## Testing
-
-1. Open admin dashboard -- chat should start fresh (no old messages loaded)
-2. Ask "What's my most sold item?" -- should get specific product name with units sold
-3. Ask "Who is my best customer?" -- should get customer name with spend and order details
-4. Ask a follow-up referencing a previous conversation topic -- AI should remember from its silent memory
-5. Visit a product page while logged in 3+ times -- verify Store Intelligence shows a "high interest" insight
-6. Ask the AI "Are any customers interested in a product but haven't bought?" -- should reference behavioral data
