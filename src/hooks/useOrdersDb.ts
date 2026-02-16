@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminOrder, type ShippingAddress } from '@/stores/adminStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import type { Json } from '@/integrations/supabase/types';
 
 /**
@@ -126,8 +127,17 @@ export function useOrdersDb() {
   }, [fetchOrders]);
 
   // Create a manual order and decrement inventory
-  const createManualOrder = useCallback(async (order: AdminOrder) => {
+  const createManualOrder = useCallback(async (order: AdminOrder): Promise<string | true> => {
     try {
+      // Auth guard: check if user is authenticated
+      const cloudUser = useCloudAuthStore.getState().user;
+      const isAuthenticated = useCloudAuthStore.getState().isAuthenticated;
+
+      if (!isAuthenticated || !cloudUser) {
+        console.error('Authentication required to create orders');
+        return 'Please log in to create orders. Your session may have expired.';
+      }
+
       const supabase = getSupabase();
 
       // 1. Insert order into database
@@ -150,12 +160,34 @@ export function useOrdersDb() {
 
       if (orderError) {
         console.error('Error creating manual order:', orderError);
-        return false;
+        if (orderError.message?.includes('row-level security') || orderError.code === '42501') {
+          return 'Permission denied. Please log in again or check your admin access.';
+        }
+        return `Failed to create order: ${orderError.message}`;
       }
 
-      // 2. Decrement inventory for each item
+      // 2. Create/update customer record
+      const customerId = `cust-${Date.now()}`;
+      const { error: customerError } = await supabase
+        .from('customers')
+        .upsert({
+          id: customerId,
+          name: order.customerName,
+          email: order.customerEmail,
+          join_date: new Date().toISOString().split('T')[0],
+          order_count: 1,
+          total_spent: order.total,
+        }, { onConflict: 'id', ignoreDuplicates: false })
+        .select('id')
+        .maybeSingle();
+
+      if (customerError) {
+        console.warn('Could not create customer record:', customerError);
+        // Don't fail the order just because customer creation failed
+      }
+
+      // 3. Decrement inventory for each item
       for (const item of order.items) {
-        // Find product by title match in the store
         const overrides = useAdminStore.getState().productOverrides;
         const productEntry = Object.entries(overrides).find(([_, p]) => p.title === item.title);
         if (!productEntry) continue;
@@ -186,12 +218,12 @@ export function useOrdersDb() {
         });
       }
 
-      // 3. Add to local store
+      // 4. Add to local store
       useAdminStore.getState().addOrder(order);
       return true;
     } catch (err) {
       console.error('Failed to create manual order:', err);
-      return false;
+      return 'An unexpected error occurred. Please try again.';
     }
   }, []);
 

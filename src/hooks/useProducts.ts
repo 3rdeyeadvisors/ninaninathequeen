@@ -51,7 +51,14 @@ function overrideToProduct(override: ProductOverride): Product {
       amount: override.price || '0.00',
       currencyCode: 'USD',
     },
-    images: override.image ? [{ url: override.image, altText: override.title }] : [],
+    images: (() => {
+      // Use images array if available, fall back to single image
+      const imgArray = override.images?.filter(Boolean);
+      if (imgArray && imgArray.length > 0) {
+        return imgArray.map(url => ({ url, altText: override.title }));
+      }
+      return override.image ? [{ url: override.image, altText: override.title }] : [];
+    })(),
     variants: sizes.map(size => ({
       id: `${override.id}-${size.toLowerCase()}`,
       title: size,

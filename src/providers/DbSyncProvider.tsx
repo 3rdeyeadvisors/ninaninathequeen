@@ -1,5 +1,5 @@
 import { useEffect, useState, createContext, useContext, ReactNode } from 'react';
-import { useAdminStore, type ProductOverride, type AdminOrder, type AdminCustomer } from '@/stores/adminStore';
+import { useAdminStore, type ProductOverride, type AdminOrder, type AdminCustomer, type ShippingAddress } from '@/stores/adminStore';
 import { toast } from 'sonner';
 import { getSupabase } from '@/lib/supabaseClient';
 
@@ -62,6 +62,8 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
             colorCodes: product.color_codes || [],
             sizes: product.sizes || [],
             isDeleted: product.is_deleted || false,
+            unitCost: (product as any).unit_cost || '0.00',
+            images: (product as any).images || [],
           });
         });
       }
@@ -95,6 +97,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
           itemCost: order.item_cost || undefined,
           status: order.status as AdminOrder['status'],
           trackingNumber: order.tracking_number || '',
+          shippingAddress: (order.shipping_address as ShippingAddress) || undefined,
           items: (order.items as AdminOrder['items']) || [],
         }));
         setOrders(formattedOrders);

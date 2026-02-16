@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2 } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useOrdersDb } from '@/hooks/useOrdersDb';
@@ -34,6 +34,7 @@ export default function AdminOrders() {
   const [isEditing, setIsEditing] = useState(false);
   const [isViewing, setIsViewing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [editStatus, setEditStatus] = useState<AdminOrder['status']>('Pending');
   const [editTracking, setEditTracking] = useState('');
@@ -143,11 +144,22 @@ export default function AdminOrders() {
     setSelectedQty(1);
   };
 
+
   const handleCreateOrder = async () => {
-    if (!newOrder.customerName || !newOrder.customerEmail || newOrderItems.length === 0) {
-      toast.error('Please fill in customer info and add at least one item');
+    if (!newOrder.customerName.trim()) {
+      toast.error('Please enter a customer name');
       return;
     }
+    if (!newOrder.customerEmail.trim()) {
+      toast.error('Please enter a customer email');
+      return;
+    }
+    if (newOrderItems.length === 0) {
+      toast.error('Please add at least one item to the order');
+      return;
+    }
+
+    setIsSubmitting(true);
 
     const orderTotal = newOrderItems.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0) + parseFloat(newOrder.shippingCost || '0');
 
@@ -171,13 +183,15 @@ export default function AdminOrders() {
     };
 
     const result = await createManualOrder(order);
-    if (result) {
+    setIsSubmitting(false);
+
+    if (result === true) {
       toast.success('Manual order created and inventory updated');
       setIsCreating(false);
       setNewOrder({ customerName: '', customerEmail: '', shippingCost: '0.00', itemCost: '0.00' });
       setNewOrderItems([]);
     } else {
-      toast.error('Failed to create order');
+      toast.error(typeof result === 'string' ? result : 'Failed to create order');
     }
   };
 
@@ -570,8 +584,10 @@ export default function AdminOrders() {
                 </div>
 
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreating(false)} className="font-sans text-[10px] uppercase tracking-widest">Cancel</Button>
-                  <Button onClick={handleCreateOrder} className="bg-primary font-sans text-[10px] uppercase tracking-widest">Create Order</Button>
+                  <Button variant="outline" onClick={() => setIsCreating(false)} disabled={isSubmitting} className="font-sans text-[10px] uppercase tracking-widest">Cancel</Button>
+                  <Button onClick={handleCreateOrder} disabled={isSubmitting} className="bg-primary font-sans text-[10px] uppercase tracking-widest">
+                    {isSubmitting ? <><Loader2 className="h-3 w-3 animate-spin mr-2" /> Creating...</> : 'Create Order'}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

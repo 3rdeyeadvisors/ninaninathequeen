@@ -3,7 +3,7 @@ import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight, RefreshCw, Package, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveRight, RefreshCw, Package, Eye, EyeOff, XCircle } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
@@ -69,6 +69,7 @@ export default function AdminProducts() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [newColorInput, setNewColorInput] = useState('');
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [isImageUploading, setIsImageUploading] = useState(false);
 
   // Count products by category
   const countByCategory = useMemo(() => {
@@ -453,16 +454,69 @@ export default function AdminProducts() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditingProduct(prev => prev ? { ...prev, image: reader.result as string } : null);
-        toast.success("Image uploaded successfully!");
-      };
-      reader.readAsDataURL(file);
+
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsImageUploading(true);
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const newImageUrls: string[] = [];
+
+      for (const file of Array.from(files)) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${editingProduct?.id || 'new'}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `products/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, file, { upsert: true });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
+
+        if (urlData?.publicUrl) {
+          newImageUrls.push(urlData.publicUrl);
+        }
+      }
+
+      if (newImageUrls.length > 0) {
+        const currentImages = editingProduct?.images || [];
+        const allImages = [...currentImages, ...newImageUrls].filter(Boolean);
+        setEditingProduct(prev => prev ? {
+          ...prev,
+          images: allImages,
+          image: allImages[0] || prev.image, // First image = primary
+        } : null);
+        toast.success(`${newImageUrls.length} image(s) uploaded!`);
+      }
+    } catch (err) {
+      console.error('Image upload error:', err);
+      toast.error('Failed to upload images');
+    } finally {
+      setIsImageUploading(false);
+      // Reset input so the same file can be re-selected
+      if (imageInputRef.current) imageInputRef.current.value = '';
     }
+  };
+
+  const removeImage = (index: number) => {
+    const currentImages = [...(editingProduct?.images || [])];
+    currentImages.splice(index, 1);
+    setEditingProduct(prev => prev ? {
+      ...prev,
+      images: currentImages,
+      image: currentImages[0] || '',
+    } : null);
   };
 
   const handleSave = async () => {
@@ -521,7 +575,8 @@ export default function AdminProducts() {
       price: "0.00",
       inventory: 0,
       sizeInventory: initialSizeInventory,
-      image: "https://images.unsplash.com/photo-1585924756944-b82af627eca9?auto=format&fit=crop&q=80&w=800",
+      image: "",
+      images: [],
       description: "",
       sizes: [...PRODUCT_SIZES]
     });
@@ -805,6 +860,7 @@ export default function AdminProducts() {
                               inventory: override?.inventory || 45,
                               sizeInventory: sizeInventory,
                               image: product.images[0]?.url,
+                              images: override?.images || product.images.map(img => img.url),
                               description: product.description || "",
                               sizes: sizes,
                               category: override?.category,
@@ -934,29 +990,50 @@ export default function AdminProducts() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                       <div className="lg:col-span-1 space-y-3">
-                        <Label className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Product Image</Label>
-                        <div className="relative group aspect-[3/4] rounded-2xl overflow-hidden border-2 border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 shadow-inner" onClick={() => imageInputRef.current?.click()}>
-                          {editingProduct?.image ? (
-                            <img src={editingProduct.image} alt="Preview" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                          ) : (
-                            <div className="flex flex-col items-center gap-2 text-muted-foreground/40 group-hover:text-primary/60 transition-colors">
-                              <Upload className="h-8 w-8" />
-                              <span className="text-[10px] uppercase tracking-widest font-sans">Upload Image</span>
+                        <Label className="font-sans text-[10px] uppercase tracking-widest text-muted-foreground/80 font-bold ml-1">Product Images</Label>
+                        
+                        {/* Image Gallery Grid */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {(editingProduct?.images || []).filter(Boolean).map((imgUrl, idx) => (
+                            <div key={idx} className="relative group aspect-[3/4] rounded-xl overflow-hidden border border-border/50 shadow-sm">
+                              <img src={imgUrl} alt={`Product ${idx + 1}`} className="w-full h-full object-cover" />
+                              {idx === 0 && (
+                                <span className="absolute top-1 left-1 bg-primary text-primary-foreground text-[8px] uppercase tracking-widest px-1.5 py-0.5 rounded font-bold">Primary</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeImage(idx)}
+                                className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <XCircle className="h-3 w-3" />
+                              </button>
                             </div>
-                          )}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                            ref={imageInputRef}
-                          />
-                          <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-center">
-                            <span className="text-white text-[10px] uppercase tracking-widest font-sans font-bold flex items-center gap-2">
-                              <Edit2 className="h-3 w-3" /> Change Photo
-                            </span>
+                          ))}
+                          
+                          {/* Add Image Button */}
+                          <div
+                            className="aspect-[3/4] rounded-xl border-2 border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2"
+                            onClick={() => imageInputRef.current?.click()}
+                          >
+                            {isImageUploading ? (
+                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            ) : (
+                              <>
+                                <Upload className="h-6 w-6 text-muted-foreground/40" />
+                                <span className="text-[9px] uppercase tracking-widest font-sans text-muted-foreground/60">Add Photos</span>
+                              </>
+                            )}
                           </div>
                         </div>
+                        
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          ref={imageInputRef}
+                        />
                       </div>
 
                       <div className="lg:col-span-2 space-y-3 flex flex-col">
