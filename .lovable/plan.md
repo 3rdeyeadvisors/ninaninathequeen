@@ -60,9 +60,45 @@ Update the system prompt to:
 - **`src/pages/admin/Dashboard.tsx`** -- Remove visual history loading, enrich storeContext with sales analytics, top customers, detailed order items
 - **`supabase/functions/ai-chat/index.ts`** -- Query chat_messages for silent memory, upgrade model, enhance system prompt for proactive intelligence
 
+### 6. Behavioral Intelligence -- Track Browse-But-Don't-Buy Patterns
+
+**Database: `product_views` table**
+Track every product page view for logged-in users with `user_id`, `product_id`, `view_count`, `first_viewed_at`, `last_viewed_at`. Upsert on each visit so we get frequency + recency.
+
+**Tracking (`src/pages/ProductPage.tsx`)**
+When an authenticated user visits a product page, upsert a row in `product_views`. This runs silently in the background.
+
+**Detection Logic (`src/pages/admin/Dashboard.tsx`)**
+Cross-reference `product_views` with `orders` to find high-intent users:
+- Users who viewed a product 3+ times but never purchased it
+- Users who viewed recently (last 7 days) but have no matching order
+
+**Store Intelligence Cards**
+Surface these as actionable insights in the dashboard:
+- "Sarah viewed Copacabana Bikini Set 5 times this week but hasn't purchased -- consider offering a discount"
+- "3 users are repeatedly viewing Ipanema One-Piece -- high demand signal"
+
+**AI Context**
+Feed browse-but-don't-buy data into the AI's `storeContext` so it can proactively suggest retention strategies when asked about customers or sales.
+
+### 7. Fix AI Chat Execution (Critical)
+
+- Fetch session once at the top of `handleSendMessage` -- no repeated inline `getUser`/`getSession` calls
+- Make DB inserts fire-and-forget with `.select('id').maybeSingle()` to prevent promise hangs
+- Set `isAiTyping = false` on first streamed token
+
+## Files Changed
+
+- **`src/pages/admin/Dashboard.tsx`** -- Remove visual history loading, enrich storeContext with sales analytics + behavioral data, fix auth calls, upgrade Store Intelligence cards
+- **`supabase/functions/ai-chat/index.ts`** -- Query chat_messages for silent memory, upgrade model, enhance system prompt
+- **`src/pages/ProductPage.tsx`** -- Add product view tracking for authenticated users
+- **Database migration** -- Create `product_views` table with RLS policies
+
 ## Testing
 
 1. Open admin dashboard -- chat should start fresh (no old messages loaded)
 2. Ask "What's my most sold item?" -- should get specific product name with units sold
 3. Ask "Who is my best customer?" -- should get customer name with spend and order details
 4. Ask a follow-up referencing a previous conversation topic -- AI should remember from its silent memory
+5. Visit a product page while logged in 3+ times -- verify Store Intelligence shows a "high interest" insight
+6. Ask the AI "Are any customers interested in a product but haven't bought?" -- should reference behavioral data
