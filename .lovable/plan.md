@@ -1,65 +1,33 @@
 
-# Fix Store Intelligence Sync: Orders RLS + Data Flow
 
-## Problem Identified
+# Fix Resend Email Deliverability Warnings
 
-The Store Intelligence section appears to show placeholders because the **orders table is completely inaccessible** -- every request returns a `403` error with `"permission denied for table users"`. This is caused by the "Users can view own orders" RLS policy, which contains a subquery referencing `auth.users`:
-
-```sql
-customer_email = (SELECT users.email FROM auth.users WHERE users.id = auth.uid())::text
-```
-
-This subquery fails because the `authenticated` role does not have SELECT permission on `auth.users`. Since RLS evaluates ALL policies (including ones that don't apply), this broken policy blocks the admin policy too.
-
-Because orders can't load:
-- Orders count shows 0
-- Revenue shows $0
-- No confirmed orders data for insights
-- Behavioral cross-referencing with purchases fails
-- The entire Store Intelligence section falls back to pre-launch messages
+## Problem
+Resend is flagging two issues:
+1. **Link URL Mismatch** -- Emails are sent from `support@ninaarmend.co`, but all links inside the emails (Shop, About, Contact, account links, CTA buttons) point to `ninaninathequeen.lovable.app`. Email providers see this domain mismatch as suspicious, which can hurt deliverability and land emails in spam.
+2. **Subdomain Recommendation** -- Resend recommends sending from a subdomain like `send.ninaarmend.co` instead of the root domain. This is a best practice but not a blocking issue right now.
 
 ## Fix
 
-### 1. Database Migration -- Fix Orders RLS Policy
+### Update email link URLs (required)
+**File**: `supabase/functions/send-email/index.ts`
 
-Drop the broken "Users can view own orders" policy and replace it with one that uses the `profiles` table (which users DO have SELECT access to) instead of `auth.users`:
+Change line 12:
+- From: `siteUrl: 'https://ninaninathequeen.lovable.app'`
+- To: `siteUrl: 'https://ninaarmend.co'`
 
-```sql
-DROP POLICY "Users can view own orders" ON public.orders;
+This single change updates every link in every email template (Shop, About, Contact, account pages, order details, CTAs) since they all reference `BRAND.siteUrl`.
 
-CREATE POLICY "Users can view own orders" ON public.orders
-  FOR SELECT TO authenticated
-  USING (
-    customer_email = (
-      SELECT p.email FROM public.profiles p WHERE p.id = auth.uid()
-    )
-  );
-```
+### Subdomain for sending (optional, later)
+The subdomain recommendation (e.g., `send.ninaarmend.co` or `mail.ninaarmend.co`) would require updating DNS records at your domain registrar and reconfiguring the sending domain in Resend. This protects your root domain's reputation. It's a good practice but can be done later -- fixing the link mismatch is the priority.
 
-This achieves the same result (users see their own orders by matching email) but uses a table they have permission to read.
+### Custom domain setup
+For the links to actually work at `ninaarmend.co`, you'll need to connect your custom domain in Lovable project settings under Domains. This requires adding an A record pointing to `185.158.133.1` and a TXT verification record at your registrar.
 
-### 2. No Code Changes Needed
+## Summary
+| Change | File | What |
+|--------|------|------|
+| Update siteUrl | `supabase/functions/send-email/index.ts` | Change lovable.app URL to ninaarmend.co |
 
-The Store Intelligence logic in Dashboard.tsx is already correct -- it dynamically references:
-- `confirmedOrders` for revenue and momentum insights
-- `orders` for pending count
-- `customers` for audience size
-- `behavioralInsights` for browse-but-don't-buy patterns
-- `productOverrides` for inventory counts
-- `waitlistCount` for pre-launch context
-- `settings` for social links
+One line change, fixes the Resend warning, improves email deliverability.
 
-Once orders load successfully, all these data flows will populate correctly and the insights will automatically sync with real store data.
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| Database migration | Fix orders RLS policy to use `profiles` table instead of `auth.users` |
-
-## Testing
-
-1. After migration, verify orders endpoint returns 200 (not 403)
-2. Dashboard metrics should reflect real order data
-3. Store Intelligence cards should show order-aware insights
-4. Regular users should still only see their own orders
