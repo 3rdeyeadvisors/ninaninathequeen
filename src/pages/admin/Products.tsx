@@ -70,6 +70,7 @@ export default function AdminProducts() {
   const [newColorInput, setNewColorInput] = useState('');
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [isImageUploading, setIsImageUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   // Count products by category
   const countByCategory = useMemo(() => {
@@ -456,38 +457,97 @@ export default function AdminProducts() {
 
 
 
+  const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas not supported')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => blob ? resolve(blob) : reject(new Error('Compression failed')),
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
+      img.src = url;
+    });
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    const fileArray = Array.from(files);
+    const MAX_SIZE = 20 * 1024 * 1024; // 20MB
+
+    // Validate file sizes
+    const oversized = fileArray.filter(f => f.size > MAX_SIZE);
+    if (oversized.length > 0) {
+      toast.error(`${oversized.length} file(s) exceed 20MB limit and were skipped.`);
+    }
+    const validFiles = fileArray.filter(f => f.size <= MAX_SIZE);
+    if (validFiles.length === 0) return;
+
     setIsImageUploading(true);
+    setUploadProgress(`Compressing ${validFiles.length} image(s)...`);
+
     try {
       const { supabase } = await import('@/integrations/supabase/client');
-      const newImageUrls: string[] = [];
 
-      for (const file of Array.from(files)) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${editingProduct?.id || 'new'}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `products/${fileName}`;
+      // Compress all images first
+      const compressed = await Promise.all(
+        validFiles.map(async (file, i) => {
+          try {
+            setUploadProgress(`Compressing ${i + 1} of ${validFiles.length}...`);
+            const blob = await compressImage(file);
+            return { blob, name: file.name };
+          } catch {
+            return null;
+          }
+        })
+      );
+      const validCompressed = compressed.filter(Boolean) as { blob: Blob; name: string }[];
 
-        const { error: uploadError } = await supabase.storage
-          .from('product-images')
-          .upload(filePath, file, { upsert: true });
+      // Upload all in parallel
+      setUploadProgress(`Uploading ${validCompressed.length} image(s)...`);
+      const results = await Promise.allSettled(
+        validCompressed.map(async ({ blob }, i) => {
+          const fileName = `${editingProduct?.id || 'new'}-${Date.now()}-${i}-${Math.random().toString(36).substring(7)}.jpg`;
+          const filePath = `products/${fileName}`;
 
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          toast.error(`Failed to upload ${file.name}`);
-          continue;
-        }
+          const { error: uploadError } = await supabase.storage
+            .from('product-images')
+            .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
 
-        const { data: urlData } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(filePath);
+          if (uploadError) throw uploadError;
 
-        if (urlData?.publicUrl) {
-          newImageUrls.push(urlData.publicUrl);
-        }
-      }
+          const { data: urlData } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(filePath);
+
+          return urlData?.publicUrl || null;
+        })
+      );
+
+      const newImageUrls = results
+        .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled')
+        .map(r => r.value)
+        .filter(Boolean) as string[];
+
+      const failedCount = results.filter(r => r.status === 'rejected').length;
 
       if (newImageUrls.length > 0) {
         const currentImages = editingProduct?.images || [];
@@ -495,16 +555,23 @@ export default function AdminProducts() {
         setEditingProduct(prev => prev ? {
           ...prev,
           images: allImages,
-          image: allImages[0] || prev.image, // First image = primary
+          image: allImages[0] || prev.image,
         } : null);
+      }
+
+      if (newImageUrls.length > 0 && failedCount === 0) {
         toast.success(`${newImageUrls.length} image(s) uploaded!`);
+      } else if (newImageUrls.length > 0 && failedCount > 0) {
+        toast.warning(`${newImageUrls.length} uploaded, ${failedCount} failed.`);
+      } else {
+        toast.error('All uploads failed.');
       }
     } catch (err) {
       console.error('Image upload error:', err);
       toast.error('Failed to upload images');
     } finally {
       setIsImageUploading(false);
-      // Reset input so the same file can be re-selected
+      setUploadProgress('');
       if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
@@ -1016,7 +1083,10 @@ export default function AdminProducts() {
                             onClick={() => imageInputRef.current?.click()}
                           >
                             {isImageUploading ? (
-                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                              <div className="flex flex-col items-center gap-1.5 px-2">
+                                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                <span className="text-[8px] text-center uppercase tracking-wider font-sans text-primary/80">{uploadProgress || 'Uploading...'}</span>
+                              </div>
                             ) : (
                               <>
                                 <Upload className="h-6 w-6 text-muted-foreground/40" />
