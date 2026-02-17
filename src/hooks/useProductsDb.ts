@@ -1,7 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
-import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 
 export type SyncResult = { success: true } | { success: false; reason: 'auth' | 'forbidden' | 'error' };
 
@@ -68,14 +67,10 @@ export function useProductsDb() {
     try {
       const supabase = getSupabase();
 
-      // Auto-refresh session before checking auth state
-      await supabase.auth.getSession();
+      // Get session directly — the Supabase SDK is the source of truth
+      const { data: { session } } = await supabase.auth.getSession();
 
-      // Check if user is authenticated via Cloud Auth
-      const cloudUser = useCloudAuthStore.getState().user;
-      const isAuthenticated = useCloudAuthStore.getState().isAuthenticated;
-
-      if (!isAuthenticated || !cloudUser) {
+      if (!session?.user) {
         console.error('Authentication required to sync products');
         return { success: false, reason: 'auth' };
       }
