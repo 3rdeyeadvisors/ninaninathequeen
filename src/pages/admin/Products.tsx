@@ -55,7 +55,7 @@ export default function AdminProducts() {
   const { data: initialProducts, isLoading } = useProducts(1000, undefined, true);
   const { productOverrides, updateProductOverride, deleteProduct, _hasHydrated } = useAdminStore();
   const { isUploading, handleFileUpload, downloadTemplate, fileInputRef: syncInputRef } = useSpreadsheetSync();
-  const { fetchProducts, upsertProduct, deleteProductDb, bulkDeleteProducts } = useProductsDb();
+  const { fetchProducts, upsertProduct, bulkUpsertProducts, deleteProductDb, bulkDeleteProducts } = useProductsDb();
   
   const settings = useAdminStore(state => state.settings);
   const [editingProduct, setEditingProduct] = useState<Partial<ProductOverride> | null>(null);
@@ -370,8 +370,8 @@ export default function AdminProducts() {
 
     try {
       setIsSyncing(true);
-      const results = await Promise.all(productsToUpdate.map(p => upsertProduct(p)));
-      const success = results.every(r => r.success);
+      const result = await bulkUpsertProducts(productsToUpdate);
+      const success = result.success;
       if (success) {
         toast.success(`${count} products moved to ${category}`);
       } else {

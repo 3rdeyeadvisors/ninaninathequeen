@@ -67,16 +67,9 @@ export function useProductsDb() {
     try {
       const supabase = getSupabase();
 
-      // Get session directly — the Supabase SDK is the source of truth
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session?.user) {
-        console.error('Authentication required to sync products');
-        return { success: false, reason: 'auth' };
-      }
-
-      // The edge function now validates admin role server-side via JWT
-      // The authorization header is automatically included by Supabase client
+      // The Supabase SDK automatically includes the auth token in the request.
+      // Server-side JWT validation in the edge function is the single source of truth.
+      // NO getSession() call here — repeated calls cause execution hangs.
       const { data, error } = await supabase.functions.invoke('sync-products', {
         body: { products },
       });
