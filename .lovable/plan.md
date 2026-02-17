@@ -1,46 +1,49 @@
 
 
-# Fix the Real Save Problem: Auth Session + Double Toast Errors
+# Fix the REAL Bug: Session Refresh Doesn't Update Auth Store
 
-## Root Cause (confirmed this time)
+## The Actual Problem
 
-The `sync-products` edge function has **zero** recent logs -- meaning saves never reach the server. The problem is in `useProductsDb.ts`: it checks `useCloudAuthStore.getState().isAuthenticated` before calling the edge function. If the admin's session expired or didn't initialize properly, the save silently fails and returns `false`.
+The `sync-products` edge function has zero logs -- saves never reach the server. Here's why:
 
-The `handleSave` in Products.tsx then shows "Failed to save to database" but doesn't explain that the real issue is authentication. Your client likely sees a vague error and has no idea what to do.
+In `useProductsDb.ts`, line 72 calls `supabase.auth.getSession()` to refresh the session. But line 76 then checks `useCloudAuthStore.getState().isAuthenticated`. These are two separate systems:
+- `getSession()` refreshes the Supabase SDK token internally
+- But the Zustand `cloudAuthStore` only updates when `onAuthStateChange` fires, which may not happen synchronously
 
-There's also a **double toast problem**: both `syncWithEdgeFunction` (in useProductsDb.ts) and `handleSave` (in Products.tsx) show their own error toasts, so the admin sees TWO error messages for one failure.
+So the auth check on line 78 fails, the function returns `{ success: false, reason: 'auth' }`, and the admin sees "Your session has expired. Please log in again" -- even though they ARE logged in.
 
-## Changes
+## The Fix
 
-### 1. Remove duplicate toasts from useProductsDb.ts
+### 1. Use the Supabase session directly instead of the Zustand store (useProductsDb.ts)
 
-`syncWithEdgeFunction` currently shows its own `toast.error()` messages (lines 115-127). Since `handleSave` in Products.tsx already shows clear error/success toasts, the hook should just return `false` without toasting -- let the caller handle all user-facing messages.
+Replace the cloudAuthStore check with a direct `supabase.auth.getSession()` check. The session object from Supabase is the source of truth. If there's a valid session with a user, the admin is authenticated -- no need to cross-reference a Zustand store that might be stale.
 
-### 2. Return a reason when save fails (useProductsDb.ts)
+```text
+Before (broken):
+  await supabase.auth.getSession();              // refreshes token
+  const isAuthenticated = useCloudAuthStore...    // may still be false!
+  if (!isAuthenticated) return { reason: 'auth' }
 
-Instead of just returning `true`/`false`, return an object like `{ success: false, reason: 'auth' | 'forbidden' | 'error' }` so Products.tsx can show the right message (e.g., "Please log in again" vs "Database error").
+After (fixed):
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return { reason: 'auth' }
+```
 
-### 3. Show actionable error messages in handleSave (Products.tsx)
+### 2. Keep the edge function's server-side admin check as the real security gate
 
-- If reason is `auth`: show "Your session has expired. Please log in again to save."
-- If reason is `forbidden`: show "Admin access required."
-- If reason is generic error: show "Failed to save. Please try again."
-
-### 4. Auto-refresh session before save attempt (useProductsDb.ts)
-
-Before the auth check, call `supabase.auth.getSession()` to refresh the token. This prevents silent failures from expired sessions.
+The edge function already validates the JWT and checks admin role server-side (lines 86-116 of sync-products/index.ts). The client-side check is just a UX optimization to avoid unnecessary network calls. So using the Supabase session directly is perfectly safe.
 
 ## Technical Details
 
 | File | Change |
 |------|--------|
-| `src/hooks/useProductsDb.ts` | Remove duplicate toast calls from `syncWithEdgeFunction`; return `{ success, reason }` instead of boolean; add session refresh before auth check |
-| `src/pages/admin/Products.tsx` | Update `handleSave` to read the `reason` from the return value and show the correct actionable error message |
+| `src/hooks/useProductsDb.ts` | Replace `useCloudAuthStore.getState()` check with direct `supabase.auth.getSession()` result. Remove the cloudAuthStore import if no longer needed. |
 
-## What This Fixes
+This is a one-file, ~5-line change that fixes the root cause.
 
-- Admin's expired session no longer causes silent/confusing save failures
-- No more double toast messages
-- Clear, actionable error messages telling the admin exactly what to do
-- Session auto-refreshes before each save attempt
+## Why This Will Actually Work
+
+- `supabase.auth.getSession()` returns the refreshed session synchronously after the call
+- The edge function already validates admin status server-side, so the client check is just a shortcut
+- No more dependency on Zustand store timing/sync issues
 
