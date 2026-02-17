@@ -43,7 +43,7 @@ interface AuthStore {
  * Admin privileges are now managed via database roles (user_roles table).
  * This constant is kept for UI display purposes only.
  */
-export const ADMIN_EMAIL = 'lydia@ninaarmend.co.site';
+export const ADMIN_EMAIL = 'lydia@ninaarmend.co';
 
 const DEFAULT_ADMIN: User = {
   name: 'Lydia',

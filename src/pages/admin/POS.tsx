@@ -65,7 +65,7 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
   const { settings } = useAdminStore();
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'other'>('cash');
   const [customerName, setCustomerName] = useState('In-Store Customer');
-  const [customerEmail, setCustomerEmail] = useState('pos@ninaarmend.co.site');
+  const [customerEmail, setCustomerEmail] = useState('pos@ninaarmend.co');
   const [isProcessing, setIsProcessing] = useState(false);
   const cardRef = useRef<{
     tokenize: () => Promise<{ status: string; token: string; errors?: Array<{ message: string }> }>;

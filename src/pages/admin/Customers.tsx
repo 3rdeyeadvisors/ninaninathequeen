@@ -583,7 +583,7 @@ export default function AdminCustomers() {
                     <label className="text-[10px] font-sans uppercase tracking-widest font-bold text-muted-foreground ml-1">Email Address</label>
                     <input
                       type="email"
-                      placeholder="maria@ninaarmend.co.site"
+                      placeholder="maria@ninaarmend.co"
                       className="w-full bg-secondary/30 border rounded-xl px-4 py-3 text-sm font-sans outline-none focus:ring-1 focus:ring-primary"
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
