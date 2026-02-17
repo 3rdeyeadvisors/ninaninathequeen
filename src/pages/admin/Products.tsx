@@ -7,7 +7,7 @@ import { Plus, Search, Edit2, Trash2, Upload, Loader2, Sparkles, Download, MoveR
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
-import { useProductsDb } from '@/hooks/useProductsDb';
+import { useProductsDb, type SyncResult } from '@/hooks/useProductsDb';
 
 import { toast } from 'sonner';
 import { useState, useMemo, useRef } from 'react';
@@ -195,8 +195,8 @@ export default function AdminProducts() {
 
       try {
         setIsSyncing(true);
-        const success = await deleteProductDb(idToDelete);
-        if (success) {
+        const result = await deleteProductDb(idToDelete);
+        if (result.success) {
           toast.success("Product deleted successfully");
         } else {
           // Rollback not easily possible with current store structure without refetching
@@ -243,8 +243,8 @@ export default function AdminProducts() {
 
     try {
       setIsSyncing(true);
-      const success = await bulkDeleteProducts(productIds);
-      if (success) {
+      const result = await bulkDeleteProducts(productIds);
+      if (result.success) {
         toast.success(`${productIds.length} products deleted`);
       } else {
         await fetchProducts();
@@ -282,8 +282,8 @@ export default function AdminProducts() {
 
     try {
       setIsSyncing(true);
-      const success = await upsertProduct(newOverride);
-      if (success) {
+      const result = await upsertProduct(newOverride);
+      if (result.success) {
         toast.success(`Product moved to ${category}`);
       } else {
         await fetchProducts();
@@ -322,8 +322,8 @@ export default function AdminProducts() {
 
     try {
       setIsSyncing(true);
-      const success = await upsertProduct(newOverride);
-      if (success) {
+      const result = await upsertProduct(newOverride);
+      if (result.success) {
         toast.success(newStatus === 'Active' ? 'Product visible in store' : 'Product hidden from store');
       } else {
         await fetchProducts();
@@ -371,7 +371,7 @@ export default function AdminProducts() {
     try {
       setIsSyncing(true);
       const results = await Promise.all(productsToUpdate.map(p => upsertProduct(p)));
-      const success = results.every(Boolean);
+      const success = results.every(r => r.success);
       if (success) {
         toast.success(`${count} products moved to ${category}`);
       } else {
@@ -631,12 +631,19 @@ export default function AdminProducts() {
 
     try {
       setIsSyncing(true);
-      const success = await upsertProduct(productData);
+      const result = await upsertProduct(productData);
       toast.dismiss(loadingToast);
-      if (success) {
+      if (result.success) {
         toast.success(wasAdding ? `"${productName}" added successfully!` : `"${productName}" saved successfully!`);
       } else {
-        toast.error(`Failed to save "${productName}" to database. Please try again.`);
+        const reason = (result as { success: false; reason: string }).reason;
+        if (reason === 'auth') {
+          toast.error('Your session has expired. Please log in again to save.');
+        } else if (reason === 'forbidden') {
+          toast.error('Admin access required to save products.');
+        } else {
+          toast.error(`Failed to save "${productName}" to database. Please try again.`);
+        }
         await fetchProducts();
       }
     } catch (err) {
