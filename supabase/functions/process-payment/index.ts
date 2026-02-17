@@ -25,8 +25,49 @@ Deno.serve(async (req) => {
       throw new Error('Square Access Token is not configured.')
     }
 
+    // === SERVER-SIDE PRICE VALIDATION ===
+    if (orderDetails?.items && Array.isArray(orderDetails.items)) {
+      const productIds = orderDetails.items.map((item: any) => item.productId).filter(Boolean);
+      if (productIds.length > 0) {
+        const { data: products, error: dbError } = await supabase
+          .from('products')
+          .select('id, price')
+          .in('id', productIds);
 
+        if (dbError) {
+          console.error('[ProcessPayment] DB error fetching prices:', dbError.message);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Failed to verify product prices. Please try again.'
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
 
+        const dbPrices: Record<string, string> = {};
+        for (const p of (products || [])) {
+          dbPrices[p.id] = p.price;
+        }
+
+        for (const item of orderDetails.items) {
+          const clientPrice = parseFloat(item.price);
+          if (item.productId && dbPrices[item.productId] !== undefined) {
+            const dbPrice = parseFloat(dbPrices[item.productId]);
+            if (Math.abs(clientPrice - dbPrice) > 0.01) {
+              console.error(`[ProcessPayment] PRICE MISMATCH for ${item.title}: client=$${clientPrice}, db=$${dbPrice}`);
+              return new Response(JSON.stringify({
+                success: false,
+                error: `Price mismatch detected for "${item.title}". Please refresh and try again.`
+              }), {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
+            }
+          }
+        }
+      }
+    }
 
     const SQUARE_API_URL = (SQUARE_ENVIRONMENT === 'sandbox')
       ? 'https://connect.squareupsandbox.com'

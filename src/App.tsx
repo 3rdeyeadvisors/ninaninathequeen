@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCloudAuthStore } from "@/stores/cloudAuthStore";
 import { useAdminStore } from "@/stores/adminStore";
-import { ADMIN_EMAIL } from "@/stores/authStore";
 import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -45,7 +44,7 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const { settings } = useAdminStore();
   const { isInitialized } = useDbSync();
   const { user } = useCloudAuthStore();
-  const isAdmin = user?.isAdmin || user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isAdmin = user?.isAdmin;
 
   // Wait for initial database sync to complete before determining maintenance state
   // This ensures that isMaintenanceMode, seoTitle, and social links are correctly

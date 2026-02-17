@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -27,9 +27,8 @@ export const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRoutePr
   }
 
   // Check admin status from either auth system
-  const isLegacyAdmin = legacyUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() ||
-                  ['admin', 'manager', 'founder & owner'].includes(legacyUser?.role?.toLowerCase() || '');
-  const isCloudAdmin = cloudUser?.isAdmin || cloudUser?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isLegacyAdmin = ['admin', 'manager', 'founder & owner'].includes(legacyUser?.role?.toLowerCase() || '');
+  const isCloudAdmin = cloudUser?.isAdmin;
   
   const isAdmin = isLegacyAdmin || isCloudAdmin;
 

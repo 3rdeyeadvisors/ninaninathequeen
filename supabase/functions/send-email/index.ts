@@ -5,6 +5,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
+// HTML sanitization to prevent XSS in email templates
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const BRAND = {
   name: 'Nina Armend',
   from: 'Nina Armend <support@ninaarmend.co>',
@@ -74,7 +84,8 @@ function baseWrapper(content: string): string {
 }
 
 function welcomeEmail(data: { name: string; referralCode?: string }): { subject: string; html: string } {
-  const { name, referralCode } = data
+  const name = escapeHtml(data.name || '');
+  const referralCode = data.referralCode ? escapeHtml(data.referralCode) : undefined;
   return {
     subject: 'Welcome to Nina Armend',
     html: baseWrapper(`
@@ -97,11 +108,13 @@ function welcomeEmail(data: { name: string; referralCode?: string }): { subject:
 }
 
 function orderConfirmationEmail(data: { orderId: string; customerName: string; items: Array<{ title: string; quantity: number; price: string; size?: string }>; total: string }): { subject: string; html: string } {
-  const { orderId, customerName, items, total } = data
-  const itemsHtml = items.map(item =>
+  const orderId = escapeHtml(data.orderId || '');
+  const customerName = escapeHtml(data.customerName || '');
+  const total = data.total;
+  const itemsHtml = data.items.map(item =>
     `<tr>
       <td style="padding:12px 0;border-bottom:1px solid ${BRAND.colors.border};color:${BRAND.colors.text};font-size:15px;font-family:'Georgia',serif;">
-        ${item.title}${item.size ? ` <span class="muted">(${item.size})</span>` : ''} × ${item.quantity}
+        ${escapeHtml(item.title)}${item.size ? ` <span class="muted">(${escapeHtml(item.size)})</span>` : ''} × ${item.quantity}
       </td>
       <td style="padding:12px 0;border-bottom:1px solid ${BRAND.colors.border};color:${BRAND.colors.accent};font-size:15px;font-weight:600;text-align:right;font-family:'Georgia',serif;">
         $${parseFloat(item.price).toFixed(2)}
@@ -133,15 +146,18 @@ function orderConfirmationEmail(data: { orderId: string; customerName: string; i
 }
 
 function contactFormToSupport(data: { name: string; email: string; message: string }): { subject: string; html: string } {
+  const name = escapeHtml(data.name || '');
+  const email = escapeHtml(data.email || '');
+  const message = escapeHtml(data.message || '').replace(/\n/g, '<br>');
   return {
-    subject: `New Inquiry from ${data.name}`,
+    subject: `New Inquiry from ${name}`,
     html: baseWrapper(`
       <h1>New Customer Inquiry</h1>
       <div class="card">
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">From:</strong> ${data.name}</p>
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Email:</strong> <a href="mailto:${data.email}" style="color:${BRAND.colors.accent};">${data.email}</a></p>
+        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">From:</strong> ${name}</p>
+        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Email:</strong> <a href="mailto:${email}" style="color:${BRAND.colors.accent};">${email}</a></p>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid ${BRAND.colors.border};">
-          <p style="margin:0;">${data.message.replace(/\n/g, '<br>')}</p>
+          <p style="margin:0;">${message}</p>
         </div>
       </div>
       <p class="muted">Reply directly to this email to respond to the customer.</p>
@@ -150,14 +166,16 @@ function contactFormToSupport(data: { name: string; email: string; message: stri
 }
 
 function contactFormToCustomer(data: { name: string; message: string }): { subject: string; html: string } {
+  const name = escapeHtml(data.name || '');
+  const message = escapeHtml(data.message || '');
   return {
     subject: "We've received your message",
     html: baseWrapper(`
-      <h1>Thank You, ${data.name}</h1>
+      <h1>Thank You, ${name}</h1>
       <p>We've received your inquiry and our concierge team will respond within 24 hours.</p>
       <div class="card">
         <p class="muted" style="margin:0 0 8px 0;">Your message:</p>
-        <p style="margin:0;font-style:italic;">"${data.message}"</p>
+        <p style="margin:0;font-style:italic;">"${message}"</p>
       </div>
       <p class="muted">If you need immediate assistance, please reach out to <a href="mailto:${BRAND.supportEmail}" style="color:${BRAND.colors.accent};">${BRAND.supportEmail}</a>.</p>
       <div class="btn-center">
@@ -186,22 +204,26 @@ function referralSuccessEmail(data: { referrerName: string; referredName: string
 }
 
 function shippingUpdateEmail(data: { customerName: string; orderId: string; status: string; trackingNumber?: string }): { subject: string; html: string } {
+  const customerName = escapeHtml(data.customerName || '');
+  const orderId = escapeHtml(data.orderId || '');
+  const status = escapeHtml(data.status || '');
+  const trackingNumber = data.trackingNumber ? escapeHtml(data.trackingNumber) : undefined;
   const statusMessages: Record<string, string> = {
     'Shipped': 'Your order has been shipped and is on its way to you!',
     'Delivered': 'Your order has been delivered. We hope you love it!',
     'Out for Delivery': 'Your order is out for delivery today!',
   }
-  const statusMsg = statusMessages[data.status] || `Your order status has been updated to: ${data.status}`
+  const statusMsg = statusMessages[data.status] || `Your order status has been updated to: ${status}`
 
   return {
-    subject: `Order Update — ${data.status}`,
+    subject: `Order Update — ${status}`,
     html: baseWrapper(`
       <h1>Shipping Update</h1>
-      <p>${data.customerName}, ${statusMsg}</p>
+      <p>${customerName}, ${statusMsg}</p>
       <div class="card">
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Order:</strong> ${data.orderId.slice(0, 8).toUpperCase()}</p>
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Status:</strong> ${data.status}</p>
-        ${data.trackingNumber ? `<p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Tracking:</strong> ${data.trackingNumber}</p>` : ''}
+        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Order:</strong> ${orderId.slice(0, 8).toUpperCase()}</p>
+        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Status:</strong> ${status}</p>
+        ${trackingNumber ? `<p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Tracking:</strong> ${trackingNumber}</p>` : ''}
       </div>
       <div class="btn-center">
         <a href="${BRAND.siteUrl}/account" class="btn">View Order Details</a>
@@ -211,11 +233,12 @@ function shippingUpdateEmail(data: { customerName: string; orderId: string; stat
 }
 
 function waitlistConfirmationEmail(data: { name: string; email: string }): { subject: string; html: string } {
+  const name = escapeHtml(data.name || '');
   return {
     subject: "You're on the Nina Armend Waitlist",
     html: baseWrapper(`
       <h1>Welcome to the Waitlist</h1>
-      <p>Hey ${data.name}, thank you for your interest in Nina Armend. You've secured your spot on our exclusive launch list.</p>
+      <p>Hey ${name}, thank you for your interest in Nina Armend. You've secured your spot on our exclusive launch list.</p>
       <div class="card" style="text-align:center;">
         <p style="margin:0 0 8px 0;color:${BRAND.colors.accent};font-size:18px;font-weight:600;">You're In</p>
         <p class="muted" style="margin:0;">We'll send you an exclusive first look before our collection goes live.</p>
@@ -226,13 +249,15 @@ function waitlistConfirmationEmail(data: { name: string; email: string }): { sub
 }
 
 function waitlistNotificationEmail(data: { name: string; email: string }): { subject: string; html: string } {
+  const name = escapeHtml(data.name || '');
+  const email = escapeHtml(data.email || '');
   return {
-    subject: `New Waitlist Signup: ${data.email}`,
+    subject: `New Waitlist Signup: ${email}`,
     html: baseWrapper(`
       <h1>New Waitlist Signup</h1>
       <div class="card">
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Email:</strong> ${data.email}</p>
-        <p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Name:</strong> ${data.name}</p>
+        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Email:</strong> ${email}</p>
+        <p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Name:</strong> ${name}</p>
       </div>
       <p class="muted">A new visitor has joined the launch waitlist.</p>
     `),

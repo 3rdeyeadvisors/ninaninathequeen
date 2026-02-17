@@ -5,3 +5,18 @@ verify_jwt = false
 
 [functions.og-image]
 verify_jwt = false
+
+[functions.create-square-checkout]
+verify_jwt = false
+
+[functions.finalize-square-order]
+verify_jwt = false
+
+[functions.process-payment]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.sync-products]
+verify_jwt = false
