@@ -528,9 +528,24 @@ export default function AdminProducts() {
           const fileName = `${editingProduct?.id || 'new'}-${Date.now()}-${i}-${Math.random().toString(36).substring(7)}.jpg`;
           const filePath = `products/${fileName}`;
 
-          const { error: uploadError } = await supabase.storage
-            .from('product-images')
-            .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
+          let uploadError: any = null;
+
+          // Try upload with one retry
+          for (let attempt = 0; attempt < 2; attempt++) {
+            const { error } = await supabase.storage
+              .from('product-images')
+              .upload(filePath, blob, { upsert: true, contentType: 'image/jpeg' });
+
+            if (!error) {
+              uploadError = null;
+              break;
+            }
+            uploadError = error;
+            if (attempt === 0) {
+              console.warn(`Upload retry for ${filePath}:`, error.message);
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
 
           if (uploadError) throw uploadError;
 
@@ -562,9 +577,9 @@ export default function AdminProducts() {
       if (newImageUrls.length > 0 && failedCount === 0) {
         toast.success(`${newImageUrls.length} image(s) uploaded!`);
       } else if (newImageUrls.length > 0 && failedCount > 0) {
-        toast.warning(`${newImageUrls.length} uploaded, ${failedCount} failed.`);
+        toast.warning(`${newImageUrls.length} uploaded, ${failedCount} failed. Try re-uploading failed images.`);
       } else {
-        toast.error('All uploads failed.');
+        toast.error('All uploads failed. Please check your connection and try again.');
       }
     } catch (err) {
       console.error('Image upload error:', err);
@@ -588,6 +603,11 @@ export default function AdminProducts() {
 
   const handleSave = async () => {
     if (!editingProduct?.id) return;
+
+    if (isImageUploading) {
+      toast.warning("Please wait for images to finish uploading before saving.");
+      return;
+    }
     
     // Validation
     if (!editingProduct.title?.trim()) {
@@ -601,30 +621,28 @@ export default function AdminProducts() {
     
     // Optimistic update
     const productData = editingProduct as ProductOverride;
+    const productName = productData.title || 'Product';
     updateProductOverride(productData.id, productData);
     const wasAdding = isAddingProduct;
     setEditingProduct(null);
     setIsAddingProduct(false);
 
-    const savePromise = upsertProduct(productData);
-
-    toast.promise(savePromise, {
-      loading: wasAdding ? 'Adding new product...' : 'Saving changes...',
-      success: (success) => {
-        if (success) return wasAdding ? "Product added successfully!" : "Product updated successfully!";
-        return "Database sync failed. Changes saved locally.";
-      },
-      error: "An unexpected error occurred while saving."
-    });
+    const loadingToast = toast.loading(wasAdding ? 'Adding new product...' : 'Saving changes...');
 
     try {
       setIsSyncing(true);
-      const success = await savePromise;
-      if (!success) {
+      const success = await upsertProduct(productData);
+      toast.dismiss(loadingToast);
+      if (success) {
+        toast.success(wasAdding ? `"${productName}" added successfully!` : `"${productName}" saved successfully!`);
+      } else {
+        toast.error(`Failed to save "${productName}" to database. Please try again.`);
         await fetchProducts();
       }
     } catch (err) {
       console.error("Save error:", err);
+      toast.dismiss(loadingToast);
+      toast.error(`An unexpected error occurred while saving "${productName}".`);
       await fetchProducts();
     } finally {
       setIsSyncing(false);
@@ -1305,12 +1323,12 @@ export default function AdminProducts() {
                       Cancel
                     </Button>
                     <Button
-                      disabled={isSyncing}
+                      disabled={isSyncing || isImageUploading}
                       onClick={handleSave}
                       className="bg-primary hover:bg-primary/90 text-primary-foreground font-sans text-[10px] uppercase tracking-widest h-11 px-10 rounded-xl shadow-gold hover:scale-105 active:scale-95 transition-all"
                     >
                       {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      {isAddingProduct ? 'Create Product' : 'Save Changes'}
+                      {isImageUploading ? 'Uploading Images...' : isAddingProduct ? 'Create Product' : 'Save Changes'}
                     </Button>
                   </div>
                 </DialogFooter>
