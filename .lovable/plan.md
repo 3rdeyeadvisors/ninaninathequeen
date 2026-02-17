@@ -1,49 +1,61 @@
 
 
-# Fix the REAL Bug: Session Refresh Doesn't Update Auth Store
+# Fix Multi-Edit Save Failures (The Real Root Cause)
 
-## The Actual Problem
+## Why This Keeps Happening
 
-The `sync-products` edge function has zero logs -- saves never reach the server. Here's why:
+There's a documented constraint for this project (from the architecture notes):
 
-In `useProductsDb.ts`, line 72 calls `supabase.auth.getSession()` to refresh the session. But line 76 then checks `useCloudAuthStore.getState().isAuthenticated`. These are two separate systems:
-- `getSession()` refreshes the Supabase SDK token internally
-- But the Zustand `cloudAuthStore` only updates when `onAuthStateChange` fires, which may not happen synchronously
+> "Repeated `supabase.auth.getSession()` calls must be avoided to prevent execution hangs in the Lovable preview and published environments."
 
-So the auth check on line 78 fails, the function returns `{ success: false, reason: 'auth' }`, and the admin sees "Your session has expired. Please log in again" -- even though they ARE logged in.
+The previous fix **added** a `getSession()` call into `syncWithEdgeFunction` -- the exact function called on every single save. So:
+- One save = one `getSession()` call = works fine
+- Rapid saves or bulk operations = multiple `getSession()` calls = **hangs**
 
-## The Fix
+This is why your client can save one edit but not multiple.
 
-### 1. Use the Supabase session directly instead of the Zustand store (useProductsDb.ts)
+## The Fix (3 changes, all straightforward)
 
-Replace the cloudAuthStore check with a direct `supabase.auth.getSession()` check. The session object from Supabase is the source of truth. If there's a valid session with a user, the admin is authenticated -- no need to cross-reference a Zustand store that might be stale.
+### 1. Remove `getSession()` from `syncWithEdgeFunction` (useProductsDb.ts)
 
-```text
-Before (broken):
-  await supabase.auth.getSession();              // refreshes token
-  const isAuthenticated = useCloudAuthStore...    // may still be false!
-  if (!isAuthenticated) return { reason: 'auth' }
+The `supabase.functions.invoke()` call **already** includes the auth token automatically -- that's built into the Supabase SDK. And the edge function already validates the JWT server-side (lines 86-116 of sync-products). The client-side `getSession()` check is redundant AND harmful.
 
-After (fixed):
+Instead, just call the edge function directly. If the user isn't authenticated, the edge function returns 401, and we handle that from the response.
+
+```
+Before (causes hangs on repeated calls):
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return { reason: 'auth' }
+  if (!session?.user) return { success: false, reason: 'auth' };
+  const { data, error } = await supabase.functions.invoke(...)
+
+After (no pre-check, let the server decide):
+  const { data, error } = await supabase.functions.invoke(...)
+  // Handle 401/403 from the error response
 ```
 
-### 2. Keep the edge function's server-side admin check as the real security gate
+### 2. Fix `bulkMoveToCategory` sending N parallel API calls (Products.tsx)
 
-The edge function already validates the JWT and checks admin role server-side (lines 86-116 of sync-products/index.ts). The client-side check is just a UX optimization to avoid unnecessary network calls. So using the Supabase session directly is perfectly safe.
+Line 373 currently does:
+```
+const results = await Promise.all(productsToUpdate.map(p => upsertProduct(p)));
+```
+This fires N separate edge function calls in parallel. Should use the existing `bulkUpsertProducts` function which sends all products in ONE call.
+
+### 3. Update CORS headers in the edge function (sync-products/index.ts)
+
+The Supabase JS client sends additional headers (`x-supabase-client-platform`, etc.) that aren't in the current CORS allow-list. Missing headers can cause preflight failures on some browsers/devices.
 
 ## Technical Details
 
 | File | Change |
 |------|--------|
-| `src/hooks/useProductsDb.ts` | Replace `useCloudAuthStore.getState()` check with direct `supabase.auth.getSession()` result. Remove the cloudAuthStore import if no longer needed. |
+| `src/hooks/useProductsDb.ts` | Remove `getSession()` call from `syncWithEdgeFunction`. Handle 401/403 from the edge function error response instead. |
+| `src/pages/admin/Products.tsx` | Change `bulkMoveToCategory` to use `bulkUpsertProducts(productsToUpdate)` instead of N parallel `upsertProduct()` calls. |
+| `supabase/functions/sync-products/index.ts` | Add missing Supabase client headers to CORS allow-list. |
 
-This is a one-file, ~5-line change that fixes the root cause.
+## Why This Won't Break Again
 
-## Why This Will Actually Work
-
-- `supabase.auth.getSession()` returns the refreshed session synchronously after the call
-- The edge function already validates admin status server-side, so the client check is just a shortcut
-- No more dependency on Zustand store timing/sync issues
-
+- Zero `getSession()` calls in the save path = no hangs regardless of how many saves
+- Server-side auth is the single source of truth (already was, now the client respects it)
+- Bulk operations use a single API call instead of N parallel calls
+- CORS headers match what the Supabase client actually sends
