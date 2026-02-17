@@ -1,38 +1,46 @@
 
 
-# Fix Admin Image Save - Better Error Feedback and Robustness
+# Fix the Real Save Problem: Auth Session + Double Toast Errors
 
-## Root Cause Analysis
+## Root Cause (confirmed this time)
 
-After investigating the database, edge function logs, and code:
-- The product saves ARE succeeding on the backend (confirmed via logs and database)
-- The likely issue is confusing success/error messaging that makes successful saves appear broken, or intermittent storage upload failures that silently lose images before Save is pressed
+The `sync-products` edge function has **zero** recent logs -- meaning saves never reach the server. The problem is in `useProductsDb.ts`: it checks `useCloudAuthStore.getState().isAuthenticated` before calling the edge function. If the admin's session expired or didn't initialize properly, the save silently fails and returns `false`.
+
+The `handleSave` in Products.tsx then shows "Failed to save to database" but doesn't explain that the real issue is authentication. Your client likely sees a vague error and has no idea what to do.
+
+There's also a **double toast problem**: both `syncWithEdgeFunction` (in useProductsDb.ts) and `handleSave` (in Products.tsx) show their own error toasts, so the admin sees TWO error messages for one failure.
 
 ## Changes
 
-### 1. Fix misleading toast messages in handleSave (Products.tsx)
+### 1. Remove duplicate toasts from useProductsDb.ts
 
-The current `toast.promise` success callback shows "Database sync failed. Changes saved locally." as a SUCCESS toast (green checkmark) when `upsertProduct` returns `false`. This is confusing -- it should be an error toast instead.
+`syncWithEdgeFunction` currently shows its own `toast.error()` messages (lines 115-127). Since `handleSave` in Products.tsx already shows clear error/success toasts, the hook should just return `false` without toasting -- let the caller handle all user-facing messages.
 
-**Change**: Replace `toast.promise` pattern with explicit success/error toasts after awaiting the result.
+### 2. Return a reason when save fails (useProductsDb.ts)
 
-### 2. Add retry logic for storage upload failures (Products.tsx)
+Instead of just returning `true`/`false`, return an object like `{ success: false, reason: 'auth' | 'forbidden' | 'error' }` so Products.tsx can show the right message (e.g., "Please log in again" vs "Database error").
 
-If a storage upload fails silently, the image URL never gets added to the product state, so clicking Save "loses" images. Add a single retry on failed uploads and clearer failure messaging.
+### 3. Show actionable error messages in handleSave (Products.tsx)
 
-### 3. Prevent Save from firing while images are still uploading (Products.tsx)
+- If reason is `auth`: show "Your session has expired. Please log in again to save."
+- If reason is `forbidden`: show "Admin access required."
+- If reason is generic error: show "Failed to save. Please try again."
 
-If the admin clicks Save while images are mid-upload, the current images array won't include the uploading images. Disable the Save button while `isImageUploading` is true.
+### 4. Auto-refresh session before save attempt (useProductsDb.ts)
 
-### 4. Add confirmation feedback after Save completes
-
-Show a clear, distinct success toast with the product name so the admin knows exactly what was saved.
+Before the auth check, call `supabase.auth.getSession()` to refresh the token. This prevents silent failures from expired sessions.
 
 ## Technical Details
 
 | File | Change |
-|---|---|
-| `src/pages/admin/Products.tsx` | Fix toast messaging in `handleSave`; add upload retry in `handleImageUpload`; disable Save during upload; add product name to success feedback |
+|------|--------|
+| `src/hooks/useProductsDb.ts` | Remove duplicate toast calls from `syncWithEdgeFunction`; return `{ success, reason }` instead of boolean; add session refresh before auth check |
+| `src/pages/admin/Products.tsx` | Update `handleSave` to read the `reason` from the return value and show the correct actionable error message |
 
-All changes are in a single file. No database or edge function changes needed -- the backend is working correctly.
+## What This Fixes
+
+- Admin's expired session no longer causes silent/confusing save failures
+- No more double toast messages
+- Clear, actionable error messages telling the admin exactly what to do
+- Session auto-refreshes before each save attempt
 
