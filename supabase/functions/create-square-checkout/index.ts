@@ -59,25 +59,67 @@ Deno.serve(async (req) => {
 
     console.log(`[CreateSquareCheckout] Creating checkout for order: ${orderDetails.id} at location: ${locationId}`)
 
-    // Prepare line items with validation
+    // === SERVER-SIDE PRICE VALIDATION ===
+    // Fetch real prices from the database to prevent client-side price manipulation
     const line_items = []
 
     if (orderDetails.items && Array.isArray(orderDetails.items)) {
+      // Collect all product IDs for a batch lookup
+      const productIds = orderDetails.items.map((item: any) => item.productId).filter(Boolean);
+      
+      let dbProducts: Record<string, string> = {};
+      if (productIds.length > 0) {
+        const { data: products, error: dbError } = await supabase
+          .from('products')
+          .select('id, price')
+          .in('id', productIds);
+        
+        if (dbError) {
+          console.error('[CreateSquareCheckout] DB error fetching prices:', dbError.message);
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Failed to verify product prices. Please try again.'
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        for (const p of (products || [])) {
+          dbProducts[p.id] = p.price;
+        }
+      }
+
       for (const item of orderDetails.items) {
-        const itemPrice = parseFloat(item.price)
-        if (isNaN(itemPrice)) {
-          console.warn(`[CreateSquareCheckout] Invalid price for item ${item.title}: ${item.price}`)
-          continue
+        const clientPrice = parseFloat(item.price);
+        if (isNaN(clientPrice)) {
+          console.warn(`[CreateSquareCheckout] Invalid price for item ${item.title}: ${item.price}`);
+          continue;
+        }
+
+        // Verify price against database
+        if (item.productId && dbProducts[item.productId] !== undefined) {
+          const dbPrice = parseFloat(dbProducts[item.productId]);
+          if (Math.abs(clientPrice - dbPrice) > 0.01) {
+            console.error(`[CreateSquareCheckout] PRICE MISMATCH for ${item.title}: client=$${clientPrice}, db=$${dbPrice}`);
+            return new Response(JSON.stringify({
+              success: false,
+              error: `Price mismatch detected for "${item.title}". Please refresh and try again.`
+            }), {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
         }
 
         line_items.push({
           name: `${item.title}${item.size ? ` (${item.size})` : ''}`,
           quantity: item.quantity.toString(),
           base_price_money: {
-            amount: Math.round(itemPrice * 100),
+            amount: Math.round(clientPrice * 100),
             currency: "USD"
           }
-        })
+        });
       }
     }
 
