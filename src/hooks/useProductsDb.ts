@@ -2,7 +2,8 @@ import { useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
-import { toast } from 'sonner';
+
+export type SyncResult = { success: true } | { success: false; reason: 'auth' | 'forbidden' | 'error' };
 
 /**
  * Hook to sync products with the database and Square.
@@ -62,20 +63,23 @@ export function useProductsDb() {
 
   // Internal helper for syncing via edge function (includes auto-push to Square)
   // SECURITY: No longer passes adminEmail - server validates JWT instead
-  const syncWithEdgeFunction = async (products: ProductOverride | ProductOverride[]) => {
+  // Returns { success, reason } — caller handles all toast messages
+  const syncWithEdgeFunction = async (products: ProductOverride | ProductOverride[]): Promise<SyncResult> => {
     try {
+      const supabase = getSupabase();
+
+      // Auto-refresh session before checking auth state
+      await supabase.auth.getSession();
+
       // Check if user is authenticated via Cloud Auth
       const cloudUser = useCloudAuthStore.getState().user;
       const isAuthenticated = useCloudAuthStore.getState().isAuthenticated;
 
       if (!isAuthenticated || !cloudUser) {
         console.error('Authentication required to sync products');
-        toast.error('Please log in to save products to database.');
-        return false;
+        return { success: false, reason: 'auth' };
       }
 
-      const supabase = getSupabase();
-      
       // The edge function now validates admin role server-side via JWT
       // The authorization header is automatically included by Supabase client
       const { data, error } = await supabase.functions.invoke('sync-products', {
@@ -110,45 +114,34 @@ export function useProductsDb() {
 
       if (error) {
         console.error('[useProductsDb] Database sync failed:', error);
-        // Handle specific error cases
         if (error.message?.includes('Forbidden') || error.message?.includes('403')) {
-          toast.error('Admin access required to modify products.');
+          return { success: false, reason: 'forbidden' };
         } else if (error.message?.includes('Unauthorized') || error.message?.includes('401')) {
-          toast.error('Please log in again to save products.');
-        } else {
-          try {
-            const functionsError = error as { response?: { json: () => Promise<{ error?: string }> } };
-            const errorBody = await functionsError.response?.json();
-            console.error('[useProductsDb] Sync error body:', errorBody);
-            toast.error(`Database sync failed: ${errorBody?.error || error.message || 'Unknown error'}`);
-          } catch (e) {
-            console.error('[useProductsDb] Could not parse error body:', error);
-            toast.error(`Database sync failed: ${error.message || 'Unknown error'}`);
-          }
+          return { success: false, reason: 'auth' };
         }
-        return false;
+        return { success: false, reason: 'error' };
       }
 
       // NOTE: Square sync is now handled background-style by the 'sync-products' edge function itself
       // to reduce client-side latency and prevent redundant calls.
-      return true;
+      return { success: true };
     } catch (err) {
       console.error('Database sync exception:', err);
       if (err instanceof Error) {
         console.error('Exception message:', err.message);
         console.error('Exception stack:', err.stack);
       }
-      return false;
+      return { success: false, reason: 'error' };
     }
   };
 
   // Upsert a product to the database (auto-syncs to Square)
-  const upsertProduct = useCallback(async (product: ProductOverride) => {
+  const upsertProduct = useCallback(async (product: ProductOverride): Promise<SyncResult> => {
     return await syncWithEdgeFunction(product);
   }, []);
 
   // Bulk upsert products to the database (auto-syncs to Square)
-  const bulkUpsertProducts = useCallback(async (products: ProductOverride[]) => {
+  const bulkUpsertProducts = useCallback(async (products: ProductOverride[]): Promise<SyncResult> => {
     return await syncWithEdgeFunction(products);
   }, []);
 
@@ -164,8 +157,8 @@ export function useProductsDb() {
   }, []);
 
   // Bulk delete products - batches all deletions into a single API call
-  const bulkDeleteProducts = useCallback(async (productIds: string[]) => {
-    if (productIds.length === 0) return true;
+  const bulkDeleteProducts = useCallback(async (productIds: string[]): Promise<SyncResult> => {
+    if (productIds.length === 0) return { success: true };
     
     const productsToDelete = productIds.map(id => {
       const existingOverride = useAdminStore.getState().productOverrides[id];
