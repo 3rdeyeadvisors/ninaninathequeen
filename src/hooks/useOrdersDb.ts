@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminOrder, type ShippingAddress } from '@/stores/adminStore';
-import { useCloudAuthStore } from '@/stores/cloudAuthStore';
+
 import type { Json } from '@/integrations/supabase/types';
 
 /**
@@ -129,15 +129,6 @@ export function useOrdersDb() {
   // Create a manual order and decrement inventory
   const createManualOrder = useCallback(async (order: AdminOrder): Promise<string | true> => {
     try {
-      // Auth guard: check if user is authenticated
-      const cloudUser = useCloudAuthStore.getState().user;
-      const isAuthenticated = useCloudAuthStore.getState().isAuthenticated;
-
-      if (!isAuthenticated || !cloudUser) {
-        console.error('Authentication required to create orders');
-        return 'Please log in to create orders. Your session may have expired.';
-      }
-
       const supabase = getSupabase();
 
       // 1. Insert order into database
