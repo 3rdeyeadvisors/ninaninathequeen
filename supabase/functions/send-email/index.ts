@@ -286,6 +286,44 @@ function launchAnnouncementEmail(data: { name?: string }): { subject: string; ht
   }
 }
 
+function discountAppliedEmail(data: { customerName: string; discountType: string; amountSaved: string; newTotal: string }): { subject: string; html: string } {
+  const customerName = escapeHtml(data.customerName || 'there');
+  const discountType = escapeHtml(data.discountType || 'Discount');
+  return {
+    subject: `Your ${discountType} has been applied!`,
+    html: baseWrapper(`
+      <h1>Reward Applied</h1>
+      <p>Hello ${customerName}, we've auto-applied your loyalty reward to your current checkout session.</p>
+      <div class="card">
+        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Reward:</strong> ${discountType}</p>
+        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Amount Saved:</strong> $${parseFloat(data.amountSaved).toFixed(2)}</p>
+        <p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Order Total:</strong> $${parseFloat(data.newTotal).toFixed(2)}</p>
+      </div>
+      <p class="muted">Thank you for being a part of our loyalty program!</p>
+    `),
+  }
+}
+
+function birthdayMonthEmail(data: { name: string }): { subject: string; html: string } {
+  const name = escapeHtml(data.name || 'there');
+  return {
+    subject: `Happy Birthday Month, ${name}! 🎂`,
+    html: baseWrapper(`
+      <h1 style="text-align:center;">Happy Birthday Month!</h1>
+      <p style="text-align:center;">To celebrate your special month, we've activated an exclusive <strong>$5 birthday discount</strong> for you.</p>
+      <div class="card" style="text-align:center;">
+        <p style="margin:0 0 12px 0;font-size:13px;color:${BRAND.colors.textMuted};text-transform:uppercase;letter-spacing:2px;">Your Gift</p>
+        <p style="margin:0 0 8px 0;"><span class="points-badge">$5.00 OFF</span></p>
+        <p style="margin:0;color:${BRAND.colors.text};font-size:15px;">This discount will be auto-applied at checkout all month long.</p>
+      </div>
+      <div class="btn-center">
+        <a href="${BRAND.siteUrl}/shop" class="btn">Shop Now</a>
+      </div>
+      <p class="muted" style="text-align:center;">Wishing you a beautiful month ahead.</p>
+    `),
+  }
+}
+
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<{ success: boolean; error?: string }> {
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (!RESEND_API_KEY) {
@@ -390,6 +428,16 @@ Deno.serve(async (req) => {
       case 'order_confirmation': {
         const email = orderConfirmationEmail(data)
         results.push(await sendEmail(data.customerEmail, email.subject, email.html))
+        break
+      }
+      case 'discount_applied': {
+        const email = discountAppliedEmail(data)
+        results.push(await sendEmail(data.customerEmail, email.subject, email.html))
+        break
+      }
+      case 'birthday_month': {
+        const email = birthdayMonthEmail(data)
+        results.push(await sendEmail(data.email, email.subject, email.html))
         break
       }
       case 'contact_form': {

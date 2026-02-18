@@ -9,6 +9,7 @@ export interface CloudAuthUser {
   avatar?: string;
   isAdmin: boolean;
   preferredSize?: string;
+  birthMonth?: number;
   points?: number;
   referralCode?: string;
 }
@@ -23,7 +24,7 @@ interface CloudAuthState {
   // Actions
   initialize: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUpWithEmail: (email: string, password: string, name?: string) => Promise<{ error: Error | null }>;
+  signUpWithEmail: (email: string, password: string, name?: string) => Promise<{ error: any | null, data?: any }>;
   signOut: () => Promise<void>;
   checkIsAdmin: (userId: string) => Promise<boolean>;
 }
@@ -55,7 +56,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
           // Fetch additional profile data
           const { data: profile } = await supabase
             .from('profiles')
-            .select('preferred_size, points, referral_code')
+            .select('preferred_size, birth_month, points, referral_code')
             .eq('id', session.user.id)
             .single();
 
@@ -66,6 +67,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
             avatar: session.user.user_metadata?.avatar_url,
             isAdmin,
             preferredSize: profile?.preferred_size,
+            birthMonth: profile?.birth_month,
             points: profile?.points || 0,
             referralCode: profile?.referral_code,
           };
@@ -141,7 +143,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
       // Check for stored referral code
       const referralCode = typeof window !== 'undefined' ? localStorage.getItem('referral_code') : null;
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -153,7 +155,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
       });
       
       if (error) {
-        return { error };
+        return { error, data };
       }
       
       // Clear referral code after successful signup
@@ -163,7 +165,6 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
 
       // Send welcome email (fire-and-forget)
       try {
-        const supabase = getSupabase();
         const displayName = name || email.split('@')[0];
         supabase.functions.invoke('send-email', {
           body: {
@@ -178,7 +179,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
         console.error('Welcome email invoke error:', e);
       }
       
-      return { error: null };
+      return { error: null, data };
     } catch (error) {
       return { error: error as Error };
     }

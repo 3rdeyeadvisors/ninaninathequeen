@@ -95,6 +95,8 @@ export type Database = {
           customer_email: string
           customer_name: string
           date: string
+          discount_amount: number | null
+          discount_type: string | null
           id: string
           item_cost: string | null
           items: Json
@@ -111,6 +113,8 @@ export type Database = {
           customer_email: string
           customer_name: string
           date: string
+          discount_amount?: number | null
+          discount_type?: string | null
           id: string
           item_cost?: string | null
           items?: Json
@@ -127,6 +131,8 @@ export type Database = {
           customer_email?: string
           customer_name?: string
           date?: string
+          discount_amount?: number | null
+          discount_type?: string | null
           id?: string
           item_cost?: string | null
           items?: Json
@@ -239,6 +245,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          birth_month: number | null
           created_at: string
           email: string
           id: string
@@ -251,6 +258,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          birth_month?: number | null
           created_at?: string
           email: string
           id: string
@@ -263,6 +271,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          birth_month?: number | null
           created_at?: string
           email?: string
           id?: string

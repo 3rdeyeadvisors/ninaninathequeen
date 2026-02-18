@@ -153,6 +153,18 @@ Deno.serve(async (req) => {
       throw new Error('No valid items found to create a checkout session.')
     }
 
+    const discounts = []
+    const discountAmount = parseFloat(orderDetails.discountAmount || '0')
+    if (discountAmount > 0) {
+      discounts.push({
+        name: orderDetails.discountType || 'Discount',
+        amount_money: {
+          amount: Math.round(discountAmount * 100),
+          currency: 'USD'
+        }
+      })
+    }
+
     const body: any = {
       idempotency_key: crypto.randomUUID(),
       checkout_options: {
@@ -161,7 +173,8 @@ Deno.serve(async (req) => {
       },
       order: {
         location_id: locationId,
-        line_items: line_items
+        line_items: line_items,
+        discounts: discounts.length > 0 ? discounts : undefined
       }
     }
 
@@ -227,6 +240,8 @@ Deno.serve(async (req) => {
           items: orderDetails.items,
           shipping_cost: orderDetails.shippingCost,
           item_cost: orderDetails.itemCost, // COGS
+          discount_amount: orderDetails.discountAmount || 0,
+          discount_type: orderDetails.discountType || null,
           tracking_number: 'Pending',
           square_order_id: result.payment_link.order_id,
           updated_at: new Date().toISOString()
@@ -237,6 +252,32 @@ Deno.serve(async (req) => {
         console.error('[CreateSquareCheckout] DB Error saving order:', orderError.message)
       } else {
         console.log('[CreateSquareCheckout] Order record synced successfully.')
+
+        // Send discount applied email if applicable
+        if (discountAmount > 0) {
+          try {
+            await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                type: 'discount_applied',
+                data: {
+                  customerEmail: orderDetails.customerEmail,
+                  customerName: orderDetails.customerName,
+                  discountType: orderDetails.discountType,
+                  amountSaved: orderDetails.discountAmount,
+                  newTotal: orderDetails.total
+                }
+              })
+            });
+            console.log('[CreateSquareCheckout] Discount email sent successfully');
+          } catch (emailErr) {
+            console.error('[CreateSquareCheckout] Failed to send discount email:', emailErr);
+          }
+        }
       }
 
       console.timeEnd('TotalExecutionTime');

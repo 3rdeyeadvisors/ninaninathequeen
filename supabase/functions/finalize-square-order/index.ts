@@ -202,12 +202,14 @@ Deno.serve(async (req) => {
       }
       console.timeEnd('FinalizeOrder_InventoryUpdate');
 
-      // Award loyalty points (1 point per $1 spent)
-      console.log(`[FinalizeSquareOrder] Awarding loyalty points for order ${orderId}`);
+      // Award loyalty points (1 point per $1 spent) and deduct if used
+      console.log(`[FinalizeSquareOrder] Updating loyalty points for order ${orderId}`);
       try {
         const orderTotal = parseFloat(order.total) || 0;
         const pointsToAward = Math.floor(orderTotal);
-        if (pointsToAward > 0 && order.customer_email) {
+        const pointsUsed = order.discount_type === 'Points Redemption' ? 500 : 0;
+
+        if (order.customer_email) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('id, points')
@@ -215,11 +217,15 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (profile) {
+            const currentPoints = profile.points || 0;
+            const newPoints = Math.max(0, currentPoints - pointsUsed + pointsToAward);
+
             await supabase
               .from('profiles')
-              .update({ points: (profile.points || 0) + pointsToAward })
+              .update({ points: newPoints })
               .eq('id', profile.id);
-            console.log(`[FinalizeSquareOrder] Awarded ${pointsToAward} points to ${order.customer_email}`);
+
+            console.log(`[FinalizeSquareOrder] Updated points for ${order.customer_email}: ${currentPoints} -> ${newPoints} (Used: ${pointsUsed}, Earned: ${pointsToAward})`);
           }
         }
       } catch (pointsErr) {

@@ -55,6 +55,11 @@ import { PRODUCT_SIZES } from '@/lib/constants';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { getSupabase } from '@/lib/supabaseClient';
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 export default function Account() {
   // Legacy auth store - kept for profile data display only
   const { user: legacyUser, updateProfile } = useAuthStore();
@@ -76,12 +81,14 @@ export default function Account() {
     referralCode: cloudAuth.user.referralCode || legacyUser?.referralCode,
     role: cloudAuth.user.isAdmin ? 'Admin' : legacyUser?.role,
     preferredSize: cloudAuth.user.preferredSize || legacyUser?.preferredSize,
+    birthMonth: cloudAuth.user.birthMonth,
   } : legacyUser;
   
   const isAuthenticated = cloudAuth.isAuthenticated;
   const isAdmin = cloudAuth.user?.isAdmin || false;
   
   const [preferredSize, setPreferredSize] = useState(user?.preferredSize || '');
+  const [birthMonth, setBirthMonth] = useState<string>(user?.birthMonth?.toString() || '');
 
   const points = user?.points || 0;
   const getTier = (pts: number) => {
@@ -154,6 +161,7 @@ export default function Account() {
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
+  const [signupBirthMonth, setSignupBirthMonth] = useState<string>('');
 
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -170,7 +178,10 @@ export default function Account() {
       // 1. Update the profiles table
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ preferred_size: preferredSize })
+        .update({
+          preferred_size: preferredSize,
+          birth_month: birthMonth ? parseInt(birthMonth) : null
+        })
         .eq('id', cloudAuth.user.id);
 
       if (profileError) throw profileError;
@@ -273,7 +284,7 @@ export default function Account() {
     
     setIsLoading(true);
     try {
-      const { error } = await cloudAuth.signUpWithEmail(signupEmail, signupPassword, signupName);
+      const { error, data } = await cloudAuth.signUpWithEmail(signupEmail, signupPassword, signupName);
       if (error) {
         if (error.message.includes('already registered')) {
           toast.error("This email is already registered. Please sign in instead.");
@@ -281,10 +292,21 @@ export default function Account() {
           toast.error(error.message || "Could not create account. Please try again.");
         }
       } else {
+        // Save birth month if selected
+        if (signupBirthMonth && data?.user) {
+          const supabase = getSupabase();
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            birth_month: parseInt(signupBirthMonth),
+            email: signupEmail
+          });
+        }
+
         toast.success("Welcome to Nina Armend! Please check your email to verify your account.");
         setSignupName('');
         setSignupEmail('');
         setSignupPassword('');
+        setSignupBirthMonth('');
       }
     } catch (err) {
       toast.error("An unexpected error occurred. Please try again.");
@@ -507,6 +529,20 @@ export default function Account() {
                           required
                           disabled={isLoading}
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Birth Month</label>
+                        <Select value={signupBirthMonth} onValueChange={setSignupBirthMonth}>
+                          <SelectTrigger disabled={isLoading}>
+                            <SelectValue placeholder="Select Month" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MONTHS.map((month, index) => (
+                              <SelectItem key={month} value={(index + 1).toString()}>{month}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">Add your birth month to unlock a birthday discount</p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
@@ -863,18 +899,35 @@ export default function Account() {
                           </div>
                         </div>
                         
-                        <div className="space-y-2">
-                          <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Preferred Size</label>
-                          <Select value={preferredSize} onValueChange={setPreferredSize}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select your preferred size" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {PRODUCT_SIZES.map((size) => (
-                                <SelectItem key={size} value={size}>{size}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Preferred Size</label>
+                            <Select value={preferredSize} onValueChange={setPreferredSize}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select your preferred size" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PRODUCT_SIZES.map((size) => (
+                                  <SelectItem key={size} value={size}>{size}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Birth Month</label>
+                            <Select value={birthMonth} onValueChange={setBirthMonth}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select your birth month" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {MONTHS.map((month, index) => (
+                                  <SelectItem key={month} value={(index + 1).toString()}>{month}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-[10px] text-muted-foreground mt-1">Add your birth month to unlock a birthday discount</p>
+                          </div>
                         </div>
 
                         <Button
