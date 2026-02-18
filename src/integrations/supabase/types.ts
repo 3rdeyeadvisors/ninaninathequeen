@@ -353,6 +353,9 @@ export type Database = {
       store_settings: {
         Row: {
           auto_sync: boolean | null
+          birthday_emails_sent_count: number | null
+          birthday_emails_sent_month: number | null
+          birthday_emails_sent_year: number | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string
@@ -373,6 +376,9 @@ export type Database = {
         }
         Insert: {
           auto_sync?: boolean | null
+          birthday_emails_sent_count?: number | null
+          birthday_emails_sent_month?: number | null
+          birthday_emails_sent_year?: number | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -393,6 +399,9 @@ export type Database = {
         }
         Update: {
           auto_sync?: boolean | null
+          birthday_emails_sent_count?: number | null
+          birthday_emails_sent_month?: number | null
+          birthday_emails_sent_year?: number | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string

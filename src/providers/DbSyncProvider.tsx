@@ -160,6 +160,9 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
           contactEmail: (data.contact_email as string) || '',
           contactPhone: (data.contact_phone as string) || '',
           isMaintenanceMode: (data.is_maintenance_mode as boolean) ?? false,
+          birthdayEmailsSentMonth: data.birthday_emails_sent_month as number | undefined,
+          birthdayEmailsSentYear: data.birthday_emails_sent_year as number | undefined,
+          birthdayEmailsSentCount: data.birthday_emails_sent_count as number | undefined,
         });
       };
 
