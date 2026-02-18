@@ -577,6 +577,20 @@ export default function Account() {
                         </div>
                         <p className="text-[10px] text-muted-foreground">Must be at least 6 characters</p>
                       </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Birth Month</label>
+                        <Select value={signupBirthMonth} onValueChange={setSignupBirthMonth}>
+                          <SelectTrigger disabled={isLoading}>
+                            <SelectValue placeholder="Select Month" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MONTHS.map((month, index) => (
+                              <SelectItem key={month} value={(index + 1).toString()}>{month}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">Optional — unlock a birthday discount</p>
+                      </div>
                       <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
                         {isLoading ? 'Creating Account...' : 'Create Account'}
                       </Button>
