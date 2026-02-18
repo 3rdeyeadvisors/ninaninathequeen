@@ -318,12 +318,12 @@ export default function AdminProducts() {
           status: newStatus,
         } as ProductOverride;
 
-    updateProductOverride(productId, newOverride);
-
     try {
       setIsSyncing(true);
       const result = await upsertProduct(newOverride);
       if (result.success) {
+        // Pessimistic update: only update local store if DB write succeeded
+        updateProductOverride(productId, newOverride);
         toast.success(newStatus === 'Active' ? 'Product visible in store' : 'Product hidden from store');
       } else {
         await fetchProducts();

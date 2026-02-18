@@ -238,7 +238,6 @@ export function useSpreadsheetSync() {
             unitCost: product.unitCost,
           };
 
-          updateProductOverride(id, productOverride);
           productsToSync.push(productOverride);
         });
 
@@ -254,6 +253,9 @@ export function useSpreadsheetSync() {
         toast.info('Saving products to database...');
         const success = await bulkUpsertProducts(uniqueProductsToSync);
         if (success) {
+          // Pessimistic update: Update local store only after DB success
+          uniqueProductsToSync.forEach(p => updateProductOverride(p.id, p));
+
           await fetchProducts(); // Refresh from database to confirm persistence
           toast.success(`Sync complete! ${uniqueProductsToSync.length} products saved to database.`);
         } else {

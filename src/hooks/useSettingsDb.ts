@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminSettings } from '@/stores/adminStore';
+import { toast } from 'sonner';
 
 /**
  * Hook to sync store settings with the database.
@@ -97,7 +98,7 @@ export function useSettingsDb() {
       if (targetId) {
         const updatePromise = supabase
           .from('store_settings')
-          .update(updateData)
+          .update(updateData as any)
           .eq('id', targetId)
           .select('id')
           .maybeSingle();
@@ -114,11 +115,15 @@ export function useSettingsDb() {
           error = raceErr;
         }
       } else {
+        // Handle "Cold Start" - no settings record exists yet
         const { data: inserted, error: insertError } = await supabase
           .from('store_settings')
-          .insert(updateData)
+          .insert({
+            id: '00000000-0000-0000-0000-000000000000', // Use the standard ID from migration
+            ...updateData
+          } as any)
           .select('id')
-          .single();
+          .maybeSingle();
 
         if (inserted) {
           settingsIdRef.current = inserted.id;
@@ -128,8 +133,11 @@ export function useSettingsDb() {
 
       if (error) {
         console.error('[Settings] Save failed:', error);
+        toast.error('Failed to save store settings. Please try again.');
         return false;
       }
+
+      toast.success('Store settings updated successfully.');
       return true;
     } catch (err) {
       console.error('[Settings] Save exception:', err);
