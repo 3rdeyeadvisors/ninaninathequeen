@@ -10,7 +10,7 @@ import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
 import { useProductsDb, type SyncResult } from '@/hooks/useProductsDb';
 
 import { toast } from 'sonner';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +71,9 @@ export default function AdminProducts() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
 
   // Count products by category
   const countByCategory = useMemo(() => {
@@ -155,6 +158,17 @@ export default function AdminProducts() {
 
     return filtered;
   }, [initialProducts, searchQuery, selectedCategory, productOverrides]);
+
+  const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return products.slice(start, start + ITEMS_PER_PAGE);
+  }, [products, currentPage]);
+
+  // Reset page on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
 
   // Show loading skeleton while data is being restored from storage
   if (!_hasHydrated) {
@@ -822,7 +836,7 @@ export default function AdminProducts() {
                         <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                       </TableCell>
                     </TableRow>
-                  ) : products.map((product) => {
+                  ) : paginatedProducts.map((product) => {
                     const override = productOverrides[product.id];
                     const sizes = product.options.find(o => o.name === 'Size')?.values || override?.sizes || [];
                     const sizeInventory = override?.sizeInventory || {};
@@ -973,6 +987,35 @@ export default function AdminProducts() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-2 py-4 border-t">
+                <div className="text-xs text-muted-foreground font-sans uppercase tracking-widest">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <Dialog open={!!editingProduct} onOpenChange={(open) => {
               if (!open) {

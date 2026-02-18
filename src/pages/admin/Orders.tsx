@@ -6,7 +6,7 @@ import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useOrdersDb } from '@/hooks/useOrdersDb';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,15 @@ export default function AdminOrders() {
   const [isViewing, setIsViewing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
+
+  const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return orders.slice(start, start + ITEMS_PER_PAGE);
+  }, [orders, currentPage]);
 
   const [editStatus, setEditStatus] = useState<AdminOrder['status']>('Pending');
   const [editTracking, setEditTracking] = useState('');
@@ -245,7 +254,7 @@ export default function AdminOrders() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order) => (
+                  {paginatedOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-medium font-sans text-sm">{order.id}</TableCell>
                       <TableCell className="font-sans text-sm">{order.customerName}</TableCell>
@@ -273,6 +282,35 @@ export default function AdminOrders() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-2 py-4 border-t">
+                <div className="text-xs text-muted-foreground font-sans uppercase tracking-widest">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* View Order Dialog */}
             <Dialog open={isViewing} onOpenChange={setIsViewing}>

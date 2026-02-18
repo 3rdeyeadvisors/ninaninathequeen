@@ -47,6 +47,10 @@ export default function AdminCustomers() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSendingLaunch, setIsSendingLaunch] = useState(false);
 
+  const [customerPage, setCustomerPage] = useState(1);
+  const [waitlistPage, setWaitlistPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
+
   const isOwner = cloudUser?.isAdmin || cloudUser?.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   const fetchWaitlist = useCallback(async () => {
@@ -92,6 +96,27 @@ export default function AdminCustomers() {
       (w.name && w.name.toLowerCase().includes(q))
     );
   }, [waitlist, waitlistSearch]);
+
+  const totalCustomerPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
+  const paginatedCustomers = useMemo(() => {
+    const start = (customerPage - 1) * ITEMS_PER_PAGE;
+    return filteredCustomers.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredCustomers, customerPage]);
+
+  const totalWaitlistPages = Math.ceil(filteredWaitlist.length / ITEMS_PER_PAGE);
+  const paginatedWaitlist = useMemo(() => {
+    const start = (waitlistPage - 1) * ITEMS_PER_PAGE;
+    return filteredWaitlist.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredWaitlist, waitlistPage]);
+
+  // Reset pages on search
+  useEffect(() => {
+    setCustomerPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setWaitlistPage(1);
+  }, [waitlistSearch]);
 
   const handleDeleteWaitlistEntry = async (id: string) => {
     if (!confirm('Remove this person from the waitlist?')) return;
@@ -272,13 +297,13 @@ export default function AdminCustomers() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredCustomers.length === 0 ? (
+                      {paginatedCustomers.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="h-24 text-center font-sans text-muted-foreground">
                             No customers found matching your search.
                           </TableCell>
                         </TableRow>
-                      ) : filteredCustomers.map((customer) => (
+                      ) : paginatedCustomers.map((customer) => (
                         <TableRow
                           key={customer.id}
                           className="cursor-pointer hover:bg-muted/50 transition-colors group"
@@ -306,6 +331,35 @@ export default function AdminCustomers() {
                     </TableBody>
                   </Table>
                 </div>
+
+                {/* Pagination for Customers */}
+                {totalCustomerPages > 1 && (
+                  <div className="flex items-center justify-between px-2 py-4 border-t">
+                    <div className="text-xs text-muted-foreground font-sans uppercase tracking-widest">
+                      Page {customerPage} of {totalCustomerPages}
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCustomerPage(prev => Math.max(prev - 1, 1))}
+                        disabled={customerPage === 1}
+                        className="font-sans text-[10px] uppercase tracking-widest"
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCustomerPage(prev => Math.min(prev + 1, totalCustomerPages))}
+                        disabled={customerPage === totalCustomerPages}
+                        className="font-sans text-[10px] uppercase tracking-widest"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
                   <div className="p-6 bg-gradient-to-br from-background to-secondary/30 rounded-2xl border border-border/50">
@@ -415,13 +469,13 @@ export default function AdminCustomers() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredWaitlist.length === 0 ? (
+                        {paginatedWaitlist.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={5} className="h-24 text-center font-sans text-muted-foreground">
                               {waitlist.length === 0 ? 'No one has joined the waitlist yet.' : 'No results matching your search.'}
                             </TableCell>
                           </TableRow>
-                        ) : filteredWaitlist.map((entry) => (
+                        ) : paginatedWaitlist.map((entry) => (
                           <TableRow key={entry.id}>
                             <TableCell>
                               <Checkbox
@@ -448,6 +502,35 @@ export default function AdminCustomers() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                )}
+
+                {/* Pagination for Waitlist */}
+                {!isLoadingWaitlist && totalWaitlistPages > 1 && (
+                  <div className="flex items-center justify-between px-2 py-4 border-t">
+                    <div className="text-xs text-muted-foreground font-sans uppercase tracking-widest">
+                      Page {waitlistPage} of {totalWaitlistPages}
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setWaitlistPage(prev => Math.max(prev - 1, 1))}
+                        disabled={waitlistPage === 1}
+                        className="font-sans text-[10px] uppercase tracking-widest"
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setWaitlistPage(prev => Math.min(prev + 1, totalWaitlistPages))}
+                        disabled={waitlistPage === totalWaitlistPages}
+                        className="font-sans text-[10px] uppercase tracking-widest"
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
                 )}
               </TabsContent>
