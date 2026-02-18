@@ -122,11 +122,6 @@ export function useOrdersDb() {
     }
   }, [updateOrder]);
 
-  // Load orders from database on mount
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
   // Create a manual order and decrement inventory
   const createManualOrder = useCallback(async (order: AdminOrder): Promise<string | true> => {
     try {
