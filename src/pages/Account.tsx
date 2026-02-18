@@ -531,6 +531,20 @@ export default function Account() {
                         />
                       </div>
                       <div className="space-y-2">
+                        <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Birth Month</label>
+                        <Select value={signupBirthMonth} onValueChange={setSignupBirthMonth}>
+                          <SelectTrigger disabled={isLoading}>
+                            <SelectValue placeholder="Select Month" />
+                          </SelectTrigger>
+                          <SelectContent position="popper" className="max-h-[200px] overflow-y-auto z-[300]">
+                            {MONTHS.map((month, index) => (
+                              <SelectItem key={month} value={(index + 1).toString()}>{month}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">Add your birth month to unlock a birthday discount</p>
+                      </div>
+                      <div className="space-y-2">
                         <label className="text-xs font-sans tracking-widest uppercase text-muted-foreground">Email Address</label>
                         <Input
                           type="email"
@@ -906,7 +920,7 @@ export default function Account() {
                               <SelectTrigger>
                                 <SelectValue placeholder="Select your preferred size" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent position="popper" className="max-h-[200px] overflow-y-auto z-[300]">
                                 {PRODUCT_SIZES.map((size) => (
                                   <SelectItem key={size} value={size}>{size}</SelectItem>
                                 ))}
@@ -920,7 +934,7 @@ export default function Account() {
                               <SelectTrigger>
                                 <SelectValue placeholder="Select your birth month" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent position="popper" className="max-h-[200px] overflow-y-auto z-[300]">
                                 {MONTHS.map((month, index) => (
                                   <SelectItem key={month} value={(index + 1).toString()}>{month}</SelectItem>
                                 ))}
