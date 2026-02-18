@@ -1,6 +1,8 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { getSupabase } from '@/lib/supabaseClient';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 
 interface WishlistItem {
   id: string;
@@ -23,7 +25,22 @@ export const useWishlistStore = create<WishlistStore>()(
     (set, get) => ({
       items: [],
       addItem: (item) => set((state) => ({ items: [...state.items, item] })),
-      removeItem: (id) => set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
+      removeItem: (id) => {
+        set((state) => ({ items: state.items.filter((i) => i.id !== id) }));
+
+        const userId = useCloudAuthStore.getState().user?.id;
+        if (userId) {
+          getSupabase()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .from('wishlists' as any)
+            .delete()
+            .eq('user_id', userId)
+            .eq('product_id', id)
+            .then(({ error }) => {
+              if (error) console.error('Error removing from wishlist:', error);
+            });
+        }
+      },
       isInWishlist: (id) => get().items.some((i) => i.id === id),
       toggleItem: (item) => {
         if (get().isInWishlist(item.id)) {
