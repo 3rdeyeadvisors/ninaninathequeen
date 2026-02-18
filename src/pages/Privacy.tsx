@@ -14,6 +14,7 @@ export default function Privacy() {
             <section>
               <h2 className="text-foreground font-serif text-2xl mb-4">Information We Collect</h2>
               <p>We collect information that you provide directly to us when you make a purchase, sign up for our newsletter, or contact our customer support team. This may include your name, email address, shipping address, and payment information.</p>
+              <p className="mt-4">Additionally, if you choose to provide it, we collect your birth month (not your full birth date) solely to apply your birthday discount. Your birth month is stored securely and never shared with third parties. You can update or remove your birth month at any time from your account settings.</p>
             </section>
             <section>
               <h2 className="text-foreground font-serif text-2xl mb-4">How We Use Your Information</h2>
