@@ -868,7 +868,7 @@ export default function AdminProducts() {
                             <SelectTrigger className="w-[130px] h-8 text-[10px] font-sans uppercase tracking-widest bg-background">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-popover z-50">
+                            <SelectContent className="bg-popover z-[300]" position="popper">
                               {CATEGORIES.filter(c => c !== 'All').map(cat => (
                                 <SelectItem key={cat} value={cat} className="text-sm font-sans">
                                   {cat}
@@ -1104,7 +1104,7 @@ export default function AdminProducts() {
                           <SelectTrigger className="font-sans text-sm bg-secondary/10 border-border/50 focus:bg-background transition-all h-11">
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
-                          <SelectContent className="bg-popover z-50">
+                          <SelectContent className="bg-popover z-[300]" position="popper">
                             {CATEGORIES.filter(c => c !== 'All').map(cat => (
                               <SelectItem key={cat} value={cat} className="text-sm font-sans">
                                 {cat}
