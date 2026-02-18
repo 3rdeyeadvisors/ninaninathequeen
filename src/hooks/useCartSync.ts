@@ -60,7 +60,7 @@ export function useCartSync() {
           console.log(`[WishlistSync] Fetching ${remoteOnlyIds.length} remote items for local wishlist...`);
           const { data: products, error: productsError } = await supabase
             .from('products')
-            .select('id, title, handle, images, price')
+            .select('id, title, image, images, price')
             .in('id', remoteOnlyIds);
 
           if (!productsError && products) {
@@ -68,8 +68,8 @@ export function useCartSync() {
               addToWishlist({
                 id: p.id,
                 title: p.title,
-                handle: p.handle,
-                image: (p.images as any)?.[0]?.url || '',
+                handle: p.title.toLowerCase().replace(/\s+/g, '-'),
+                image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : (p.image || ''),
                 price: p.price
               });
             });

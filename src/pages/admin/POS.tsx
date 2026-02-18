@@ -533,7 +533,7 @@ export default function AdminPOS() {
       <Footer />
 
       <Dialog open={!!selectingProduct} onOpenChange={(open) => !open && setSelectingProduct(null)}>
-        <DialogContent className="sm:max-w-[400px] bg-background border-primary/20 shadow-gold">
+        <DialogContent className="sm:max-w-[400px] bg-background border-primary/20 shadow-gold mt-20 max-h-[calc(100vh-180px)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-serif text-xl">Select Size</DialogTitle>
           </DialogHeader>
