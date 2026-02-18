@@ -44,7 +44,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus, Trash2, AlertCircle, LayoutDashboard, Heart, Users, Clock, Loader2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
@@ -313,41 +313,65 @@ export default function Account() {
     total: string;
   }>>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState(false);
+  const [hasMoreOrders, setHasMoreOrders] = useState(true);
+  const PAGE_SIZE = 20;
 
   // Fetch real orders from database
-  useEffect(() => {
-    const fetchCustomerOrders = async () => {
-      if (!user?.email) {
-        setIsLoadingOrders(false);
-        return;
-      }
+  const fetchCustomerOrders = useCallback(async (page = 0) => {
+    if (!user?.email) {
+      setIsLoadingOrders(false);
+      setIsLoadingMoreOrders(false);
+      return;
+    }
 
-      setIsLoadingOrders(true);
-      try {
-        const supabase = getSupabase();
-        const { data, error } = await supabase
-          .from('orders')
-          .select('id, date, status, total')
-          .eq('customer_email', user.email)
-          .order('date', { ascending: false });
+    if (page === 0) setIsLoadingOrders(true);
+    else setIsLoadingMoreOrders(true);
 
-        if (!error && data) {
-          setCustomerOrders(data.map(order => ({
-            id: order.id,
-            date: new Date(order.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            status: order.status || 'Pending',
-            total: `$${parseFloat(order.total).toFixed(2)}`
-          })));
+    try {
+      const supabase = getSupabase();
+      const start = page * PAGE_SIZE;
+      const end = start + PAGE_SIZE - 1;
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, date, status, total')
+        .eq('customer_email', user.email)
+        .order('date', { ascending: false })
+        .range(start, end);
+
+      if (!error && data) {
+        const formattedOrders = data.map(order => ({
+          id: order.id,
+          date: new Date(order.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          status: order.status || 'Pending',
+          total: `$${parseFloat(order.total).toFixed(2)}`
+        }));
+
+        if (page === 0) {
+          setCustomerOrders(formattedOrders);
+        } else {
+          setCustomerOrders(prev => [...prev, ...formattedOrders]);
         }
-      } catch (err) {
-        console.error('Error fetching orders:', err);
-      } finally {
-        setIsLoadingOrders(false);
-      }
-    };
 
-    fetchCustomerOrders();
+        setHasMoreOrders(data.length === PAGE_SIZE);
+      }
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+    } finally {
+      setIsLoadingOrders(false);
+      setIsLoadingMoreOrders(false);
+    }
   }, [user?.email]);
+
+  useEffect(() => {
+    fetchCustomerOrders(0);
+  }, [fetchCustomerOrders]);
+
+  const loadMoreOrders = () => {
+    const nextPage = Math.floor(customerOrders.length / PAGE_SIZE);
+    fetchCustomerOrders(nextPage);
+  };
 
   // Show loading state while checking auth
   if (cloudAuth.isLoading) {
@@ -645,7 +669,8 @@ export default function Account() {
                           </Link>
                         </div>
                       ) : (
-                        <Table>
+                        <>
+                          <Table>
                           <TableHeader>
                             <TableRow>
                               <TableHead className="text-[10px] uppercase tracking-widest">Order</TableHead>
@@ -665,8 +690,28 @@ export default function Account() {
                             ))}
                           </TableBody>
                         </Table>
-                      )}
-                    </CardContent>
+                        {hasMoreOrders && (
+                          <div className="mt-6 flex justify-center">
+                            <Button
+                              variant="outline"
+                              onClick={loadMoreOrders}
+                              disabled={isLoadingMoreOrders}
+                              className="font-sans text-[10px] uppercase tracking-widest"
+                            >
+                              {isLoadingMoreOrders ? (
+                                <>
+                                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                  Loading...
+                                </>
+                              ) : (
+                                'Show More'
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
                   </Card>
                 </TabsContent>
 
