@@ -13,7 +13,6 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
-import { useProducts } from '@/hooks/useProducts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
@@ -21,7 +20,6 @@ import ReactMarkdown from 'react-markdown';
 const VALID_STATUSES = ['Processing', 'Shipped', 'Delivered'];
 
 export default function AdminDashboard() {
-  const { data: allProducts } = useProducts(200);
   const { orders, customers, settings, productOverrides, _hasHydrated } = useAdminStore();
   
   const GREETING = "Hello! How can I help you optimize your store today?";
@@ -33,6 +31,8 @@ export default function AdminDashboard() {
   
   const [mostViewed, setMostViewed] = useState<{id: string, title: string, views: number, image: string}[]>([]);
   const [waitlistCount, setWaitlistCount] = useState(0);
+  const [productCount, setProductCount] = useState(0);
+  const [lowStockProductsCount, setLowStockProductsCount] = useState(0);
   const [behavioralInsights, setBehavioralInsights] = useState<{userName: string, userEmail: string, productTitle: string, viewCount: number}[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +51,27 @@ export default function AdminDashboard() {
       setWaitlistCount(count || 0);
     });
   }, []);
+
+  useEffect(() => {
+    // Fetch product stats directly from Supabase for efficiency
+    const fetchProductStats = async () => {
+      const { count: total } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_deleted', false);
+      setProductCount(total || 0);
+
+      const threshold = settings.lowStockThreshold || 10;
+      const { count: low } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_deleted', false)
+        .gt('inventory', 0)
+        .lte('inventory', threshold);
+      setLowStockProductsCount(low || 0);
+    };
+    fetchProductStats();
+  }, [settings.lowStockThreshold]);
 
   // Fetch behavioral intelligence — browse-but-don't-buy detection
   useEffect(() => {
@@ -121,10 +142,10 @@ export default function AdminDashboard() {
         let image = info?.image;
 
         if (!title || !image) {
-          const product = allProducts?.find(p => p.id === id);
+          const product = productOverrides[id];
           if (product) {
             title = title || product.title;
-            image = image || product.images[0]?.url;
+            image = image || product.image;
           }
         }
 
@@ -179,21 +200,6 @@ export default function AdminDashboard() {
     }, 0);
   }, [confirmedOrders, productOverrides]);
 
-  // Real inventory stats from product overrides
-  const totalInventory = useMemo(() => {
-    return Object.values(productOverrides).reduce((acc, p) => {
-      if (p.isDeleted) return acc;
-      return acc + (p.inventory || 0);
-    }, 0);
-  }, [productOverrides]);
-
-  const lowStockCount = useMemo(() => {
-    const threshold = settings.lowStockThreshold || 10;
-    return Object.values(productOverrides).filter(p => {
-      if (p.isDeleted) return false;
-      return p.inventory > 0 && p.inventory <= threshold;
-    }).length;
-  }, [productOverrides, settings.lowStockThreshold]);
 
   // Real chart data - group confirmed orders by day (last 7 days)
   const chartData = useMemo(() => {
@@ -219,17 +225,15 @@ export default function AdminDashboard() {
         const top = behavioralInsights[0];
         return `${top.userName} viewed "${top.productTitle}" ${top.viewCount}x but hasn't purchased — consider reaching out with a personalized offer.`;
       }
-      if (lowStockCount > 0) {
-        return `${lowStockCount} product${lowStockCount > 1 ? 's are' : ' is'} running low on stock. Consider restocking soon to avoid missed sales.`;
+      if (lowStockProductsCount > 0) {
+        return `${lowStockProductsCount} product${lowStockProductsCount > 1 ? 's are' : ' is'} running low on stock. Consider restocking soon to avoid missed sales.`;
       }
       if (confirmedOrders.length > 0) {
         return `You have ${confirmedOrders.length} confirmed order${confirmedOrders.length > 1 ? 's' : ''}. Keep the momentum going with targeted promotions.`;
       }
-      const activeProducts = Object.values(productOverrides).filter(p => !p.isDeleted);
-      const productCount = activeProducts.length;
       if (productCount > 0) {
         const waitlistNote = waitlistCount > 0 ? ` With ${waitlistCount} ${waitlistCount === 1 ? 'person' : 'people'} on your waitlist, consider launching with an exclusive early-access offer to convert them into first customers.` : ' Share your store link and social media to attract your first customers.';
-        return `You have ${totalInventory.toLocaleString()} items across ${productCount} product${productCount > 1 ? 's' : ''} ready to sell.${waitlistNote}`;
+        return `You have ${productCount} product${productCount > 1 ? 's' : ''} ready to sell.${waitlistNote}`;
       }
       return 'Add products and start promoting your store to drive your first sales.';
     })();
@@ -253,7 +257,7 @@ export default function AdminDashboard() {
     })();
 
     return { topOpportunity, growthSignal };
-  }, [confirmedOrders, orders, customers, lowStockCount, behavioralInsights, productOverrides, totalInventory, waitlistCount, settings]);
+  }, [confirmedOrders, orders, customers, lowStockProductsCount, behavioralInsights, productCount, waitlistCount, settings]);
 
   // Build store context for AI chat — comprehensive brand + store intelligence
   const storeContext = useMemo(() => {
@@ -340,8 +344,8 @@ Confirmed Orders: ${confirmedOrders.length}
 Pending Orders: ${orders.filter(o => o.status === 'Pending').length}
 Total Customers: ${customers.length}
 Total Audience (Customers + Waitlist): ${customers.length + waitlistCount}
-Total Inventory: ${totalInventory} items
-Low Stock Products: ${lowStockCount} (threshold: ${settings.lowStockThreshold || 10})
+Total Products: ${productCount}
+Low Stock Products: ${lowStockProductsCount} (threshold: ${settings.lowStockThreshold || 10})
 Average Order Value: $${avgOrderValue}
 
 === PRODUCT CATALOG ===
@@ -365,7 +369,7 @@ ${behavioralInsights.length > 0
     behavioralInsights.map((b, i) => `${i + 1}. ${b.userName} (${b.userEmail}) viewed "${b.productTitle}" ${b.viewCount} times — has NOT purchased`).join('\n')
   : 'No high-intent browsing patterns detected yet.'}
     `.trim();
-  }, [totalRevenue, totalNetProfit, confirmedOrders, orders, productOverrides, totalInventory, lowStockCount, customers, settings, waitlistCount, behavioralInsights]);
+  }, [totalRevenue, totalNetProfit, confirmedOrders, orders, productOverrides, productCount, lowStockProductsCount, customers, settings, waitlistCount, behavioralInsights]);
 
   // Show loading skeleton while data is being restored from storage
   if (!_hasHydrated) {
@@ -597,9 +601,9 @@ ${behavioralInsights.length > 0
                     <Package className="h-4 w-4 text-primary" />
                   </CardHeader>
                   <CardContent className="flex flex-col items-center justify-center text-center py-6">
-                    <div className="text-3xl font-serif mb-1">{totalInventory.toLocaleString()} Items</div>
-                    <p className={`text-xs flex items-center mt-1 ${lowStockCount > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                      {lowStockCount > 0 ? `${lowStockCount} item${lowStockCount > 1 ? 's' : ''} low in stock` : 'Stock levels healthy'}
+                    <div className="text-3xl font-serif mb-1">{productCount.toLocaleString()} Product{productCount !== 1 ? 's' : ''}</div>
+                    <p className={`text-xs flex items-center mt-1 ${lowStockProductsCount > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                      {lowStockProductsCount > 0 ? `${lowStockProductsCount} product${lowStockProductsCount !== 1 ? 's' : ''} low in stock` : 'Stock levels healthy'}
                     </p>
                   </CardContent>
                 </Card>
