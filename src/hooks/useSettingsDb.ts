@@ -46,6 +46,9 @@ export function useSettingsDb() {
           contactEmail: (settingsData.contact_email as string) || '',
           contactPhone: (settingsData.contact_phone as string) || '',
           isMaintenanceMode: (settingsData.is_maintenance_mode as boolean) ?? false,
+          birthdayEmailsSentMonth: settingsData.birthday_emails_sent_month as number | undefined,
+          birthdayEmailsSentYear: settingsData.birthday_emails_sent_year as number | undefined,
+          birthdayEmailsSentCount: settingsData.birthday_emails_sent_count as number | undefined,
         });
       }
     } catch (err) {
@@ -92,6 +95,9 @@ export function useSettingsDb() {
           contact_email: newSettings.contactEmail,
         contact_phone: newSettings.contactPhone,
         is_maintenance_mode: newSettings.isMaintenanceMode,
+        birthday_emails_sent_month: newSettings.birthdayEmailsSentMonth,
+        birthday_emails_sent_year: newSettings.birthdayEmailsSentYear,
+        birthday_emails_sent_count: newSettings.birthdayEmailsSentCount,
       };
 
       let error;

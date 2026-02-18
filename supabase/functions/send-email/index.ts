@@ -324,6 +324,31 @@ function birthdayMonthEmail(data: { name: string }): { subject: string; html: st
   }
 }
 
+function adminBirthdayReportEmail(data: { count: number; month: string }): { subject: string; html: string } {
+  const month = escapeHtml(data.month);
+  const count = data.count;
+  const year = new Date().getFullYear();
+  const nextMonthName = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleString('default', { month: 'long' });
+
+  return {
+    subject: `Birthday Emails Sent — ${month} ${year}`,
+    html: baseWrapper(`
+      <h1 style="text-align:center;">Birthday Report</h1>
+      <p style="text-align:center;">This month's automated birthday celebrations have been sent.</p>
+      <div class="card" style="text-align:center;">
+        <p style="margin:0 0 12px 0;font-size:13px;color:${BRAND.colors.textMuted};text-transform:uppercase;letter-spacing:2px;">Campaign Success</p>
+        <p style="margin:0 0 8px 0;"><span class="points-badge">${count} EMAILS SENT</span></p>
+        <p style="margin:0;color:${BRAND.colors.text};font-size:15px;">Celebrating our customers born in <span class="highlight">${month}</span>.</p>
+      </div>
+      <p class="muted" style="text-align:center;margin-top:24px;">Your customers have received their $5 birthday discount, auto-applied to their accounts for the entire month of ${month}.</p>
+      <p class="muted" style="text-align:center;">Next automated check: <strong>1st of ${nextMonthName}</strong>.</p>
+      <div class="btn-center">
+        <a href="${BRAND.siteUrl}/admin" class="btn">View Dashboard</a>
+      </div>
+    `),
+  }
+}
+
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<{ success: boolean; error?: string }> {
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (!RESEND_API_KEY) {
@@ -478,6 +503,11 @@ Deno.serve(async (req) => {
           results.push(result)
           console.log(`Launch email to ${recipientEmail}: ${result.success ? 'sent' : result.error}`)
         }
+        break
+      }
+      case 'admin_birthday_report': {
+        const email = adminBirthdayReportEmail(data)
+        results.push(await sendEmail(data.adminEmail, email.subject, email.html))
         break
       }
       default:

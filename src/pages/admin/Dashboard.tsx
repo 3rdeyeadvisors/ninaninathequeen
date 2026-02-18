@@ -5,9 +5,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Users, DollarSign, Package, Brain, Sparkles, MessageSquare, Loader2, BarChart3, Eye } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Users, DollarSign, Package, Brain, Sparkles, MessageSquare, Loader2, BarChart3, Eye, Cake, CheckCircle2, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useSettingsDb } from '@/hooks/useSettingsDb';
 import { Badge } from '@/components/ui/badge';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -21,7 +22,15 @@ const VALID_STATUSES = ['Processing', 'Shipped', 'Delivered'];
 
 export default function AdminDashboard() {
   const { orders, customers, settings, productOverrides, _hasHydrated } = useAdminStore();
+  const { updateSettingsDb } = useSettingsDb();
   
+  const [birthdayCustomerCount, setBirthdayCustomerCount] = useState(0);
+  const [isSendingBirthdayEmails, setIsSendingBirthdayEmails] = useState(false);
+
+  const currentMonth = useMemo(() => new Date().getMonth() + 1, []);
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const birthdayEmailSentThisMonth = settings.birthdayEmailsSentMonth === currentMonth && settings.birthdayEmailsSentYear === currentYear;
+
   const GREETING = "Hello! How can I help you optimize your store today?";
   const [chatMessages, setChatMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
     { role: 'assistant', content: GREETING }
@@ -50,7 +59,11 @@ export default function AdminDashboard() {
     supabase.from('waitlist').select('id', { count: 'exact', head: true }).then(({ count }) => {
       setWaitlistCount(count || 0);
     });
-  }, []);
+
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('birth_month', currentMonth).then(({ count }) => {
+      setBirthdayCustomerCount(count || 0);
+    });
+  }, [currentMonth]);
 
   useEffect(() => {
     // Fetch product stats directly from Supabase for efficiency
@@ -401,6 +414,47 @@ ${behavioralInsights.length > 0
     );
   }
 
+  const handleSendBirthdayEmails = async () => {
+    if (isSendingBirthdayEmails || birthdayEmailSentThisMonth || birthdayCustomerCount === 0) return;
+
+    setIsSendingBirthdayEmails(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-birthday-emails', { body: {} });
+
+      if (error) throw error;
+
+      const sentCount = data.sentCount || 0;
+
+      // Update settings in DB
+      await updateSettingsDb({
+        birthdayEmailsSentMonth: currentMonth,
+        birthdayEmailsSentYear: currentYear,
+        birthdayEmailsSentCount: sentCount
+      });
+
+      toast.success(`🎂 Birthday emails sent to ${sentCount} customers!`);
+
+      // Send admin notification
+      const monthName = new Date().toLocaleString('default', { month: 'long' });
+      await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'admin_birthday_report',
+          data: {
+            count: sentCount,
+            month: monthName,
+            adminEmail: settings.contactEmail || 'hello@ninaarmend.com'
+          }
+        }
+      });
+
+    } catch (err) {
+      console.error('Failed to send birthday emails:', err);
+      toast.error("Failed to send birthday emails. Please try again.");
+    } finally {
+      setIsSendingBirthdayEmails(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!chatInput.trim() || isAiTyping) return;
 
@@ -609,6 +663,77 @@ ${behavioralInsights.length > 0
                 </Card>
               </Link>
             </div>
+
+            {/* Birthday Emails Card */}
+            <Card className="border-primary/20 bg-gradient-to-br from-background via-primary/5 to-background shadow-gold overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <Cake className="h-32 w-32 text-primary" />
+              </div>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Cake className="h-5 w-5 text-primary" />
+                      </div>
+                      <CardTitle className="font-serif text-2xl">Birthday Emails — {new Date().toLocaleString('default', { month: 'long' })}</CardTitle>
+                    </div>
+                    <p className="text-muted-foreground font-sans text-sm">
+                      {birthdayCustomerCount} customer{birthdayCustomerCount !== 1 ? 's have' : ' has'} a birthday this month
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3 min-w-[240px]">
+                    {!birthdayEmailSentThisMonth ? (
+                      <>
+                        {new Date().getDate() <= 3 && birthdayCustomerCount > 0 && (
+                          <div className="bg-amber-500/10 border border-amber-500/20 text-amber-600 px-4 py-2 rounded-lg text-xs font-sans font-bold flex items-center gap-2 animate-pulse">
+                            <Sparkles className="h-3 w-3" />
+                            It's time! Send birthday emails to your customers
+                          </div>
+                        )}
+                        <Button
+                          onClick={handleSendBirthdayEmails}
+                          disabled={isSendingBirthdayEmails || birthdayCustomerCount === 0}
+                          className="w-full bg-primary hover:bg-primary/90 shadow-gold h-12 text-[10px] uppercase tracking-[0.2em] font-black"
+                        >
+                          {isSendingBirthdayEmails ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            'Send Birthday Emails'
+                          )}
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-600">
+                          <CheckCircle2 className="h-5 w-5" />
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold font-sans uppercase tracking-widest">Sent for {new Date().toLocaleString('default', { month: 'long' })}</span>
+                            <span className="text-[10px] opacity-80">{settings.birthdayEmailsSentCount || 0} customers notified</span>
+                          </div>
+                        </div>
+                        <Button disabled className="w-full h-12 bg-muted text-muted-foreground text-[10px] uppercase tracking-[0.2em] font-black">
+                          Already Sent This Month
+                        </Button>
+                        <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+                          <Calendar className="h-3 w-3" />
+                          Next birthday emails: 1st of {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleString('default', { month: 'long' })}
+                        </div>
+                      </div>
+                    )}
+                    {birthdayCustomerCount === 0 && !birthdayEmailSentThisMonth && (
+                      <p className="text-[10px] text-center text-muted-foreground uppercase tracking-widest italic">
+                        No customers have birthdays this month
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Quick Actions */}

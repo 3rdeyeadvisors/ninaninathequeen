@@ -75,6 +75,9 @@ export interface AdminSettings {
   contactEmail?: string;
   contactPhone?: string;
   isMaintenanceMode?: boolean;
+  birthdayEmailsSentMonth?: number;
+  birthdayEmailsSentYear?: number;
+  birthdayEmailsSentCount?: number;
 }
 
 interface AdminStore {

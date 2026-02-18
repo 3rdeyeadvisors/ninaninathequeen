@@ -766,7 +766,7 @@ export default function AdminProducts() {
                       Move to Category
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-popover z-50">
+                  <DropdownMenuContent className="bg-background border border-primary/20 z-[300]">
                     {CATEGORIES.filter(c => c !== 'All').map(cat => (
                       <DropdownMenuItem 
                         key={cat} 
