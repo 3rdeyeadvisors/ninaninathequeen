@@ -536,7 +536,7 @@ export default function Account() {
                           <SelectTrigger disabled={isLoading}>
                             <SelectValue placeholder="Select Month" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-[200px] overflow-y-auto z-[300]">
                             {MONTHS.map((month, index) => (
                               <SelectItem key={month} value={(index + 1).toString()}>{month}</SelectItem>
                             ))}
@@ -906,7 +906,7 @@ export default function Account() {
                               <SelectTrigger>
                                 <SelectValue placeholder="Select your preferred size" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent position="popper" className="max-h-[200px] overflow-y-auto z-[300]">
                                 {PRODUCT_SIZES.map((size) => (
                                   <SelectItem key={size} value={size}>{size}</SelectItem>
                                 ))}
@@ -920,7 +920,7 @@ export default function Account() {
                               <SelectTrigger>
                                 <SelectValue placeholder="Select your birth month" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent position="popper" className="max-h-[200px] overflow-y-auto z-[300]">
                                 {MONTHS.map((month, index) => (
                                   <SelectItem key={month} value={(index + 1).toString()}>{month}</SelectItem>
                                 ))}
