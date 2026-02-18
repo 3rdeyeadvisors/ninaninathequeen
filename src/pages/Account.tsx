@@ -212,6 +212,67 @@ export default function Account() {
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate image and size (< 2MB)
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Failed to upload photo. Max 2MB.');
+      return;
+    }
+
+    const userId = cloudAuth.user?.id;
+    if (!userId) return;
+
+    setIsLoading(true);
+    try {
+      const supabase = getSupabase();
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${userId}/avatar.${fileExt}`;
+
+      // Upload to avatars bucket
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update user metadata
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl }
+      });
+
+      if (updateError) throw updateError;
+
+      // Update local cloudAuth user state immediately
+      if (cloudAuth.user) {
+        useCloudAuthStore.setState({
+          user: {
+            ...cloudAuth.user,
+            avatar: publicUrl
+          }
+        });
+      }
+
+      toast.success('Profile photo updated!');
+    } catch (err: any) {
+      console.error('Avatar upload error:', err);
+      toast.error('Failed to upload photo. Max 2MB.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginEmail || !loginPassword) {
@@ -611,7 +672,7 @@ export default function Account() {
                   </Avatar>
                   <label className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-1.5 rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform">
                     <Camera className="h-4 w-4" />
-                    <input type="file" className="hidden" onChange={() => toast.success("Avatar upload simulated")} />
+                    <input type="file" className="hidden" onChange={handleAvatarUpload} disabled={isLoading} />
                   </label>
                 </div>
                 <h2 className="font-serif text-2xl">{user?.name}</h2>
