@@ -30,6 +30,17 @@ export default function Terms() {
               <h2 className="text-foreground font-serif text-2xl mb-4">5. Analytics and Personalization</h2>
               <p>For authenticated users, we may collect browsing data such as product page views to improve our store experience and provide personalized offers. This data is used solely to enhance your shopping experience and is never sold to third parties. By creating an account and using our site, you consent to this data collection as described in our Privacy Policy.</p>
             </section>
+            <section>
+              <h2 className="text-foreground font-serif text-2xl mb-4">6. Loyalty Points & Discounts</h2>
+              <ul className="list-disc pl-5 space-y-2">
+                <li>Points are earned through purchases (1 point per $1 spent) and other activities as described in your account dashboard.</li>
+                <li>Every 500 points earned can be redeemed for a $10 discount, which will be automatically available to be applied at checkout.</li>
+                <li>Birthday Month Discount: Registered customers are eligible for a $5 discount on one order placed during their registered birth month.</li>
+                <li>Discounts cannot be stacked — only one discount applies per order. If multiple discounts are available, loyalty points redemption will take priority.</li>
+                <li>Points have no cash value and are non-transferable.</li>
+                <li>Nina Armend reserves the right to modify or discontinue the loyalty program at any time without prior notice.</li>
+              </ul>
+            </section>
             <p className="mt-12 text-xs">Last updated: February 2026</p>
           </div>
         </div>
