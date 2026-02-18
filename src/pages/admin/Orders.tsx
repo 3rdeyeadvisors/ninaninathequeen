@@ -515,7 +515,10 @@ export default function AdminOrders() {
                             <SelectValue placeholder="Size" />
                           </SelectTrigger>
                           <SelectContent>
-                            {(activeProducts.find(p => p.id === selectedProductId)?.sizes || []).map(s => (
+                            {(activeProducts.find(p => p.id === selectedProductId)?.sizes?.length
+                              ? activeProducts.find(p => p.id === selectedProductId)!.sizes
+                              : Object.keys(activeProducts.find(p => p.id === selectedProductId)?.sizeInventory || {})
+                            ).map(s => (
                               <SelectItem key={s} value={s}>{s}</SelectItem>
                             ))}
                           </SelectContent>
