@@ -196,6 +196,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
       user: null,
       session: null,
       isAuthenticated: false,
+      isInitialized: false,
     });
   },
 }));
