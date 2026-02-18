@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabaseClient';
-import { useAuthStore } from './authStore';
 
 export interface CloudAuthUser {
   id: string;
@@ -37,7 +36,11 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
   isInitialized: false,
 
   initialize: async () => {
-    if (get().isInitialized) return;
+    // Note: We removed the isInitialized guard to allow refresh cycles
+    // but we should still prevent multiple simultaneous initializations
+    if (get().isLoading && get().isInitialized) return;
+
+    set({ isLoading: true });
 
     try {
       const supabase = getSupabase();
@@ -74,19 +77,6 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
             isLoading: false,
             isInitialized: true,
           });
-
-          // Sync with legacy auth store for backward compatibility
-          useAuthStore.setState({
-            user: {
-              name: userData.name || '',
-              email: userData.email,
-              avatar: userData.avatar,
-              points: userData.points,
-              role: userData.isAdmin ? 'Admin' : 'User',
-              preferredSize: userData.preferredSize,
-            },
-            isAuthenticated: true,
-          });
         } else {
           set({
             session: null,
@@ -95,9 +85,6 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
             isLoading: false,
             isInitialized: true,
           });
-
-          // Clear legacy auth store
-          useAuthStore.setState({ user: null, isAuthenticated: false });
         }
       };
 

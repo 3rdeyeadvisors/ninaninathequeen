@@ -43,7 +43,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus, Trash2, AlertCircle, LayoutDashboard, Heart, Users, Clock } from 'lucide-react';
+import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus, Trash2, AlertCircle, LayoutDashboard, Heart, Users, Clock, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -65,6 +65,7 @@ export default function Account() {
   const { items: wishlistItems, removeItem: removeFromWishlist } = useWishlistStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   
   // Use Cloud Auth user, fallback to legacy for profile display
   const user = cloudAuth.user ? {
@@ -155,14 +156,48 @@ export default function Account() {
   const [signupPassword, setSignupPassword] = useState('');
 
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!cloudAuth.user?.id) return;
+
     const formData = new FormData(e.target as HTMLFormElement);
     const name = formData.get('name') as string;
 
-    updateProfile({ name, preferredSize });
-    playSound('success');
-    toast.success("Profile updated successfully!");
+    setIsUpdatingProfile(true);
+    try {
+      const supabase = getSupabase();
+
+      // 1. Update the profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ preferred_size: preferredSize })
+        .eq('id', cloudAuth.user.id);
+
+      if (profileError) throw profileError;
+
+      // 2. Update Auth metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { name }
+      });
+
+      if (authError) throw authError;
+
+      // 3. Update legacy store (for UI consistency if still used)
+      updateProfile({ name, preferredSize });
+
+      // 4. Update cloud auth store state locally (or let it re-fetch)
+      // Actually we might want to manually update the store to avoid a full refresh
+      // but let's assume initialize() will be triggered by onAuthStateChange if metadata changes.
+      // Or just toast and play sound.
+
+      playSound('success');
+      toast.success("Profile updated successfully!");
+    } catch (err: any) {
+      console.error('Failed to update profile:', err);
+      toast.error(err.message || "Failed to update profile");
+    } finally {
+      setIsUpdatingProfile(false);
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -797,8 +832,19 @@ export default function Account() {
                           </Select>
                         </div>
 
-                        <Button type="submit" className="bg-primary hover:bg-primary/90">
-                          Save Changes
+                        <Button
+                          type="submit"
+                          className="bg-primary hover:bg-primary/90"
+                          disabled={isUpdatingProfile}
+                        >
+                          {isUpdatingProfile ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save Changes'
+                          )}
                         </Button>
                       </form>
                     </CardContent>

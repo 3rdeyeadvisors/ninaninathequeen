@@ -119,11 +119,15 @@ Deno.serve(async (req) => {
       const { order: squareOrder } = result;
       console.log(`[FinalizeSquareOrder] Square API success. State: ${squareOrder.state}`)
 
-      // Check if order is paid
-      const isPaid = squareOrder.state === 'OPEN' || squareOrder.state === 'COMPLETED';
+      // Check if order is paid - be more explicit by checking paid amount if available
+      const totalAmount = squareOrder.total_money?.amount || 0;
+      const paidAmount = squareOrder.total_paid_money?.amount || 0;
+
+      const isPaid = (squareOrder.state === 'COMPLETED') ||
+                     (squareOrder.state === 'OPEN' && (paidAmount >= totalAmount || squareOrder.tenders?.length > 0));
 
       if (!isPaid) {
-        console.warn(`[FinalizeSquareOrder] Order ${orderId} not yet paid. State: ${squareOrder.state}`)
+        console.warn(`[FinalizeSquareOrder] Order ${orderId} not yet fully paid. State: ${squareOrder.state}, Paid: ${paidAmount}/${totalAmount}`)
         throw new Error(`Payment verification pending. Current state: ${squareOrder.state}`);
       }
 

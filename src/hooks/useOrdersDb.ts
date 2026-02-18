@@ -74,6 +74,7 @@ export function useOrdersDb() {
           status: order.status,
           tracking_number: order.trackingNumber,
           items: order.items,
+          shipping_address: order.shippingAddress as any,
         }, { onConflict: 'id' })
         .select('id')
         .maybeSingle();
@@ -145,6 +146,7 @@ export function useOrdersDb() {
           status: order.status,
           tracking_number: order.trackingNumber,
           items: order.items as Json,
+          shipping_address: order.shippingAddress as any,
         })
         .select('id')
         .maybeSingle();
