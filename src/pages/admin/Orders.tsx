@@ -444,7 +444,7 @@ export default function AdminOrders() {
                       <SelectTrigger id="status" className="font-sans text-sm">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper">
                         <SelectItem value="Pending">Pending</SelectItem>
                         <SelectItem value="Processing">Processing</SelectItem>
                         <SelectItem value="Shipped">Shipped</SelectItem>
@@ -540,7 +540,7 @@ export default function AdminOrders() {
                           <SelectTrigger className="font-sans text-sm">
                             <SelectValue placeholder="Select product" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-[200px] overflow-y-auto z-[300]">
                             {activeProducts.map(p => (
                               <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
                             ))}
@@ -552,7 +552,7 @@ export default function AdminOrders() {
                           <SelectTrigger className="font-sans text-sm">
                             <SelectValue placeholder="Size" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-[200px] overflow-y-auto z-[300]">
                             {(activeProducts.find(p => p.id === selectedProductId)?.sizes?.length
                               ? activeProducts.find(p => p.id === selectedProductId)!.sizes
                               : Object.keys(activeProducts.find(p => p.id === selectedProductId)?.sizeInventory || {})
