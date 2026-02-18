@@ -158,11 +158,6 @@ export function useProductsDb() {
     return await syncWithEdgeFunction(productsToDelete as ProductOverride[]);
   }, []);
 
-  // Load products from database on mount
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
   return {
     fetchProducts,
     upsertProduct,

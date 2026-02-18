@@ -29,6 +29,8 @@ interface CloudAuthState {
   checkIsAdmin: (userId: string) => Promise<boolean>;
 }
 
+let authSubscription: { unsubscribe: () => void } | null = null;
+
 export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
   user: null,
   session: null,
@@ -37,9 +39,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
   isInitialized: false,
 
   initialize: async () => {
-    // Note: We removed the isInitialized guard to allow refresh cycles
-    // but we should still prevent multiple simultaneous initializations
-    if (get().isLoading && get().isInitialized) return;
+    if (get().isInitialized) return;
 
     set({ isLoading: true });
 
@@ -93,9 +93,13 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
       await handleUserSession(session);
 
       // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
+
+      authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
         await handleUserSession(session);
-      });
+      }).data.subscription;
     } catch (error) {
       console.error('Auth initialization error:', error);
       set({ isLoading: false, isInitialized: true });

@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlus, Trash2, AlertCircle, LayoutDashboard, Heart, Users, Clock, Loader2 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -61,6 +61,7 @@ const MONTHS = [
 ];
 
 export default function Account() {
+  const navigate = useNavigate();
   // Legacy auth store - kept for profile data display only
   const { user: legacyUser, updateProfile } = useAuthStore();
   
@@ -317,6 +318,7 @@ export default function Account() {
 
   const handleLogout = async () => {
     await cloudAuth.signOut();
+    navigate('/');
     toast.success("You have been signed out.");
   };
 
