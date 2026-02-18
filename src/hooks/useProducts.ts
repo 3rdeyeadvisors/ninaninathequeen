@@ -73,9 +73,9 @@ function overrideToProduct(override: ProductOverride): Product {
 export function useProducts(first: number = 20, query?: string, includeHidden: boolean = false) {
   const { productOverrides, _hasHydrated } = useAdminStore();
 
-  const products = useMemo(() => {
+  const { products, totalCount } = useMemo(() => {
     // Wait for store hydration
-    if (!_hasHydrated) return [];
+    if (!_hasHydrated) return { products: [], totalCount: 0 };
 
     // Only use products from database (via productOverrides store)
     const allProducts: Product[] = Object.values(productOverrides)
@@ -109,11 +109,15 @@ export function useProducts(first: number = 20, query?: string, includeHidden: b
       }
     }
 
-    return filteredProducts.slice(0, first);
+    return {
+      products: filteredProducts.slice(0, first),
+      totalCount: filteredProducts.length
+    };
   }, [productOverrides, _hasHydrated, first, query, includeHidden]);
 
   return {
     data: products,
+    totalCount: totalCount || 0,
     isLoading: !_hasHydrated,
     isError: false,
   };

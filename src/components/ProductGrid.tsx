@@ -2,6 +2,8 @@ import { useProducts, type Product } from '@/hooks/useProducts';
 import { ProductCard } from './ProductCard';
 import { motion } from 'framer-motion';
 import { Loader2, Package } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface ProductGridProps {
   query?: string;
@@ -11,7 +13,13 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ query, limit = 12, title, subtitle }: ProductGridProps) {
-  const { data: products, isLoading, isError } = useProducts(limit, query);
+  const [displayLimit, setDisplayLimit] = useState(limit);
+
+  useEffect(() => {
+    setDisplayLimit(limit);
+  }, [limit]);
+
+  const { data: products, totalCount, isLoading, isError } = useProducts(displayLimit, query);
 
   if (isLoading) {
     return (
@@ -106,6 +114,19 @@ export function ProductGrid({ query, limit = 12, title, subtitle }: ProductGridP
             <ProductCard key={product.id} product={product} index={index} />
           ))}
         </div>
+
+        {products && products.length === displayLimit && products.length < totalCount && (
+          <div className="flex justify-center mt-12">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setDisplayLimit(prev => prev + 12)}
+              className="font-sans tracking-widest uppercase text-xs"
+            >
+              Load More
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );
