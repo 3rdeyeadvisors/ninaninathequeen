@@ -99,7 +99,7 @@ export default function AdminOrders() {
   const handleEdit = (order: AdminOrder) => {
     setSelectedOrder(order);
     setEditStatus(order.status);
-    setEditTracking(order.trackingNumber);
+    setEditTracking(order.trackingNumber || '');
     setEditShippingCost(order.shippingCost || '0.00');
     setEditItemCost(order.itemCost || '0.00');
     setIsEditing(true);
@@ -112,26 +112,19 @@ export default function AdminOrders() {
 
   const saveOrderChanges = async () => {
     if (selectedOrder) {
-      const savePromise = updateOrderDb(selectedOrder.id, {
+      const success = await updateOrderDb(selectedOrder.id, {
         status: editStatus,
         trackingNumber: editTracking,
         shippingCost: editShippingCost,
         itemCost: editItemCost
       });
 
-      toast.promise(savePromise, {
-        loading: `Updating order ${selectedOrder.id}...`,
-        success: (success) => {
-          if (success) {
-            setIsEditing(false);
-            return `Order ${selectedOrder.id} updated successfully`;
-          }
-          return `Failed to update order ${selectedOrder.id}`;
-        },
-        error: "An error occurred while updating the order"
-      });
-
-      await savePromise;
+      if (success) {
+        toast.success('Order updated successfully');
+        setIsEditing(false);
+      } else {
+        toast.error('Failed to save. Please try again.');
+      }
     }
   };
 
@@ -444,7 +437,7 @@ export default function AdminOrders() {
                       <SelectTrigger id="status" className="font-sans text-sm">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
-                      <SelectContent position="popper">
+                      <SelectContent position="popper" className="z-[300]">
                         <SelectItem value="Pending">Pending</SelectItem>
                         <SelectItem value="Processing">Processing</SelectItem>
                         <SelectItem value="Shipped">Shipped</SelectItem>
