@@ -314,7 +314,7 @@ export default function Checkout() {
 
             {/* Right Column: Order Summary */}
             <div className="lg:col-span-5">
-              <div className="sticky top-32">
+              <div className="lg:sticky lg:top-32">
                 <Card className="border-border/50 bg-secondary/10 backdrop-blur-sm shadow-sm">
                   <CardHeader className="pb-4">
                     <CardTitle className="font-serif text-2xl">Order Summary</CardTitle>
