@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { CheckoutHeader } from '@/components/checkout/CheckoutHeader';
 import { CheckoutFooter } from '@/components/checkout/CheckoutFooter';
@@ -8,24 +8,45 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCartStore } from '@/stores/cartStore';
 import { useAdminStore } from '@/stores/adminStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { getSupabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
-import { Loader2, ShieldCheck, Truck, ArrowLeft, CreditCard, Mail, User, Info } from 'lucide-react';
+import { Loader2, ShieldCheck, Truck, ArrowLeft, CreditCard, Mail, User, Info, Gift } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Checkout() {
   const navigate = useNavigate();
   const { items, getTotal } = useCartStore();
   const { settings } = useAdminStore();
+  const cloudAuth = useCloudAuthStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [profileData, setProfileData] = useState<{ points: number; birth_month: number | null } | null>(null);
 
   // Contact info state
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: ''
+    firstName: cloudAuth.user?.name?.split(' ')[0] || '',
+    lastName: cloudAuth.user?.name?.split(' ').slice(1).join(' ') || '',
+    email: cloudAuth.user?.email || ''
   });
+
+  // Fetch profile data on load
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (cloudAuth.user?.id) {
+        const supabase = getSupabase();
+        const { data } = await supabase
+          .from('profiles')
+          .select('points, birth_month')
+          .eq('id', cloudAuth.user.id)
+          .maybeSingle();
+        if (data) {
+          setProfileData(data);
+        }
+      }
+    };
+    fetchProfile();
+  }, [cloudAuth.user?.id]);
 
   const subtotal = getTotal();
   const topsCount = items.filter(i => i.product.productType === 'Top').reduce((sum, i) => sum + i.quantity, 0);
@@ -34,7 +55,41 @@ export default function Checkout() {
   const totalSets = Math.min(topsCount, bottomsCount) + onePiecesCount;
   const freeShipping = totalSets >= 2;
   const shippingCost = freeShipping ? 0 : (settings.shippingRate || 8.50);
-  const total = subtotal + shippingCost;
+
+  // Loyalty Discount Logic
+  const currentMonth = new Date().getMonth() + 1;
+  const isBirthMonth = profileData?.birth_month === currentMonth;
+  const hasEnoughPoints = (profileData?.points || 0) >= 500;
+
+  let discountAmount = 0;
+  let discountType = '';
+
+  if (hasEnoughPoints) {
+    discountAmount = 10;
+    discountType = 'Points Redemption';
+  } else if (isBirthMonth) {
+    discountAmount = 5;
+    discountType = 'Birthday Discount';
+  }
+
+  // Toasts for discounts - using a flag to avoid multiple toasts
+  const [toastShown, setToastShown] = useState(false);
+  useEffect(() => {
+    if (profileData && !toastShown) {
+      if (hasEnoughPoints && isBirthMonth) {
+        toast.success("🎉 $10 points discount applied! Your birthday discount couldn’t be stacked.", { icon: '🎁' });
+      } else if (hasEnoughPoints) {
+        toast.success("🎉 500 points redeemed for $10 off!", { icon: '✨' });
+      } else if (isBirthMonth) {
+        toast.success("🎂 Happy birthday month! $5 birthday discount applied!", { icon: '🎂' });
+      }
+      if (hasEnoughPoints || isBirthMonth) {
+        setToastShown(true);
+      }
+    }
+  }, [profileData, hasEnoughPoints, isBirthMonth, toastShown]);
+
+  const total = Math.max(0, subtotal + shippingCost - discountAmount);
 
   const validateContact = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -71,7 +126,9 @@ export default function Checkout() {
         })),
         shippingCost: shippingCost.toFixed(2),
         itemCost: (subtotal * 0.3).toFixed(2),
-        total: total.toFixed(2)
+        total: total.toFixed(2),
+        discountAmount: discountAmount.toFixed(2),
+        discountType
       };
 
       const { data, error } = await supabase.functions.invoke('create-square-checkout', {
@@ -297,6 +354,15 @@ export default function Checkout() {
                           {shippingCost === 0 ? 'FREE' : `$${shippingCost.toFixed(2)}`}
                         </span>
                       </div>
+                      {discountAmount > 0 && (
+                        <div className="flex justify-between text-sm font-sans text-primary">
+                          <span className="flex items-center gap-1.5">
+                            <Gift className="h-3 w-3" />
+                            {discountType}
+                          </span>
+                          <span>-${discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-xl font-serif pt-4 border-t border-border/30">
                         <span>Total</span>
                         <span className="text-primary">${total.toFixed(2)}</span>
