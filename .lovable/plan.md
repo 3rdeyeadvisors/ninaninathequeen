@@ -1,55 +1,60 @@
 
-# Fix: POS Inventory Sync + Size Dialog Hidden Behind Header
 
-## Issues Being Fixed
+# Fix: Spreadsheet Upload Hanging + Build Error
 
-**1. Build Error (useCartSync.ts)**
-The wishlist sync hook queries the `products` table for a column called `handle` — but that column does not exist in the database. The actual database schema has: `id`, `title`, `image`, `images` (array), `price`. This causes a TypeScript compile error and breaks the entire app build.
+## Two Issues to Fix
 
-**2. Size Dialog Hidden by Header (POS Page)**
-When you click a product on the POS/manual orders page, a "Select Size" popup appears — but it renders behind or clipped by the fixed header at the top of the page. This makes some size options invisible, giving the impression that products or sizes are missing.
+### Issue 1: Spreadsheet Upload Takes Forever
 
----
+The spreadsheet has columns: **Item ID, Item name, Type, Price Per Unit, Stock, Price, Status**
 
-## Fix 1 — useCartSync.ts (Build Error)
-
-Remove `handle` from the product query since it doesn't exist in the database. The wishlist store item uses `handle` for routing, so we'll construct it from `title` the same way the rest of the app does (lowercased, spaces replaced with dashes).
-
-**Change:** In the `.select('id, title, handle, images, price')` query, remove `handle` and derive it from `title`:
+The "Status" column contains text values like **"Ordered"** and **"In stock"**. However, the upload code on line 161 of `useSpreadsheetSync.ts` does this:
 
 ```
-.select('id, title, image, images, price')
+const ordered = row.status ? parseInt(row.status) : NaN;
 ```
 
-Then build `handle` as: `p.title.toLowerCase().replace(/\s+/g, '-')`
+Since "Ordered" and "In stock" are not numbers, `parseInt` returns `NaN`, so the math is fine. But the real performance problem is that the `status` field is being parsed *twice* -- once as a numeric "ordered quantity" add-on, and again as a product status string. When the status is "Ordered", the normalization logic on line 213 matches `statusLower.includes('order')` and maps it to "Active", which is correct.
 
-And for the image, use the `images` array first (falling back to `image`).
+The actual hang is likely coming from the edge function call or the `fetchProducts()` call after sync. With ~55 rows grouping into ~30+ products, plus the edge function doing auth validation, admin role check, upsert, and store_settings query -- combined with `fetchProducts()` doing a second full table read immediately after -- this can cause a noticeable delay or timeout, especially if the user's auth session is stale.
 
----
+**Fix:** The spreadsheet columns are already mapped correctly (`Item ID` -> `id`, `Item name` -> `title`, etc.). The potential hang comes from:
+1. A stale or missing auth session causing the edge function to hang waiting for a response
+2. The `fetchProducts()` call immediately after `bulkUpsertProducts()` doing redundant work
 
-## Fix 2 — POS Size Dialog (Header Overlap)
+I will add a timeout wrapper around the edge function call and improve error reporting so the user sees what's actually failing instead of an infinite spinner.
 
-The `Dialog` for selecting a size currently uses the default Radix `DialogContent`, which positions itself in the viewport center. With a tall fixed header (~120-160px), the dialog can be pushed partially behind it on some screen sizes.
+### Issue 2: Build Error in Account.tsx
 
-**Changes:**
-- Add `top-[160px]` positioning override or ensure the dialog has enough top margin to clear the header
-- Add `max-h-[calc(100vh-200px)] overflow-y-auto` to the dialog content so it's fully scrollable and never cut off
-- The dialog already renders via a Radix portal, so it just needs explicit vertical positioning to clear the header
+The `User` interface in `authStore.ts` does not have a `birthMonth` property, but `Account.tsx` line 85 references `cloudAuth.user.birthMonth`. The `CloudAuthUser` interface *does* have `birthMonth`, so the combined type creates a union where `birthMonth` doesn't exist on the legacy `User` type.
 
----
+**Fix:** Add `birthMonth?: number` to the `User` interface in `authStore.ts`.
 
-## Technical Details
+## Changes
 
-**File 1: `src/hooks/useCartSync.ts`**
+### File 1: `src/stores/authStore.ts`
+- Add `birthMonth?: number` to the `User` interface (line 22, before the closing brace)
 
-- Line 63: Change `.select('id, title, handle, images, price')` → `.select('id, title, image, images, price')`
-- Line 68–74: Remove `handle: p.handle`, replace with `handle: p.title.toLowerCase().replace(/\s+/g, '-')`, and fix image to read from `images` array or fall back to `image`
+### File 2: `src/hooks/useSpreadsheetSync.ts`
+- Add a timeout mechanism around the `bulkUpsertProducts` call so it doesn't hang forever (wrap in `Promise.race` with a 30-second timeout)
+- Improve error messaging: if timeout occurs, show a toast explaining the upload may still be processing
+- Remove the redundant `await fetchProducts()` after successful sync -- the `syncWithEdgeFunction` already updates the local store from the returned data, making the extra fetch unnecessary and a source of delay
 
-**File 2: `src/pages/admin/POS.tsx`**
+### File 3: `src/hooks/useProductsDb.ts`
+- No changes needed -- the sync logic is correct
 
-- Line 536: Update `DialogContent` className to include proper top margin / max-height so it clears the header and stays fully visible:
-  ```
-  className="sm:max-w-[400px] bg-background border-primary/20 shadow-gold mt-20 max-h-[calc(100vh-180px)] overflow-y-auto"
-  ```
+### File 4: `src/lib/spreadsheet.ts`
+- No changes needed -- the column mappings already match the spreadsheet format exactly:
+  - "Item ID" -> `id`
+  - "Item name" -> `title`  
+  - "Type" -> `producttype`
+  - "Price Per Unit" -> `unitcost`
+  - "Stock" -> `inventory`
+  - "Price" -> `price`
+  - "Status" -> `status`
 
-These are minimal, targeted changes with no impact on other pages or functionality.
+## Summary of What Gets Fixed
+1. Build error resolved by adding `birthMonth` to legacy User type
+2. Spreadsheet upload no longer hangs -- timeout protection added, redundant DB fetch removed
+3. All column mappings verified against the actual spreadsheet format -- no changes needed there
+
