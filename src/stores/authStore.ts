@@ -19,6 +19,7 @@ export interface User {
   referralCode?: string;
   role?: string;
   preferredSize?: string;
+  birthMonth?: number;
 }
 
 interface AuthStore {
