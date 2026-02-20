@@ -251,15 +251,32 @@ export function useSpreadsheetSync() {
         }
 
         toast.info('Saving products to database...');
-        const success = await bulkUpsertProducts(uniqueProductsToSync);
-        if (success) {
-          // Pessimistic update: Update local store only after DB success
-          uniqueProductsToSync.forEach(p => updateProductOverride(p.id, p));
 
-          await fetchProducts(); // Refresh from database to confirm persistence
-          toast.success(`Sync complete! ${uniqueProductsToSync.length} products saved to database.`);
-        } else {
-          toast.error('Database save failed. Products only saved locally. Please log in as admin and try again.');
+        // Wrap in a 30-second timeout to prevent infinite hang
+        const timeoutPromise = new Promise<{ success: false }>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 30000)
+        );
+
+        try {
+          const success = await Promise.race([
+            bulkUpsertProducts(uniqueProductsToSync),
+            timeoutPromise
+          ]);
+
+          if (success) {
+            uniqueProductsToSync.forEach(p => updateProductOverride(p.id, p));
+            toast.success(`Sync complete! ${uniqueProductsToSync.length} products saved to database.`);
+          } else {
+            toast.error('Database save failed. Please log in as admin and try again.');
+          }
+        } catch (err: any) {
+          if (err?.message === 'timeout') {
+            // Still update local store so UI isn't stale
+            uniqueProductsToSync.forEach(p => updateProductOverride(p.id, p));
+            toast.warning('Upload is taking longer than expected. Products saved locally — they may still be syncing in the background.');
+          } else {
+            throw err;
+          }
         }
       } catch (error) {
         console.error('Spreadsheet parsing failed:', error);
