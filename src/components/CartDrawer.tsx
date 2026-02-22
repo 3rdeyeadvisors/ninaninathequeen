@@ -5,16 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ShoppingBag, Minus, Plus, Trash2, Loader2, Truck, CheckCircle2 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
-import { useAdminStore } from "@/stores/adminStore";
-import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
 
 export const CartDrawer = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const { items, isLoading, updateQuantity, removeItem, clearCart } = useCartStore();
-  const addAdminOrder = useAdminStore(state => state.addOrder);
-  const { user } = useAuthStore();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
 
