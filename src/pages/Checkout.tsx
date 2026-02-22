@@ -49,9 +49,9 @@ export default function Checkout() {
   }, [cloudAuth.user?.id]);
 
   const subtotal = getTotal();
-  const topsCount = items.filter(i => i.product.productType === 'Top').reduce((sum, i) => sum + i.quantity, 0);
-  const bottomsCount = items.filter(i => i.product.productType === 'Bottom').reduce((sum, i) => sum + i.quantity, 0);
-  const onePiecesCount = items.filter(i => i.product.productType === 'One-Piece').reduce((sum, i) => sum + i.quantity, 0);
+  const topsCount = items.filter(i => i.product.category === 'Top').reduce((sum, i) => sum + i.quantity, 0);
+  const bottomsCount = items.filter(i => i.product.category === 'Bottom').reduce((sum, i) => sum + i.quantity, 0);
+  const onePiecesCount = items.filter(i => i.product.category === 'One-Piece').reduce((sum, i) => sum + i.quantity, 0);
   const totalSets = Math.min(topsCount, bottomsCount) + onePiecesCount;
   const freeShipping = totalSets >= 2;
   const shippingCost = freeShipping ? 0 : (settings.shippingRate || 8.50);
