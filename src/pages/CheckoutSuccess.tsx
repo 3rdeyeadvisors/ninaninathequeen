@@ -8,11 +8,13 @@ import { motion } from 'framer-motion';
 import { useCartStore } from '@/stores/cartStore';
 import { getSupabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+import { useDbSync } from '@/providers/DbSyncProvider';
 
 export default function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
   const { clearCart } = useCartStore();
+  const { syncProducts, syncOrders } = useDbSync();
   const [isFinalizing, setIsFinalizing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +35,10 @@ export default function CheckoutSuccess() {
           if (functionError || !data?.success) {
             console.error('Error finalizing order:', functionError || data?.error);
             setError(data?.error || 'There was a problem verifying your payment. Please contact support if you have been charged.');
+          } else {
+            // Re-sync products and orders so inventory is immediately up-to-date
+            // across this browser session — Realtime will handle other devices.
+            await Promise.all([syncProducts(), syncOrders()]);
           }
         } catch (err: any) {
           console.error('Unexpected error finalizing order:', err);
