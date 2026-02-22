@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useAdminStore, type ProductOverride, type AdminOrder, type AdminCustomer, type ShippingAddress } from '@/stores/adminStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { toast } from 'sonner';
 import { getSupabase } from '@/lib/supabaseClient';
 
@@ -30,6 +31,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const isInitializedRef = useRef(false);
+  const { isAuthenticated } = useCloudAuthStore();
   const { updateProductOverride, setOrders, setCustomers, updateSettings } = useAdminStore();
 
   // ------------------------------------------------------------------
@@ -166,8 +168,16 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
     }
   }, [syncProducts, syncOrders, syncCustomers, syncSettings]);
 
-  // Boot: wait for Zustand store hydration then load
+  // Boot: run on mount AND whenever auth state changes.
+  // This is critical because orders/customers/settings are behind admin-only
+  // RLS policies — the initial load (before login) returns empty. We must
+  // re-run loadAllData() once the user is authenticated so the dashboard
+  // populates without requiring a manual page refresh.
   useEffect(() => {
+    // Reset initialized flag so loadAllData() runs fresh on auth change
+    isInitializedRef.current = false;
+    setIsInitialized(false);
+
     const store = useAdminStore.getState();
     if (store._hasHydrated) {
       loadAllData();
@@ -181,7 +191,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
       return () => unsubscribe();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthenticated]);
 
   // ------------------------------------------------------------------
   // Supabase Realtime — push DB changes to the UI instantly without
