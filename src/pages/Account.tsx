@@ -328,8 +328,8 @@ export default function Account() {
   };
 
   const handleDeleteAccount = () => {
-    // Account deletion should be handled through Cloud Auth
-    toast.error("Please contact support to delete your account.");
+    navigate('/contact');
+    toast.info("Please message us to delete your account and we'll take care of it right away.");
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -397,6 +397,7 @@ export default function Account() {
     status: string;
     total: string;
   }>>([]);
+  const [totalOrderCount, setTotalOrderCount] = useState<number>(0);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState(false);
   const [hasMoreOrders, setHasMoreOrders] = useState(true);
@@ -415,6 +416,16 @@ export default function Account() {
 
     try {
       const supabase = getSupabase();
+
+      // Fetch real total count on first load
+      if (page === 0) {
+        const { count } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('customer_email', user.email);
+        setTotalOrderCount(count || 0);
+      }
+
       const start = page * PAGE_SIZE;
       const end = start + PAGE_SIZE - 1;
 
@@ -686,7 +697,7 @@ export default function Account() {
                 <div className="grid grid-cols-2 gap-4 border-t pt-6">
                   <div className="text-center p-3 bg-secondary/30 rounded-xl">
                     <p className="text-[10px] font-sans tracking-[0.2em] uppercase text-muted-foreground mb-1">Orders</p>
-                    <p className="font-serif text-xl font-bold">{customerOrders.length}</p>
+                    <p className="font-serif text-xl font-bold">{totalOrderCount}</p>
                   </div>
                   <div className="text-center p-3 bg-primary/5 rounded-xl border border-primary/10">
                     <p className="text-[10px] font-sans tracking-[0.2em] uppercase text-primary mb-1">Points</p>
