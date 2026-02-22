@@ -24,7 +24,29 @@ export const useWishlistStore = create<WishlistStore>()(
   persist(
     (set, get) => ({
       items: [],
-      addItem: (item) => set((state) => ({ items: [...state.items, item] })),
+      addItem: (item) => {
+        set((state) => ({ items: [...state.items, item] }));
+        const userId = useCloudAuthStore.getState().user?.id;
+        if (userId) {
+          getSupabase()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .from('wishlists' as any)
+            .upsert(
+              {
+                user_id: userId,
+                product_id: item.id,
+                product_handle: item.handle,
+                product_title: item.title,
+                product_image: item.image,
+                product_price: item.price,
+              },
+              { onConflict: 'user_id,product_id' }
+            )
+            .then(({ error }) => {
+              if (error) console.error('Error saving to wishlist:', error);
+            });
+        }
+      },
       removeItem: (id) => {
         set((state) => ({ items: state.items.filter((i) => i.id !== id) }));
 

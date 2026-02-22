@@ -24,7 +24,7 @@ function wishlistItemToProduct(item: { id: string; title: string; handle: string
       id: `${item.id}-${size.toLowerCase()}`,
       title: size,
       price: { amount: item.price, currencyCode: 'USD' },
-      availableForSale: true,
+      availableForSale: false,
       selectedOptions: [{ name: 'Size', value: size }],
     })),
     options: [{ name: 'Size', values: sizes }],
