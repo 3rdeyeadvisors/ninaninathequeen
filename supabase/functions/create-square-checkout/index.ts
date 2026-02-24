@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
 
     // Get secrets from environment variables
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')?.trim()
-    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox'
+    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'production'
 
     console.log(`[CreateSquareCheckout] Environment: ${SQUARE_ENVIRONMENT}`)
 

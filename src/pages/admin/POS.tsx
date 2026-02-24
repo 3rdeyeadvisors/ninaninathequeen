@@ -78,8 +78,8 @@ function POSCheckoutDialog({ isOpen, onClose, items, subtotal, onComplete }: POS
     let isMounted = true;
     let cardInstance: { destroy: () => Promise<void> } | null = null;
 
-    const squareAppId = import.meta.env.VITE_SQUARE_APPLICATION_ID || 'sandbox-sq0idb-LsqqMfOxi1tiVN7vVPYgew';
-    const squareLocId = import.meta.env.VITE_SQUARE_LOCATION_ID || 'L09Y3ZCB23S11';
+    const squareAppId = import.meta.env.VITE_SQUARE_APPLICATION_ID || '';
+    const squareLocId = import.meta.env.VITE_SQUARE_LOCATION_ID || '';
 
     if (paymentMethod === 'card' && isOpen && squareAppId && squareLocId) {
       const initializePayments = async () => {
