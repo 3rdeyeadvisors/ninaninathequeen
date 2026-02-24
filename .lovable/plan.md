@@ -1,60 +1,64 @@
 
 
-# Fix: Spreadsheet Upload Hanging + Build Error
+# Fix: Stop Abandoned Checkouts from Creating Orders + Add Date Filtering
 
-## Two Issues to Fix
+## Problem 1: Abandoned checkouts show up as orders
 
-### Issue 1: Spreadsheet Upload Takes Forever
+Right now, when a customer clicks "Proceed to Payment," the system immediately creates a "Pending" order in the database **before** the customer even pays on Square. If they close the Square payment page without paying, that order stays in the admin dashboard as "Pending" forever (it only gets cleaned up if another customer happens to complete a checkout, which triggers a stale-order cleanup).
 
-The spreadsheet has columns: **Item ID, Item name, Type, Price Per Unit, Stock, Price, Status**
+### The Fix
 
-The "Status" column contains text values like **"Ordered"** and **"In stock"**. However, the upload code on line 161 of `useSpreadsheetSync.ts` does this:
+Stop creating the order when checkout starts. Instead, only create the order **after** Square confirms payment was successful.
 
-```
-const ordered = row.status ? parseInt(row.status) : NaN;
-```
+**Changes:**
 
-Since "Ordered" and "In stock" are not numbers, `parseInt` returns `NaN`, so the math is fine. But the real performance problem is that the `status` field is being parsed *twice* -- once as a numeric "ordered quantity" add-on, and again as a product status string. When the status is "Ordered", the normalization logic on line 213 matches `statusLower.includes('order')` and maps it to "Active", which is correct.
+1. **`supabase/functions/create-square-checkout/index.ts`** -- Remove the database upsert (lines 231-248) that saves the order as "Pending." Instead, pass the order details (items, customer info, costs, discount) as metadata attached to the Square payment link so they survive the round-trip.
 
-The actual hang is likely coming from the edge function call or the `fetchProducts()` call after sync. With ~55 rows grouping into ~30+ products, plus the edge function doing auth validation, admin role check, upsert, and store_settings query -- combined with `fetchProducts()` doing a second full table read immediately after -- this can cause a noticeable delay or timeout, especially if the user's auth session is stale.
+2. **`supabase/functions/finalize-square-order/index.ts`** -- Update to create the order record here (instead of just updating it), using the order details stored from the checkout initiation. The order only gets written to the database after Square confirms payment. Also keep the stale-order cleanup for any legacy pending orders.
 
-**Fix:** The spreadsheet columns are already mapped correctly (`Item ID` -> `id`, `Item name` -> `title`, etc.). The potential hang comes from:
-1. A stale or missing auth session causing the edge function to hang waiting for a response
-2. The `fetchProducts()` call immediately after `bulkUpsertProducts()` doing redundant work
+3. **`src/pages/Checkout.tsx`** -- Minor update: stop generating and passing an order ID upfront since orders are no longer pre-created.
 
-I will add a timeout wrapper around the edge function call and improve error reporting so the user sees what's actually failing instead of an infinite spinner.
+## Problem 2: Too many orders, endless scrolling
 
-### Issue 2: Build Error in Account.tsx
+The current pagination shows 25 orders per page with just Previous/Next buttons, but there's no way to filter by date, status, or search for a specific order.
 
-The `User` interface in `authStore.ts` does not have a `birthMonth` property, but `Account.tsx` line 85 references `cloudAuth.user.birthMonth`. The `CloudAuthUser` interface *does* have `birthMonth`, so the combined type creates a union where `birthMonth` doesn't exist on the legacy `User` type.
+### The Fix
 
-**Fix:** Add `birthMonth?: number` to the `User` interface in `authStore.ts`.
+Add a filter toolbar above the orders table with:
 
-## Changes
+- **Status filter** -- dropdown to filter by Pending, Processing, Shipped, Delivered, Cancelled, or All
+- **Year filter** -- dropdown showing available years from order data
+- **Month filter** -- dropdown for months (January-December)
+- **Search** -- text field to search by order ID, customer name, or email
+- **Order count summary** -- "Showing X of Y orders"
 
-### File 1: `src/stores/authStore.ts`
-- Add `birthMonth?: number` to the `User` interface (line 22, before the closing brace)
+**Changes:**
 
-### File 2: `src/hooks/useSpreadsheetSync.ts`
-- Add a timeout mechanism around the `bulkUpsertProducts` call so it doesn't hang forever (wrap in `Promise.race` with a 30-second timeout)
-- Improve error messaging: if timeout occurs, show a toast explaining the upload may still be processing
-- Remove the redundant `await fetchProducts()` after successful sync -- the `syncWithEdgeFunction` already updates the local store from the returned data, making the extra fetch unnecessary and a source of delay
+4. **`src/pages/admin/Orders.tsx`** -- Add filter state variables and a filter toolbar UI above the table. The filtering applies before pagination so the page counts update correctly. Filters include:
+   - Status dropdown (All / Pending / Processing / Shipped / Delivered / Cancelled)
+   - Year dropdown (auto-populated from order dates)
+   - Month dropdown (January through December)
+   - Search input for order ID / customer name / email
+   - Clear filters button
+   - Also hide "Cancelled" orders by default (with option to show them)
 
-### File 3: `src/hooks/useProductsDb.ts`
-- No changes needed -- the sync logic is correct
+---
 
-### File 4: `src/lib/spreadsheet.ts`
-- No changes needed -- the column mappings already match the spreadsheet format exactly:
-  - "Item ID" -> `id`
-  - "Item name" -> `title`  
-  - "Type" -> `producttype`
-  - "Price Per Unit" -> `unitcost`
-  - "Stock" -> `inventory`
-  - "Price" -> `price`
-  - "Status" -> `status`
+## Technical Details
 
-## Summary of What Gets Fixed
-1. Build error resolved by adding `birthMonth` to legacy User type
-2. Spreadsheet upload no longer hangs -- timeout protection added, redundant DB fetch removed
-3. All column mappings verified against the actual spreadsheet format -- no changes needed there
+### Edge Function: `create-square-checkout`
+- Remove the `supabase.from('orders').upsert(...)` block entirely
+- Store order metadata (customer info, items, costs, discount) in the Square checkout `note` field or pass it back through the redirect URL so `finalize-square-order` can reconstruct the order
+- The discount email can still be sent here since we have the customer info
+
+### Edge Function: `finalize-square-order`
+- After verifying payment with Square, **insert** (not update) the order into the database
+- Reconstruct order details from the Square order data and/or metadata passed through
+- Remove the stale-order cleanup logic (no more premature pending orders to clean up) or keep it as a safety net for legacy data
+
+### Orders Page Filters
+- `filteredOrders` computed via `useMemo` applying all active filters before pagination
+- Available years extracted from `orders.map(o => new Date(o.date).getFullYear())` with duplicates removed
+- Pagination resets to page 1 when any filter changes
+- Filter bar is responsive (stacks on mobile)
 
