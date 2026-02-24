@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
     // Get secrets
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')?.trim()
-    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'sandbox'
+    const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'production'
 
     if (!SQUARE_ACCESS_TOKEN) {
       throw new Error('Square Access Token is not configured.')
