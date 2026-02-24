@@ -77,7 +77,7 @@ export default function Checkout() {
   useEffect(() => {
     if (profileData && !toastShown) {
       if (hasEnoughPoints && isBirthMonth) {
-        toast.success("🎉 $10 points discount applied! Your birthday discount couldn’t be stacked.", { icon: '🎁' });
+        toast.success("🎉 $10 points discount applied! Your birthday discount couldn't be stacked.", { icon: '🎁' });
       } else if (hasEnoughPoints) {
         toast.success("🎉 500 points redeemed for $10 off!", { icon: '✨' });
       } else if (isBirthMonth) {
@@ -110,9 +110,8 @@ export default function Checkout() {
     setIsProcessing(true);
     try {
       const supabase = getSupabase();
-      const orderId = `#ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      // No order ID generated here — order is only created after payment confirmation
       const orderDetails = {
-        id: orderId,
         customerName: `${formData.firstName} ${formData.lastName}`,
         customerEmail: formData.email,
         items: items.map(item => ({

@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     const { orderDetails, locationId: requestLocationId } = await req.json()
     console.timeEnd('RequestBodyParsing');
 
-    if (!orderDetails || !orderDetails.id) {
+    if (!orderDetails) {
       throw new Error('Order details are missing or invalid.');
     }
 
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       origin = origin.slice(0, -1)
     }
 
-    console.log(`[CreateSquareCheckout] Creating checkout for order: ${orderDetails.id} at location: ${locationId}`)
+    console.log(`[CreateSquareCheckout] Creating checkout at location: ${locationId}`)
 
     // === SERVER-SIDE PRICE VALIDATION ===
     // Fetch real prices from the database to prevent client-side price manipulation
@@ -165,10 +165,24 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Build order metadata to pass through the redirect URL so finalize-square-order
+    // can create the order record AFTER payment is confirmed (no more premature Pending orders)
+    const orderMetadata = {
+      customerName: orderDetails.customerName || '',
+      customerEmail: orderDetails.customerEmail || '',
+      items: orderDetails.items || [],
+      shippingCost: orderDetails.shippingCost || '0.00',
+      itemCost: orderDetails.itemCost || '0.00',
+      total: orderDetails.total || '0.00',
+      discountAmount: orderDetails.discountAmount || '0',
+      discountType: orderDetails.discountType || '',
+    };
+    const metadataEncoded = encodeURIComponent(JSON.stringify(orderMetadata));
+
     const body: any = {
       idempotency_key: crypto.randomUUID(),
       checkout_options: {
-        redirect_url: `${origin}/checkout/success?orderId=${encodeURIComponent(orderDetails.id)}`,
+        redirect_url: `${origin}/checkout/success?metadata=${metadataEncoded}`,
         ask_for_shipping_address: true,
       },
       order: {
@@ -225,65 +239,39 @@ Deno.serve(async (req) => {
 
       console.log(`[CreateSquareCheckout] Square API success. Order ID: ${result.payment_link.order_id}`)
 
-      // Save order to database as Pending with Square Order ID (using upsert to avoid conflicts)
-      console.log('[CreateSquareCheckout] Saving/Updating order in database...')
-      console.time('DBSaveOrder');
-      const { error: orderError } = await supabase
-        .from('orders')
-        .upsert({
-          id: orderDetails.id,
-          customer_name: orderDetails.customerName || 'Pending Customer',
-          customer_email: orderDetails.customerEmail || 'pending@email.com',
-          date: new Date().toISOString().split('T')[0],
-          total: orderDetails.total,
-          status: 'Pending',
-          items: orderDetails.items,
-          shipping_cost: orderDetails.shippingCost,
-          item_cost: orderDetails.itemCost, // COGS
-          discount_amount: orderDetails.discountAmount || 0,
-          discount_type: orderDetails.discountType || null,
-          tracking_number: 'Pending',
-          square_order_id: result.payment_link.order_id,
-          updated_at: new Date().toISOString()
-        })
-      console.timeEnd('DBSaveOrder');
+      // NO DATABASE WRITE HERE — order is only created after payment confirmation in finalize-square-order
 
-      if (orderError) {
-        console.error('[CreateSquareCheckout] DB Error saving order:', orderError.message)
-      } else {
-        console.log('[CreateSquareCheckout] Order record synced successfully.')
-
-        // Send discount applied email if applicable
-        if (discountAmount > 0) {
-          try {
-            await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                type: 'discount_applied',
-                data: {
-                  customerEmail: orderDetails.customerEmail,
-                  customerName: orderDetails.customerName,
-                  discountType: orderDetails.discountType,
-                  amountSaved: orderDetails.discountAmount,
-                  newTotal: orderDetails.total
-                }
-              })
-            });
-            console.log('[CreateSquareCheckout] Discount email sent successfully');
-          } catch (emailErr) {
-            console.error('[CreateSquareCheckout] Failed to send discount email:', emailErr);
-          }
+      // Send discount applied email if applicable (we still have customer info)
+      if (discountAmount > 0 && orderDetails.customerEmail) {
+        try {
+          await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              type: 'discount_applied',
+              data: {
+                customerEmail: orderDetails.customerEmail,
+                customerName: orderDetails.customerName,
+                discountType: orderDetails.discountType,
+                amountSaved: orderDetails.discountAmount,
+                newTotal: orderDetails.total
+              }
+            })
+          });
+          console.log('[CreateSquareCheckout] Discount email sent successfully');
+        } catch (emailErr) {
+          console.error('[CreateSquareCheckout] Failed to send discount email:', emailErr);
         }
       }
 
       console.timeEnd('TotalExecutionTime');
       return new Response(JSON.stringify({
         success: true,
-        url: result.payment_link.url
+        url: result.payment_link.url,
+        squareOrderId: result.payment_link.order_id
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })

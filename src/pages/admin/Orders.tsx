@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2, Search, X, Filter } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useOrdersDb } from '@/hooks/useOrdersDb';
@@ -27,6 +27,11 @@ import {
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 export default function AdminOrders() {
   const { orders, productOverrides, _hasHydrated } = useAdminStore();
   const { updateOrderDb, createManualOrder } = useOrdersDb();
@@ -39,11 +44,79 @@ export default function AdminOrders() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 25;
 
-  const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState<string>('all_active');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterMonth, setFilterMonth] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Available years from order data
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    orders.forEach(o => {
+      const y = new Date(o.date).getFullYear();
+      if (!isNaN(y)) years.add(y);
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [orders]);
+
+  // Filtered orders
+  const filteredOrders = useMemo(() => {
+    let result = [...orders];
+
+    // Status filter
+    if (filterStatus === 'all_active') {
+      result = result.filter(o => o.status !== 'Cancelled');
+    } else if (filterStatus !== 'all') {
+      result = result.filter(o => o.status === filterStatus);
+    }
+
+    // Year filter
+    if (filterYear !== 'all') {
+      const year = parseInt(filterYear);
+      result = result.filter(o => new Date(o.date).getFullYear() === year);
+    }
+
+    // Month filter
+    if (filterMonth !== 'all') {
+      const month = parseInt(filterMonth);
+      result = result.filter(o => new Date(o.date).getMonth() === month);
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(o =>
+        o.id.toLowerCase().includes(q) ||
+        o.customerName.toLowerCase().includes(q) ||
+        o.customerEmail.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [orders, filterStatus, filterYear, filterMonth, searchQuery]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
   const paginatedOrders = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return orders.slice(start, start + ITEMS_PER_PAGE);
-  }, [orders, currentPage]);
+    return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
+
+  // Reset page when filters change
+  const updateFilter = (setter: (v: string) => void, value: string) => {
+    setter(value);
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = filterStatus !== 'all_active' || filterYear !== 'all' || filterMonth !== 'all' || searchQuery.trim() !== '';
+
+  const clearFilters = () => {
+    setFilterStatus('all_active');
+    setFilterYear('all');
+    setFilterMonth('all');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
 
   const [editStatus, setEditStatus] = useState<AdminOrder['status']>('Pending');
   const [editTracking, setEditTracking] = useState('');
@@ -233,6 +306,86 @@ export default function AdminOrders() {
               </Button>
             </div>
 
+            {/* Filter Toolbar */}
+            <div className="flex flex-wrap items-end gap-3 p-4 bg-secondary/10 rounded-lg border border-border/30">
+              <div className="flex items-center gap-1.5 text-muted-foreground mr-1">
+                <Filter className="h-4 w-4" />
+                <span className="font-sans text-[10px] uppercase tracking-widest font-medium">Filters</span>
+              </div>
+
+              <div className="grid gap-1">
+                <Label className="font-sans text-[9px] uppercase tracking-widest text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={(v) => updateFilter(setFilterStatus, v)}>
+                  <SelectTrigger className="h-8 w-[140px] font-sans text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="z-[300]">
+                    <SelectItem value="all_active">All (Active)</SelectItem>
+                    <SelectItem value="all">All (Inc. Cancelled)</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Processing">Processing</SelectItem>
+                    <SelectItem value="Shipped">Shipped</SelectItem>
+                    <SelectItem value="Delivered">Delivered</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1">
+                <Label className="font-sans text-[9px] uppercase tracking-widest text-muted-foreground">Year</Label>
+                <Select value={filterYear} onValueChange={(v) => updateFilter(setFilterYear, v)}>
+                  <SelectTrigger className="h-8 w-[100px] font-sans text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="z-[300]">
+                    <SelectItem value="all">All Years</SelectItem>
+                    {availableYears.map(y => (
+                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1">
+                <Label className="font-sans text-[9px] uppercase tracking-widest text-muted-foreground">Month</Label>
+                <Select value={filterMonth} onValueChange={(v) => updateFilter(setFilterMonth, v)}>
+                  <SelectTrigger className="h-8 w-[130px] font-sans text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent position="popper" className="z-[300]">
+                    <SelectItem value="all">All Months</SelectItem>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={i} value={i.toString()}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1">
+                <Label className="font-sans text-[9px] uppercase tracking-widest text-muted-foreground">Search</Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => updateFilter(setSearchQuery as any, e.target.value)}
+                    placeholder="ID, name, email..."
+                    className="h-8 pl-8 w-[180px] font-sans text-xs"
+                  />
+                </div>
+              </div>
+
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 font-sans text-[9px] uppercase tracking-widest text-muted-foreground hover:text-foreground">
+                  <X className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              )}
+
+              <div className="ml-auto text-xs font-sans text-muted-foreground">
+                Showing {filteredOrders.length} of {orders.length} orders
+              </div>
+            </div>
+
             <div className="overflow-x-auto rounded-lg border">
               <Table className="min-w-[800px]">
                 <TableHeader>
@@ -272,6 +425,13 @@ export default function AdminOrders() {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {paginatedOrders.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground font-sans text-sm">
+                        No orders found matching your filters.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -363,7 +523,6 @@ export default function AdminOrders() {
                           -${(() => {
                             const manualCost = parseFloat(selectedOrder.itemCost || '0');
                             if (manualCost > 0) return manualCost.toFixed(2);
-                            // Auto-calculate from unit costs
                             const autoCost = selectedOrder.items.reduce((sum, item) => {
                               const match = Object.values(productOverrides).find(p => p.title === item.title);
                               return sum + (parseFloat(match?.unitCost || '0') * item.quantity);
