@@ -12,32 +12,44 @@ import { useDbSync } from '@/providers/DbSyncProvider';
 
 export default function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
-  const orderId = searchParams.get('orderId');
+  const metadataParam = searchParams.get('metadata');
   const { clearCart } = useCartStore();
   const { syncProducts, syncOrders } = useDbSync();
   const [isFinalizing, setIsFinalizing] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [finalOrderId, setFinalOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const finalizeOrder = async () => {
       // Clear cart immediately upon successful payment return
       clearCart();
 
-      if (orderId) {
+      if (metadataParam) {
         try {
+          const metadata = JSON.parse(decodeURIComponent(metadataParam));
           const supabase = getSupabase();
 
-          // Call the secure backend function to finalize the order
+          // The redirect URL from Square includes the Square order ID as a query param
+          // Square appends orderId to the redirect URL automatically
+          const squareOrderId = searchParams.get('orderId');
+
+          if (!squareOrderId) {
+            setError('Missing Square order reference. Please contact support if you have been charged.');
+            setIsFinalizing(false);
+            return;
+          }
+
+          // Call the secure backend function to finalize and CREATE the order
           const { data, error: functionError } = await supabase.functions.invoke('finalize-square-order', {
-            body: { orderId }
+            body: { squareOrderId, metadata }
           });
 
           if (functionError || !data?.success) {
             console.error('Error finalizing order:', functionError || data?.error);
             setError(data?.error || 'There was a problem verifying your payment. Please contact support if you have been charged.');
           } else {
+            setFinalOrderId(data.orderId);
             // Re-sync products and orders so inventory is immediately up-to-date
-            // across this browser session — Realtime will handle other devices.
             await Promise.all([syncProducts(), syncOrders()]);
           }
         } catch (err: any) {
@@ -52,7 +64,7 @@ export default function CheckoutSuccess() {
     };
 
     finalizeOrder();
-  }, [orderId, clearCart]);
+  }, [metadataParam, clearCart]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -102,7 +114,7 @@ export default function CheckoutSuccess() {
 
                 <h1 className="font-serif text-4xl md:text-5xl mb-4 tracking-tight">Thank You For Your Order!</h1>
                 <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-                  {orderId ? `Your order ${orderId} has been placed successfully.` : "Your order has been placed successfully."} We'll send you a confirmation email with your order details and tracking information once your package ships.
+                  {finalOrderId ? `Your order ${finalOrderId} has been placed successfully.` : "Your order has been placed successfully."} We'll send you a confirmation email with your order details and tracking information once your package ships.
                 </p>
 
                 <div className="grid sm:grid-cols-2 gap-4">
