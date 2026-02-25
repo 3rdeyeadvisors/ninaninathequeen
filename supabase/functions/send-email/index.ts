@@ -32,51 +32,46 @@ const BRAND = {
   },
 }
 
+// Inline style constants
+const S = {
+  body: 'margin:0;padding:0;background:#ffffff;font-family:Georgia,serif;',
+  container: 'max-width:600px;margin:0 auto;background:#000000;padding:40px 32px;',
+  logoRow: 'text-align:center;padding-bottom:24px;',
+  logoText: "font-size:36px;color:#C9A96E;font-weight:400;font-family:Georgia,serif;",
+  divider: 'height:1px;background:#C9A96E;margin:0 0 32px 0;opacity:0.4;',
+  h1: 'color:#FFFFFF;font-size:24px;font-weight:400;margin:0 0 16px 0;font-family:Georgia,serif;',
+  h2: 'color:#FFFFFF;font-size:20px;font-weight:400;margin:0 0 12px 0;font-family:Georgia,serif;',
+  p: 'color:#FFFFFF;font-size:16px;line-height:1.7;margin:0 0 16px 0;font-family:Georgia,serif;',
+  muted: 'color:#999999;font-size:14px;line-height:1.6;font-family:Georgia,serif;',
+  btn: "display:inline-block;background:#C9A96E;color:#000000;padding:16px 40px;border-radius:50px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;",
+  btnCenter: 'text-align:center;padding:24px 0;',
+  card: 'background:#111111;border:1px solid #222222;border-radius:16px;padding:24px;margin:16px 0;',
+  footer: 'text-align:center;padding-top:32px;border-top:1px solid #222222;margin-top:32px;',
+  footerP: 'color:#999999;font-size:12px;line-height:1.8;font-family:Georgia,serif;',
+  footerA: 'color:#C9A96E;text-decoration:none;',
+  highlight: 'color:#C9A96E;font-weight:600;',
+  pointsBadge: "display:inline-block;background:#C9A96E;color:#000;padding:4px 14px;border-radius:50px;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Helvetica Neue',Arial,sans-serif;",
+}
+
 function baseWrapper(content: string): string {
-  const { colors } = BRAND
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Parisienne&display=swap" rel="stylesheet">
-<style>
-  body{margin:0;padding:0;background:${colors.bg};font-family:'Georgia',serif;}
-  .container{max-width:600px;margin:0 auto;background:${colors.bg};padding:40px 32px;}
-  .logo-row{text-align:center;padding-bottom:24px;}
-  .logo-text{font-size:36px;color:${colors.accent};font-weight:400;font-family:'Parisienne',cursive,'Georgia',serif;}
-  .divider{height:1px;background:${colors.accent};margin:0 0 32px 0;opacity:0.4;}
-  h1{color:${colors.text};font-size:24px;font-weight:400;margin:0 0 16px 0;font-family:'Georgia',serif;}
-  h2{color:${colors.text};font-size:20px;font-weight:400;margin:0 0 12px 0;font-family:'Georgia',serif;}
-  p{color:${colors.text};font-size:16px;line-height:1.7;margin:0 0 16px 0;font-family:'Georgia',serif;}
-  .muted{color:${colors.textMuted};font-size:14px;line-height:1.6;}
-  .btn{display:inline-block;background:${colors.accent};color:#000000;padding:16px 40px;border-radius:50px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;}
-  .btn:hover{background:${colors.accentDark};}
-  .btn-center{text-align:center;padding:24px 0;}
-  .card{background:${colors.cardBg};border:1px solid ${colors.border};border-radius:16px;padding:24px;margin:16px 0;}
-  .footer{text-align:center;padding-top:32px;border-top:1px solid ${colors.border};margin-top:32px;}
-  .footer p{color:${colors.textMuted};font-size:12px;line-height:1.8;}
-  .footer a{color:${colors.accent};text-decoration:none;}
-  .item-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid ${colors.border};}
-  .item-name{color:${colors.text};font-size:15px;}
-  .item-price{color:${colors.accent};font-size:15px;font-weight:600;}
-  .highlight{color:${colors.accent};font-weight:600;}
-  .points-badge{display:inline-block;background:${colors.accent};color:#000;padding:4px 14px;border-radius:50px;font-size:13px;font-weight:700;letter-spacing:1px;font-family:'Helvetica Neue',Arial,sans-serif;}
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="logo-row">
-    <div class="logo-text">Nina Armend</div>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="${S.body}">
+<div style="${S.container}">
+  <div style="${S.logoRow}">
+    <div style="${S.logoText}">Nina Armend</div>
   </div>
-  <div class="divider"></div>
+  <div style="${S.divider}"></div>
   ${content}
-  <div class="footer">
-    <p>
-      <a href="${BRAND.siteUrl}/shop">Shop</a> &nbsp;·&nbsp;
-      <a href="${BRAND.siteUrl}/about">About</a> &nbsp;·&nbsp;
-      <a href="${BRAND.siteUrl}/contact">Contact</a>
+  <div style="${S.footer}">
+    <p style="${S.footerP}">
+      <a href="${BRAND.siteUrl}/shop" style="${S.footerA}">Shop</a> &nbsp;·&nbsp;
+      <a href="${BRAND.siteUrl}/about" style="${S.footerA}">About</a> &nbsp;·&nbsp;
+      <a href="${BRAND.siteUrl}/contact" style="${S.footerA}">Contact</a>
     </p>
-    <p style="margin-top:16px;">© ${new Date().getFullYear()} Nina Armend. All rights reserved.</p>
-    <p style="margin-top:8px;">San Antonio, Texas</p>
+    <p style="${S.footerP}margin-top:16px;">© ${new Date().getFullYear()} Nina Armend. All rights reserved.</p>
+    <p style="${S.footerP}margin-top:8px;">San Antonio, Texas</p>
   </div>
 </div>
 </body>
@@ -89,19 +84,19 @@ function welcomeEmail(data: { name: string; referralCode?: string }): { subject:
   return {
     subject: 'Welcome to Nina Armend',
     html: baseWrapper(`
-      <h1>Welcome, ${name}</h1>
-      <p>We're thrilled to have you join the Nina Armend family. Your account has been created and you've earned your first reward.</p>
-      <div class="card">
-        <p style="margin:0 0 8px 0;"><span class="highlight">50 Welcome Points</span> have been added to your account.</p>
-        <p class="muted" style="margin:0;">Use your points toward exclusive discounts on future orders.</p>
+      <h1 style="${S.h1}">Welcome, ${name}</h1>
+      <p style="${S.p}">We're thrilled to have you join the Nina Armend family. Your account has been created and you've earned your first reward.</p>
+      <div style="${S.card}">
+        <p style="${S.p}margin:0 0 8px 0;"><span style="${S.highlight}">50 Welcome Points</span> have been added to your account.</p>
+        <p style="${S.muted}margin:0;">Use your points toward exclusive discounts on future orders.</p>
       </div>
       ${referralCode ? `
-      <div class="card">
-        <p style="margin:0 0 8px 0;">Share Nina Armend with a friend and earn <span class="highlight">25 bonus points</span> when they sign up.</p>
-        <p class="muted" style="margin:0;">Your referral code: <strong style="color:${BRAND.colors.accent};">${referralCode}</strong></p>
+      <div style="${S.card}">
+        <p style="${S.p}margin:0 0 8px 0;">Share Nina Armend with a friend and earn <span style="${S.highlight}">25 bonus points</span> when they sign up.</p>
+        <p style="${S.muted}margin:0;">Your referral code: <strong style="color:#C9A96E;">${referralCode}</strong></p>
       </div>` : ''}
-      <div class="btn-center">
-        <a href="${BRAND.siteUrl}/shop" class="btn">Start Shopping</a>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/shop" style="${S.btn}">Start Shopping</a>
       </div>
     `),
   }
@@ -113,10 +108,10 @@ function orderConfirmationEmail(data: { orderId: string; customerName: string; i
   const total = data.total;
   const itemsHtml = data.items.map(item =>
     `<tr>
-      <td style="padding:12px 0;border-bottom:1px solid ${BRAND.colors.border};color:${BRAND.colors.text};font-size:15px;font-family:'Georgia',serif;">
-        ${escapeHtml(item.title)}${item.size ? ` <span class="muted">(${escapeHtml(item.size)})</span>` : ''} × ${item.quantity}
+      <td style="padding:12px 0;border-bottom:1px solid #222222;color:#FFFFFF;font-size:15px;font-family:Georgia,serif;">
+        ${escapeHtml(item.title)}${item.size ? ` <span style="${S.muted}">(${escapeHtml(item.size)})</span>` : ''} × ${item.quantity}
       </td>
-      <td style="padding:12px 0;border-bottom:1px solid ${BRAND.colors.border};color:${BRAND.colors.accent};font-size:15px;font-weight:600;text-align:right;font-family:'Georgia',serif;">
+      <td style="padding:12px 0;border-bottom:1px solid #222222;color:#C9A96E;font-size:15px;font-weight:600;text-align:right;font-family:Georgia,serif;">
         $${parseFloat(item.price).toFixed(2)}
       </td>
     </tr>`
@@ -125,21 +120,21 @@ function orderConfirmationEmail(data: { orderId: string; customerName: string; i
   return {
     subject: `Order Confirmed — ${orderId.slice(0, 8).toUpperCase()}`,
     html: baseWrapper(`
-      <h1>Order Confirmed</h1>
-      <p>Thank you, ${customerName}. Your order has been received and is being prepared with care.</p>
-      <div class="card">
-        <p class="muted" style="margin:0 0 16px 0;">Order Reference: <strong style="color:${BRAND.colors.accent};">${orderId.slice(0, 8).toUpperCase()}</strong></p>
+      <h1 style="${S.h1}">Order Confirmed</h1>
+      <p style="${S.p}">Thank you, ${customerName}. Your order has been received and is being prepared with care.</p>
+      <div style="${S.card}">
+        <p style="${S.muted}margin:0 0 16px 0;">Order Reference: <strong style="color:#C9A96E;">${orderId.slice(0, 8).toUpperCase()}</strong></p>
         <table style="width:100%;border-collapse:collapse;">
           ${itemsHtml}
           <tr>
-            <td style="padding:16px 0 0;color:${BRAND.colors.text};font-size:16px;font-weight:600;font-family:'Georgia',serif;">Total</td>
-            <td style="padding:16px 0 0;color:${BRAND.colors.accent};font-size:18px;font-weight:700;text-align:right;font-family:'Georgia',serif;">$${parseFloat(total).toFixed(2)}</td>
+            <td style="padding:16px 0 0;color:#FFFFFF;font-size:16px;font-weight:600;font-family:Georgia,serif;">Total</td>
+            <td style="padding:16px 0 0;color:#C9A96E;font-size:18px;font-weight:700;text-align:right;font-family:Georgia,serif;">$${parseFloat(total).toFixed(2)}</td>
           </tr>
         </table>
       </div>
-      <p class="muted">You'll receive a shipping confirmation with tracking details once your order ships. Most orders ship within 3–5 business days.</p>
-      <div class="btn-center">
-        <a href="${BRAND.siteUrl}/account" class="btn">View Your Orders</a>
+      <p style="${S.muted}">You'll receive a shipping confirmation with tracking details once your order ships. Most orders ship within 3–5 business days.</p>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/account" style="${S.btn}">View Your Orders</a>
       </div>
     `),
   }
@@ -152,15 +147,15 @@ function contactFormToSupport(data: { name: string; email: string; message: stri
   return {
     subject: `New Inquiry from ${name}`,
     html: baseWrapper(`
-      <h1>New Customer Inquiry</h1>
-      <div class="card">
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">From:</strong> ${name}</p>
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Email:</strong> <a href="mailto:${email}" style="color:${BRAND.colors.accent};">${email}</a></p>
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid ${BRAND.colors.border};">
-          <p style="margin:0;">${message}</p>
+      <h1 style="${S.h1}">New Customer Inquiry</h1>
+      <div style="${S.card}">
+        <p style="${S.p}margin:0 0 8px 0;"><strong style="color:#C9A96E;">From:</strong> ${name}</p>
+        <p style="${S.p}margin:0 0 8px 0;"><strong style="color:#C9A96E;">Email:</strong> <a href="mailto:${email}" style="color:#C9A96E;text-decoration:none;">${email}</a></p>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid #222222;">
+          <p style="${S.p}margin:0;">${message}</p>
         </div>
       </div>
-      <p class="muted">Reply directly to this email to respond to the customer.</p>
+      <p style="${S.muted}">Reply directly to this email to respond to the customer.</p>
     `),
   }
 }
@@ -171,15 +166,15 @@ function contactFormToCustomer(data: { name: string; message: string }): { subje
   return {
     subject: "We've received your message",
     html: baseWrapper(`
-      <h1>Thank You, ${name}</h1>
-      <p>We've received your inquiry and our concierge team will respond within 24 hours.</p>
-      <div class="card">
-        <p class="muted" style="margin:0 0 8px 0;">Your message:</p>
-        <p style="margin:0;font-style:italic;">"${message}"</p>
+      <h1 style="${S.h1}">Thank You, ${name}</h1>
+      <p style="${S.p}">We've received your inquiry and our concierge team will respond within 24 hours.</p>
+      <div style="${S.card}">
+        <p style="${S.muted}margin:0 0 8px 0;">Your message:</p>
+        <p style="${S.p}margin:0;font-style:italic;">"${message}"</p>
       </div>
-      <p class="muted">If you need immediate assistance, please reach out to <a href="mailto:${BRAND.supportEmail}" style="color:${BRAND.colors.accent};">${BRAND.supportEmail}</a>.</p>
-      <div class="btn-center">
-        <a href="${BRAND.siteUrl}/shop" class="btn">Continue Shopping</a>
+      <p style="${S.muted}">If you need immediate assistance, please reach out to <a href="mailto:${BRAND.supportEmail}" style="color:#C9A96E;text-decoration:none;">${BRAND.supportEmail}</a>.</p>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/shop" style="${S.btn}">Continue Shopping</a>
       </div>
     `),
   }
@@ -189,15 +184,15 @@ function referralSuccessEmail(data: { referrerName: string; referredName: string
   return {
     subject: `You've earned ${data.pointsAwarded} referral points!`,
     html: baseWrapper(`
-      <h1>Referral Reward Earned</h1>
-      <p>${data.referrerName}, your friend <span class="highlight">${data.referredName}</span> just joined Nina Armend using your referral link!</p>
-      <div class="card" style="text-align:center;">
-        <p class="muted" style="margin:0 0 8px 0;">Points Earned</p>
-        <p style="margin:0;"><span class="points-badge">+${data.pointsAwarded} PTS</span></p>
+      <h1 style="${S.h1}">Referral Reward Earned</h1>
+      <p style="${S.p}">${data.referrerName}, your friend <span style="${S.highlight}">${data.referredName}</span> just joined Nina Armend using your referral link!</p>
+      <div style="${S.card}text-align:center;">
+        <p style="${S.muted}margin:0 0 8px 0;">Points Earned</p>
+        <p style="margin:0;"><span style="${S.pointsBadge}">+${data.pointsAwarded} PTS</span></p>
       </div>
-      <p class="muted">Keep sharing your referral link to earn more rewards. You'll earn 25 points for every friend who signs up.</p>
-      <div class="btn-center">
-        <a href="${BRAND.siteUrl}/account" class="btn">View Your Rewards</a>
+      <p style="${S.muted}">Keep sharing your referral link to earn more rewards. You'll earn 25 points for every friend who signs up.</p>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/account" style="${S.btn}">View Your Rewards</a>
       </div>
     `),
   }
@@ -218,15 +213,15 @@ function shippingUpdateEmail(data: { customerName: string; orderId: string; stat
   return {
     subject: `Order Update — ${status}`,
     html: baseWrapper(`
-      <h1>Shipping Update</h1>
-      <p>${customerName}, ${statusMsg}</p>
-      <div class="card">
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Order:</strong> ${orderId.slice(0, 8).toUpperCase()}</p>
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Status:</strong> ${status}</p>
-        ${trackingNumber ? `<p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Tracking:</strong> ${trackingNumber}</p>` : ''}
+      <h1 style="${S.h1}">Shipping Update</h1>
+      <p style="${S.p}">${customerName}, ${statusMsg}</p>
+      <div style="${S.card}">
+        <p style="${S.p}margin:0 0 8px 0;"><strong style="color:#C9A96E;">Order:</strong> ${orderId.slice(0, 8).toUpperCase()}</p>
+        <p style="${S.p}margin:0 0 8px 0;"><strong style="color:#C9A96E;">Status:</strong> ${status}</p>
+        ${trackingNumber ? `<p style="${S.p}margin:0;"><strong style="color:#C9A96E;">Tracking:</strong> ${trackingNumber}</p>` : ''}
       </div>
-      <div class="btn-center">
-        <a href="${BRAND.siteUrl}/account" class="btn">View Order Details</a>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/account" style="${S.btn}">View Order Details</a>
       </div>
     `),
   }
@@ -237,13 +232,13 @@ function waitlistConfirmationEmail(data: { name: string; email: string }): { sub
   return {
     subject: "You're on the Nina Armend Waitlist",
     html: baseWrapper(`
-      <h1>Welcome to the Waitlist</h1>
-      <p>Hey ${name}, thank you for your interest in Nina Armend. You've secured your spot on our exclusive launch list.</p>
-      <div class="card" style="text-align:center;">
-        <p style="margin:0 0 8px 0;color:${BRAND.colors.accent};font-size:18px;font-weight:600;">You're In</p>
-        <p class="muted" style="margin:0;">We'll send you an exclusive first look before our collection goes live.</p>
+      <h1 style="${S.h1}">Welcome to the Waitlist</h1>
+      <p style="${S.p}">Hey ${name}, thank you for your interest in Nina Armend. You've secured your spot on our exclusive launch list.</p>
+      <div style="${S.card}text-align:center;">
+        <p style="margin:0 0 8px 0;color:#C9A96E;font-size:18px;font-weight:600;font-family:Georgia,serif;">You're In</p>
+        <p style="${S.muted}margin:0;">We'll send you an exclusive first look before our collection goes live.</p>
       </div>
-      <p class="muted">Stay tuned — something beautiful is on its way.</p>
+      <p style="${S.muted}">Stay tuned — something beautiful is on its way.</p>
     `),
   }
 }
@@ -254,12 +249,12 @@ function waitlistNotificationEmail(data: { name: string; email: string }): { sub
   return {
     subject: `New Waitlist Signup: ${email}`,
     html: baseWrapper(`
-      <h1>New Waitlist Signup</h1>
-      <div class="card">
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Email:</strong> ${email}</p>
-        <p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Name:</strong> ${name}</p>
+      <h1 style="${S.h1}">New Waitlist Signup</h1>
+      <div style="${S.card}">
+        <p style="${S.p}margin:0 0 8px 0;"><strong style="color:#C9A96E;">Email:</strong> ${email}</p>
+        <p style="${S.p}margin:0;"><strong style="color:#C9A96E;">Name:</strong> ${name}</p>
       </div>
-      <p class="muted">A new visitor has joined the launch waitlist.</p>
+      <p style="${S.muted}">A new visitor has joined the launch waitlist.</p>
     `),
   }
 }
@@ -269,19 +264,19 @@ function launchAnnouncementEmail(data: { name?: string }): { subject: string; ht
   return {
     subject: 'Nina Armend Is Now Live',
     html: baseWrapper(`
-      <h1 style="text-align:center;font-size:28px;margin-bottom:8px;">The Wait Is Over</h1>
-      <p style="text-align:center;color:${BRAND.colors.accent};font-size:18px;margin-bottom:24px;font-style:italic;">Nina Armend is officially open.</p>
-      <p>${greeting} moment you've been waiting for is here. Our curated collection of luxury swimwear is now live and ready for you to explore.</p>
-      <p>As one of our earliest supporters, we wanted you to be the first to know.</p>
-      <div class="card" style="text-align:center;">
-        <p style="margin:0 0 12px 0;font-size:13px;color:${BRAND.colors.textMuted};text-transform:uppercase;letter-spacing:2px;font-family:'Helvetica Neue',Arial,sans-serif;">Exclusive Welcome Reward</p>
-        <p style="margin:0 0 8px 0;"><span class="points-badge">50 POINTS</span></p>
-        <p style="margin:0;color:${BRAND.colors.text};font-size:15px;">Create your account today and receive <span class="highlight">50 welcome points</span> toward your first purchase.</p>
+      <h1 style="${S.h1}text-align:center;font-size:28px;margin-bottom:8px;">The Wait Is Over</h1>
+      <p style="${S.p}text-align:center;color:#C9A96E;font-size:18px;margin-bottom:24px;font-style:italic;">${greeting} moment you've been waiting for is here.</p>
+      <p style="${S.p}">Our curated collection of luxury swimwear is now live and ready for you to explore.</p>
+      <p style="${S.p}">As one of our earliest supporters, we wanted you to be the first to know.</p>
+      <div style="${S.card}text-align:center;">
+        <p style="margin:0 0 12px 0;font-size:13px;color:#999999;text-transform:uppercase;letter-spacing:2px;font-family:'Helvetica Neue',Arial,sans-serif;">Exclusive Welcome Reward</p>
+        <p style="margin:0 0 8px 0;"><span style="${S.pointsBadge}">50 POINTS</span></p>
+        <p style="margin:0;color:#FFFFFF;font-size:15px;font-family:Georgia,serif;">Create your account today and receive <span style="${S.highlight}">50 welcome points</span> toward your first purchase.</p>
       </div>
-      <div class="btn-center" style="padding:32px 0;">
-        <a href="${BRAND.siteUrl}/shop" class="btn">Create Your Account</a>
+      <div style="${S.btnCenter}padding:32px 0;">
+        <a href="${BRAND.siteUrl}/shop" style="${S.btn}">Create Your Account</a>
       </div>
-      <p class="muted" style="text-align:center;">Explore our exclusive collections crafted with intention, designed to make you feel extraordinary.</p>
+      <p style="${S.muted}text-align:center;">Explore our exclusive collections crafted with intention, designed to make you feel extraordinary.</p>
     `),
   }
 }
@@ -292,14 +287,14 @@ function discountAppliedEmail(data: { customerName: string; discountType: string
   return {
     subject: `Your ${discountType} has been applied!`,
     html: baseWrapper(`
-      <h1>Reward Applied</h1>
-      <p>Hello ${customerName}, we've auto-applied your loyalty reward to your current checkout session.</p>
-      <div class="card">
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Reward:</strong> ${discountType}</p>
-        <p style="margin:0 0 8px 0;"><strong style="color:${BRAND.colors.accent};">Amount Saved:</strong> $${parseFloat(data.amountSaved).toFixed(2)}</p>
-        <p style="margin:0;"><strong style="color:${BRAND.colors.accent};">Order Total:</strong> $${parseFloat(data.newTotal).toFixed(2)}</p>
+      <h1 style="${S.h1}">Reward Applied</h1>
+      <p style="${S.p}">Hello ${customerName}, we've auto-applied your loyalty reward to your current checkout session.</p>
+      <div style="${S.card}">
+        <p style="${S.p}margin:0 0 8px 0;"><strong style="color:#C9A96E;">Reward:</strong> ${discountType}</p>
+        <p style="${S.p}margin:0 0 8px 0;"><strong style="color:#C9A96E;">Amount Saved:</strong> $${parseFloat(data.amountSaved).toFixed(2)}</p>
+        <p style="${S.p}margin:0;"><strong style="color:#C9A96E;">Order Total:</strong> $${parseFloat(data.newTotal).toFixed(2)}</p>
       </div>
-      <p class="muted">Thank you for being a part of our loyalty program!</p>
+      <p style="${S.muted}">Thank you for being a part of our loyalty program!</p>
     `),
   }
 }
@@ -309,17 +304,17 @@ function birthdayMonthEmail(data: { name: string }): { subject: string; html: st
   return {
     subject: `Happy Birthday Month, ${name}! 🎂`,
     html: baseWrapper(`
-      <h1 style="text-align:center;">Happy Birthday Month!</h1>
-      <p style="text-align:center;">To celebrate your special month, we've activated an exclusive <strong>$5 birthday discount</strong> for you.</p>
-      <div class="card" style="text-align:center;">
-        <p style="margin:0 0 12px 0;font-size:13px;color:${BRAND.colors.textMuted};text-transform:uppercase;letter-spacing:2px;">Your Gift</p>
-        <p style="margin:0 0 8px 0;"><span class="points-badge">$5.00 OFF</span></p>
-        <p style="margin:0;color:${BRAND.colors.text};font-size:15px;">This discount will be auto-applied at checkout all month long.</p>
+      <h1 style="${S.h1}text-align:center;">Happy Birthday Month!</h1>
+      <p style="${S.p}text-align:center;">To celebrate your special month, we've activated an exclusive <strong>$5 birthday discount</strong> for you.</p>
+      <div style="${S.card}text-align:center;">
+        <p style="margin:0 0 12px 0;font-size:13px;color:#999999;text-transform:uppercase;letter-spacing:2px;font-family:'Helvetica Neue',Arial,sans-serif;">Your Gift</p>
+        <p style="margin:0 0 8px 0;"><span style="${S.pointsBadge}">$5.00 OFF</span></p>
+        <p style="margin:0;color:#FFFFFF;font-size:15px;font-family:Georgia,serif;">This discount will be auto-applied at checkout all month long.</p>
       </div>
-      <div class="btn-center">
-        <a href="${BRAND.siteUrl}/shop" class="btn">Shop Now</a>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/shop" style="${S.btn}">Shop Now</a>
       </div>
-      <p class="muted" style="text-align:center;">Wishing you a beautiful month ahead.</p>
+      <p style="${S.muted}text-align:center;">Wishing you a beautiful month ahead.</p>
     `),
   }
 }
@@ -333,17 +328,17 @@ function adminBirthdayReportEmail(data: { count: number; month: string }): { sub
   return {
     subject: `Birthday Emails Sent — ${month} ${year}`,
     html: baseWrapper(`
-      <h1 style="text-align:center;">Birthday Report</h1>
-      <p style="text-align:center;">This month's automated birthday celebrations have been sent.</p>
-      <div class="card" style="text-align:center;">
-        <p style="margin:0 0 12px 0;font-size:13px;color:${BRAND.colors.textMuted};text-transform:uppercase;letter-spacing:2px;">Campaign Success</p>
-        <p style="margin:0 0 8px 0;"><span class="points-badge">${count} EMAILS SENT</span></p>
-        <p style="margin:0;color:${BRAND.colors.text};font-size:15px;">Celebrating our customers born in <span class="highlight">${month}</span>.</p>
+      <h1 style="${S.h1}text-align:center;">Birthday Report</h1>
+      <p style="${S.p}text-align:center;">This month's automated birthday celebrations have been sent.</p>
+      <div style="${S.card}text-align:center;">
+        <p style="margin:0 0 12px 0;font-size:13px;color:#999999;text-transform:uppercase;letter-spacing:2px;font-family:'Helvetica Neue',Arial,sans-serif;">Campaign Success</p>
+        <p style="margin:0 0 8px 0;"><span style="${S.pointsBadge}">${count} EMAILS SENT</span></p>
+        <p style="margin:0;color:#FFFFFF;font-size:15px;font-family:Georgia,serif;">Celebrating our customers born in <span style="${S.highlight}">${month}</span>.</p>
       </div>
-      <p class="muted" style="text-align:center;margin-top:24px;">Your customers have received their $5 birthday discount, auto-applied to their accounts for the entire month of ${month}.</p>
-      <p class="muted" style="text-align:center;">Next automated check: <strong>1st of ${nextMonthName}</strong>.</p>
-      <div class="btn-center">
-        <a href="${BRAND.siteUrl}/admin" class="btn">View Dashboard</a>
+      <p style="${S.muted}text-align:center;margin-top:24px;">Your customers have received their $5 birthday discount, auto-applied to their accounts for the entire month of ${month}.</p>
+      <p style="${S.muted}text-align:center;">Next automated check: <strong>1st of ${nextMonthName}</strong>.</p>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/admin" style="${S.btn}">View Dashboard</a>
       </div>
     `),
   }
@@ -433,7 +428,6 @@ Deno.serve(async (req) => {
     if (!isServiceRole) {
       if (type === 'welcome') {
         // Welcome email is allowed for any authenticated user
-        // user is already verified above
       } else if (!isAdmin) {
         return new Response(JSON.stringify({ error: 'Admin access required' }), {
           status: 403,
@@ -466,10 +460,8 @@ Deno.serve(async (req) => {
         break
       }
       case 'contact_form': {
-        // Send to support
         const toSupport = contactFormToSupport(data)
         results.push(await sendEmail(BRAND.supportEmail, toSupport.subject, toSupport.html, data.email))
-        // Send confirmation to customer
         const toCustomer = contactFormToCustomer(data)
         results.push(await sendEmail(data.email, toCustomer.subject, toCustomer.html))
         break
