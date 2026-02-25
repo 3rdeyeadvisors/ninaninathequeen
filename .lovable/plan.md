@@ -1,64 +1,47 @@
 
 
-# Fix: Stop Abandoned Checkouts from Creating Orders + Add Date Filtering
+# Fix Email Deliverability and Clickable Links
 
-## Problem 1: Abandoned checkouts show up as orders
+## Problems
 
-Right now, when a customer clicks "Proceed to Payment," the system immediately creates a "Pending" order in the database **before** the customer even pays on Square. If they close the Square payment page without paying, that order stays in the admin dashboard as "Pending" forever (it only gets cleaned up if another customer happens to complete a checkout, which triggers a stale-order cleanup).
+1. **Emails going to spam**: The email body background is `#000000` (black). Many email clients flag dark-bodied emails as suspicious. Additionally, spam filters penalize emails that rely on `<style>` blocks because they look like phishing attempts.
 
-### The Fix
+2. **Links not clickable**: The call-to-action buttons use CSS classes (`.btn`) defined in a `<style>` block. Gmail, Outlook, and most email clients strip `<style>` tags entirely, so the buttons lose all their styling and sometimes become invisible (black text on black background) or unclickable.
 
-Stop creating the order when checkout starts. Instead, only create the order **after** Square confirms payment was successful.
+## Solution
 
-**Changes:**
+Rewrite the `baseWrapper` function and all email templates in `supabase/functions/send-email/index.ts` to use **inline styles only** and a **white body background**, while keeping the luxury black-and-gold branding for inner content cards.
 
-1. **`supabase/functions/create-square-checkout/index.ts`** -- Remove the database upsert (lines 231-248) that saves the order as "Pending." Instead, pass the order details (items, customer info, costs, discount) as metadata attached to the Square payment link so they survive the round-trip.
+### Changes to `supabase/functions/send-email/index.ts`
 
-2. **`supabase/functions/finalize-square-order/index.ts`** -- Update to create the order record here (instead of just updating it), using the order details stored from the checkout initiation. The order only gets written to the database after Square confirms payment. Also keep the stale-order cleanup for any legacy pending orders.
+1. **White body background** -- Change the outermost `<body>` and container background from `#000000` to `#ffffff`. This prevents spam flagging and ensures proper rendering in dark-mode email clients (which auto-invert light backgrounds).
 
-3. **`src/pages/Checkout.tsx`** -- Minor update: stop generating and passing an order ID upfront since orders are no longer pre-created.
+2. **Inner card styling preserved** -- Keep the black/gold luxury feel inside content cards (`background: #000000` on inner `<div>` sections), so the brand aesthetic is maintained.
 
-## Problem 2: Too many orders, endless scrolling
+3. **All inline styles** -- Remove the entire `<style>` block. Convert every CSS class (`.btn`, `.card`, `.muted`, `.highlight`, `.points-badge`, etc.) to inline `style=""` attributes directly on each HTML element.
 
-The current pagination shows 25 orders per page with just Previous/Next buttons, but there's no way to filter by date, status, or search for a specific order.
+4. **Buttons as `<a>` tags with full inline styles** -- Every CTA button will use inline styles like:
+   ```html
+   <a href="..." style="display:inline-block;background:#C9A96E;color:#000000;padding:16px 40px;border-radius:50px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">
+     Shop Now
+   </a>
+   ```
 
-### The Fix
+5. **Links always visible** -- All `<a>` tags get explicit `color` and `text-decoration` inline styles so they're always visible and clickable regardless of email client.
 
-Add a filter toolbar above the orders table with:
+6. **Remove Google Fonts `<link>`** -- External font imports are blocked by most email clients. Fall back to `Georgia, serif` (already the fallback) without the Parisienne `@import`.
 
-- **Status filter** -- dropdown to filter by Pending, Processing, Shipped, Delivered, Cancelled, or All
-- **Year filter** -- dropdown showing available years from order data
-- **Month filter** -- dropdown for months (January-December)
-- **Search** -- text field to search by order ID, customer name, or email
-- **Order count summary** -- "Showing X of Y orders"
+### Scope of Changes
 
-**Changes:**
+- **1 file modified**: `supabase/functions/send-email/index.ts`
+  - `baseWrapper()` function rewritten with white body, inline-styled inner container, no `<style>` block
+  - All 12 template functions updated to use inline styles instead of CSS classes
+- **1 deployment**: Redeploy the `send-email` edge function
 
-4. **`src/pages/admin/Orders.tsx`** -- Add filter state variables and a filter toolbar UI above the table. The filtering applies before pagination so the page counts update correctly. Filters include:
-   - Status dropdown (All / Pending / Processing / Shipped / Delivered / Cancelled)
-   - Year dropdown (auto-populated from order dates)
-   - Month dropdown (January through December)
-   - Search input for order ID / customer name / email
-   - Clear filters button
-   - Also hide "Cancelled" orders by default (with option to show them)
+### What Stays the Same
 
----
-
-## Technical Details
-
-### Edge Function: `create-square-checkout`
-- Remove the `supabase.from('orders').upsert(...)` block entirely
-- Store order metadata (customer info, items, costs, discount) in the Square checkout `note` field or pass it back through the redirect URL so `finalize-square-order` can reconstruct the order
-- The discount email can still be sent here since we have the customer info
-
-### Edge Function: `finalize-square-order`
-- After verifying payment with Square, **insert** (not update) the order into the database
-- Reconstruct order details from the Square order data and/or metadata passed through
-- Remove the stale-order cleanup logic (no more premature pending orders to clean up) or keep it as a safety net for legacy data
-
-### Orders Page Filters
-- `filteredOrders` computed via `useMemo` applying all active filters before pagination
-- Available years extracted from `orders.map(o => new Date(o.date).getFullYear())` with duplicates removed
-- Pagination resets to page 1 when any filter changes
-- Filter bar is responsive (stacks on mobile)
+- All email types and their content/copy remain identical
+- The black-and-gold brand colors are preserved (just moved to inner cards instead of the body)
+- The "Nina Armend" logo text, footer links, and overall layout structure stay the same
+- No changes to the sending logic, authentication, or routing code
 
