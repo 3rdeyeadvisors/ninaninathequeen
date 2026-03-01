@@ -1,47 +1,65 @@
 
+# Add TikTok Icon to Maintenance Page + Transaction Fee Field for Orders
 
-# Fix Email Deliverability and Clickable Links
+## 1. Add TikTok icon to the Maintenance page
 
-## Problems
+The Maintenance page (`src/pages/Maintenance.tsx`) shows Instagram, Facebook, and Mail icons but is missing the TikTok icon. The Footer already has the fix (custom SVG), so we'll add the same TikTok SVG icon to the Maintenance page, rendered when `settings.tiktokUrl` is set.
 
-1. **Emails going to spam**: The email body background is `#000000` (black). Many email clients flag dark-bodied emails as suspicious. Additionally, spam filters penalize emails that rely on `<style>` blocks because they look like phishing attempts.
+**File:** `src/pages/Maintenance.tsx`
+- Add a TikTok button block after the Facebook button (around line 196), using the same inline SVG from the Footer fix
 
-2. **Links not clickable**: The call-to-action buttons use CSS classes (`.btn`) defined in a `<style>` block. Gmail, Outlook, and most email clients strip `<style>` tags entirely, so the buttons lose all their styling and sometimes become invisible (black text on black background) or unclickable.
+## 2. Add "Transaction Fee" field to orders
 
-## Solution
+Square charges a processing fee on each transaction. The admin needs a field to record this so it's deducted from profit calculations.
 
-Rewrite the `baseWrapper` function and all email templates in `supabase/functions/send-email/index.ts` to use **inline styles only** and a **white body background**, while keeping the luxury black-and-gold branding for inner content cards.
+### Database migration
 
-### Changes to `supabase/functions/send-email/index.ts`
+Add a `transaction_fee` column to the `orders` table:
+```sql
+ALTER TABLE orders ADD COLUMN transaction_fee text DEFAULT '0.00';
+```
 
-1. **White body background** -- Change the outermost `<body>` and container background from `#000000` to `#ffffff`. This prevents spam flagging and ensures proper rendering in dark-mode email clients (which auto-invert light backgrounds).
+### Store type update
 
-2. **Inner card styling preserved** -- Keep the black/gold luxury feel inside content cards (`background: #000000` on inner `<div>` sections), so the brand aesthetic is maintained.
+**File:** `src/stores/adminStore.ts`
+- Add `transactionFee?: string` to the `AdminOrder` interface
 
-3. **All inline styles** -- Remove the entire `<style>` block. Convert every CSS class (`.btn`, `.card`, `.muted`, `.highlight`, `.points-badge`, etc.) to inline `style=""` attributes directly on each HTML element.
+### DB hook update
 
-4. **Buttons as `<a>` tags with full inline styles** -- Every CTA button will use inline styles like:
-   ```html
-   <a href="..." style="display:inline-block;background:#C9A96E;color:#000000;padding:16px 40px;border-radius:50px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;font-family:'Helvetica Neue',Arial,sans-serif;">
-     Shop Now
-   </a>
-   ```
+**File:** `src/hooks/useOrdersDb.ts`
+- Add `transaction_fee` to `DbOrderUpdate` interface
+- Map `transactionFee` in `fetchOrders`, `upsertOrder`, `updateOrderDb`, and `createManualOrder`
 
-5. **Links always visible** -- All `<a>` tags get explicit `color` and `text-decoration` inline styles so they're always visible and clickable regardless of email client.
+### Orders page updates
 
-6. **Remove Google Fonts `<link>`** -- External font imports are blocked by most email clients. Fall back to `Georgia, serif` (already the fallback) without the Parisienne `@import`.
+**File:** `src/pages/admin/Orders.tsx`
 
-### Scope of Changes
+- Add `editTransactionFee` state variable alongside existing edit fields
+- Populate it in `handleEdit` from `order.transactionFee`
+- Include it in `saveOrderChanges` call
+- Add a "Transaction Fee" input field in the **Edit Order dialog** (alongside Shipping Cost and Item Cost -- making it a 3-column grid)
+- Add a "Transaction Fee" input in the **Create Manual Order dialog**
+- Update the **View Order dialog** financial summary to show Transaction Fee as a deduction and adjust the displayed Profit to subtract it
+- Add `transactionFee` to the `newOrder` state default and to `handleCreateOrder`
 
-- **1 file modified**: `supabase/functions/send-email/index.ts`
-  - `baseWrapper()` function rewritten with white body, inline-styled inner container, no `<style>` block
-  - All 12 template functions updated to use inline styles instead of CSS classes
-- **1 deployment**: Redeploy the `send-email` edge function
+### Dashboard profit calculation update
 
-### What Stays the Same
+**File:** `src/pages/admin/Dashboard.tsx`
+- Update `totalNetProfit` calculation to also subtract `parseFloat(order.transactionFee || '0')` from each order's profit
 
-- All email types and their content/copy remain identical
-- The black-and-gold brand colors are preserved (just moved to inner cards instead of the body)
-- The "Nina Armend" logo text, footer links, and overall layout structure stay the same
-- No changes to the sending logic, authentication, or routing code
+### DB Sync Provider update
 
+**File:** `src/providers/DbSyncProvider.tsx`
+- Include `transaction_fee` in the order mapping within `syncOrders`
+
+## Summary of files changed
+
+| File | Change |
+|---|---|
+| `src/pages/Maintenance.tsx` | Add TikTok SVG icon button |
+| `orders` table (migration) | Add `transaction_fee text DEFAULT '0.00'` column |
+| `src/stores/adminStore.ts` | Add `transactionFee` to `AdminOrder` interface |
+| `src/hooks/useOrdersDb.ts` | Map `transactionFee` in all CRUD operations |
+| `src/pages/admin/Orders.tsx` | Add Transaction Fee input to edit/create/view dialogs; deduct from profit display |
+| `src/pages/admin/Dashboard.tsx` | Deduct transaction fee from net profit calculation |
+| `src/providers/DbSyncProvider.tsx` | Map `transaction_fee` in order sync |
