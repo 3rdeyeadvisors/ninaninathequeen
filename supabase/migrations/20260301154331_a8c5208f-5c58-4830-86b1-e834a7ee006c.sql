@@ -1,0 +1,1 @@
+ALTER TABLE orders ADD COLUMN transaction_fee text DEFAULT '0.00';

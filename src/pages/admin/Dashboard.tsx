@@ -189,18 +189,16 @@ export default function AdminDashboard() {
     return confirmedOrders.reduce((acc, order) => {
       const revenue = parseFloat(order.total);
       const shipping = parseFloat(order.shippingCost || '0');
+      const txFee = parseFloat(order.transactionFee || '0');
       
       // Auto-calculate COGS from unit costs if available
       let cost = 0;
       const manualItemCost = parseFloat(order.itemCost || '0');
       
       if (manualItemCost > 0) {
-        // Use manual item cost if set
         cost = manualItemCost;
       } else {
-        // Calculate from product unit costs
         cost = order.items.reduce((itemAcc, item) => {
-          // Find matching product by title
           const matchingProduct = Object.values(productOverrides).find(
             p => p.title === item.title
           );
@@ -209,7 +207,7 @@ export default function AdminDashboard() {
         }, 0);
       }
       
-      return acc + (revenue - shipping - cost);
+      return acc + (revenue - shipping - cost - txFee);
     }, 0);
   }, [confirmedOrders, productOverrides]);
 
