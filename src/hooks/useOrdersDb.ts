@@ -12,6 +12,7 @@ interface DbOrderUpdate {
   tracking_number?: string;
   shipping_cost?: string;
   item_cost?: string;
+  transaction_fee?: string;
 }
 
 /**
@@ -44,6 +45,7 @@ export function useOrdersDb() {
           total: order.total,
           shippingCost: order.shipping_cost || undefined,
           itemCost: order.item_cost || undefined,
+          transactionFee: (order as any).transaction_fee || undefined,
           status: order.status as AdminOrder['status'],
           trackingNumber: order.tracking_number || '',
           shippingAddress: (order.shipping_address as ShippingAddress) || undefined,
@@ -71,6 +73,7 @@ export function useOrdersDb() {
           total: order.total,
           shipping_cost: order.shippingCost,
           item_cost: order.itemCost,
+          transaction_fee: order.transactionFee,
           status: order.status,
           tracking_number: order.trackingNumber,
           items: order.items,
@@ -100,6 +103,7 @@ export function useOrdersDb() {
       if (updates.trackingNumber !== undefined) dbUpdates.tracking_number = updates.trackingNumber;
       if (updates.shippingCost !== undefined) dbUpdates.shipping_cost = updates.shippingCost;
       if (updates.itemCost !== undefined) dbUpdates.item_cost = updates.itemCost;
+      if (updates.transactionFee !== undefined) dbUpdates.transaction_fee = updates.transactionFee;
 
       const { error } = await supabase
         .from('orders')
@@ -138,6 +142,7 @@ export function useOrdersDb() {
           total: order.total,
           shipping_cost: order.shippingCost,
           item_cost: order.itemCost,
+          transaction_fee: order.transactionFee,
           status: order.status,
           tracking_number: order.trackingNumber,
           items: order.items as Json,

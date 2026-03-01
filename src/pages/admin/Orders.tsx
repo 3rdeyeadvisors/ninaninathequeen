@@ -122,6 +122,7 @@ export default function AdminOrders() {
   const [editTracking, setEditTracking] = useState('');
   const [editShippingCost, setEditShippingCost] = useState('');
   const [editItemCost, setEditItemCost] = useState('');
+  const [editTransactionFee, setEditTransactionFee] = useState('');
 
   // Manual order creation state
   const [newOrder, setNewOrder] = useState({
@@ -129,6 +130,7 @@ export default function AdminOrders() {
     customerEmail: '',
     shippingCost: '0.00',
     itemCost: '0.00',
+    transactionFee: '0.00',
   });
   const [newOrderItems, setNewOrderItems] = useState<Array<{
     productId: string;
@@ -175,6 +177,7 @@ export default function AdminOrders() {
     setEditTracking(order.trackingNumber || '');
     setEditShippingCost(order.shippingCost || '0.00');
     setEditItemCost(order.itemCost || '0.00');
+    setEditTransactionFee(order.transactionFee || '0.00');
     setIsEditing(true);
   };
 
@@ -189,7 +192,8 @@ export default function AdminOrders() {
         status: editStatus,
         trackingNumber: editTracking,
         shippingCost: editShippingCost,
-        itemCost: editItemCost
+        itemCost: editItemCost,
+        transactionFee: editTransactionFee,
       });
 
       if (success) {
@@ -246,6 +250,7 @@ export default function AdminOrders() {
       total: orderTotal.toFixed(2),
       shippingCost: newOrder.shippingCost,
       itemCost: newOrder.itemCost,
+      transactionFee: newOrder.transactionFee,
       status: 'Processing',
       trackingNumber: '',
       items: newOrderItems.map(item => ({
@@ -263,7 +268,7 @@ export default function AdminOrders() {
     if (result === true) {
       toast.success('Manual order created and inventory updated');
       setIsCreating(false);
-      setNewOrder({ customerName: '', customerEmail: '', shippingCost: '0.00', itemCost: '0.00' });
+      setNewOrder({ customerName: '', customerEmail: '', shippingCost: '0.00', itemCost: '0.00', transactionFee: '0.00' });
       setNewOrderItems([]);
     } else {
       toast.error(typeof result === 'string' ? result : 'Failed to create order');
@@ -508,7 +513,7 @@ export default function AdminOrders() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-b pb-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 border-b pb-6">
                       <div>
                         <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Revenue</h4>
                         <p className="font-sans text-sm font-medium">${parseFloat(selectedOrder.total).toFixed(2)}</p>
@@ -532,17 +537,22 @@ export default function AdminOrders() {
                         </p>
                       </div>
                       <div>
+                        <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Transaction Fee</h4>
+                        <p className="font-sans text-sm font-medium text-destructive">-${parseFloat(selectedOrder.transactionFee || '0').toFixed(2)}</p>
+                      </div>
+                      <div>
                         <h4 className="text-[10px] font-sans uppercase tracking-widest text-muted-foreground mb-2">Profit</h4>
                         <p className="font-sans text-sm font-medium text-emerald-600">
                           ${(() => {
                             const revenue = parseFloat(selectedOrder.total);
                             const shipping = parseFloat(selectedOrder.shippingCost || '0');
+                            const txFee = parseFloat(selectedOrder.transactionFee || '0');
                             const manualCost = parseFloat(selectedOrder.itemCost || '0');
                             const cost = manualCost > 0 ? manualCost : selectedOrder.items.reduce((sum, item) => {
                               const match = Object.values(productOverrides).find(p => p.title === item.title);
                               return sum + (parseFloat(match?.unitCost || '0') * item.quantity);
                             }, 0);
-                            return (revenue - shipping - cost).toFixed(2);
+                            return (revenue - shipping - cost - txFee).toFixed(2);
                           })()}
                         </p>
                       </div>
@@ -615,7 +625,7 @@ export default function AdminOrders() {
                       className="font-sans text-sm"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="shippingCost" className="font-sans text-[10px] uppercase tracking-widest">Shipping Cost</Label>
                       <Input
@@ -635,6 +645,17 @@ export default function AdminOrders() {
                         step="0.01"
                         value={editItemCost}
                         onChange={(e) => setEditItemCost(e.target.value)}
+                        className="font-sans text-sm"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="transactionFee" className="font-sans text-[10px] uppercase tracking-widest">Transaction Fee</Label>
+                      <Input
+                        id="transactionFee"
+                        type="number"
+                        step="0.01"
+                        value={editTransactionFee}
+                        onChange={(e) => setEditTransactionFee(e.target.value)}
                         className="font-sans text-sm"
                       />
                     </div>
@@ -752,7 +773,7 @@ export default function AdminOrders() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                  <div className="grid grid-cols-3 gap-4 border-t pt-4">
                     <div className="grid gap-2">
                       <Label className="font-sans text-[10px] uppercase tracking-widest">Shipping Cost</Label>
                       <Input
@@ -770,6 +791,16 @@ export default function AdminOrders() {
                         step="0.01"
                         value={newOrder.itemCost}
                         onChange={(e) => setNewOrder({ ...newOrder, itemCost: e.target.value })}
+                        className="font-sans text-sm"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="font-sans text-[10px] uppercase tracking-widest">Transaction Fee</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={newOrder.transactionFee}
+                        onChange={(e) => setNewOrder({ ...newOrder, transactionFee: e.target.value })}
                         className="font-sans text-sm"
                       />
                     </div>

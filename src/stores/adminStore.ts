@@ -18,6 +18,7 @@ export interface AdminOrder {
   total: string;
   shippingCost?: string;
   itemCost?: string;
+  transactionFee?: string;
   status: 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
   trackingNumber: string;
   shippingAddress?: ShippingAddress;

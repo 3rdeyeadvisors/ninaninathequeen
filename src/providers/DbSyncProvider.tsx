@@ -84,6 +84,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
           total: order.total,
           shippingCost: order.shipping_cost || undefined,
           itemCost: order.item_cost || undefined,
+          transactionFee: (order as any).transaction_fee || undefined,
           status: order.status as AdminOrder['status'],
           trackingNumber: order.tracking_number || '',
           shippingAddress: (order.shipping_address as ShippingAddress) || undefined,
