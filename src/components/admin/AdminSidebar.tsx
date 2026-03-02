@@ -2,7 +2,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, ShoppingBag, Settings, Store, Users, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const SEEN_KEYS: Record<string, string> = {
@@ -13,42 +13,40 @@ const SEEN_KEYS: Record<string, string> = {
 export function AdminSidebar() {
   const location = useLocation();
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
-  const currentCountsRef = useRef<Record<string, number>>({});
+  
 
   useEffect(() => {
-    const fetchCounts = async () => {
+    const fetchAndMark = async () => {
       const [ordersRes, waitlistRes] = await Promise.all([
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'Pending'),
         supabase.from('waitlist').select('id', { count: 'exact', head: true }),
       ]);
 
-      const currentOrders = ordersRes.count || 0;
-      const currentWaitlist = waitlistRes.count || 0;
-
-      currentCountsRef.current = {
-        '/admin/orders': currentOrders,
-        '/admin/customers': currentWaitlist,
+      const counts: Record<string, number> = {
+        '/admin/orders': ordersRes.count || 0,
+        '/admin/customers': waitlistRes.count || 0,
       };
 
-      const seenOrders = parseInt(localStorage.getItem(SEEN_KEYS['/admin/orders']) || '0', 10);
-      const seenWaitlist = parseInt(localStorage.getItem(SEEN_KEYS['/admin/customers']) || '0', 10);
+      // If admin is on a badged page, mark current count as seen
+      const path = location.pathname;
+      const seenKey = SEEN_KEYS[path];
+      if (seenKey) {
+        localStorage.setItem(seenKey, String(counts[path]));
+      }
 
-      setBadgeCounts({
-        '/admin/orders': Math.max(0, currentOrders - seenOrders),
-        '/admin/customers': Math.max(0, currentWaitlist - seenWaitlist),
-      });
+      const badges: Record<string, number> = {};
+      for (const [p, key] of Object.entries(SEEN_KEYS)) {
+        if (p === path) {
+          badges[p] = 0;
+        } else {
+          const seen = parseInt(localStorage.getItem(key) || '0', 10);
+          badges[p] = Math.max(0, counts[p] - seen);
+        }
+      }
+
+      setBadgeCounts(badges);
     };
-    fetchCounts();
-  }, []);
-
-  // Mark as seen when admin visits the page
-  useEffect(() => {
-    const path = location.pathname;
-    const seenKey = SEEN_KEYS[path];
-    if (seenKey && currentCountsRef.current[path] !== undefined) {
-      localStorage.setItem(seenKey, String(currentCountsRef.current[path]));
-      setBadgeCounts(prev => ({ ...prev, [path]: 0 }));
-    }
+    fetchAndMark();
   }, [location.pathname]);
 
   const links = [
