@@ -1,65 +1,43 @@
 
-# Add TikTok Icon to Maintenance Page + Transaction Fee Field for Orders
 
-## 1. Add TikTok icon to the Maintenance page
+# Fix Admin Notification Badges Not Clearing
 
-The Maintenance page (`src/pages/Maintenance.tsx`) shows Instagram, Facebook, and Mail icons but is missing the TikTok icon. The Footer already has the fix (custom SVG), so we'll add the same TikTok SVG icon to the Maintenance page, rendered when `settings.tiktokUrl` is set.
+## Problem
 
-**File:** `src/pages/Maintenance.tsx`
-- Add a TikTok button block after the Facebook button (around line 196), using the same inline SVG from the Footer fix
+The badge counts on the admin sidebar (Orders, Customers) don't disappear after the admin visits those pages. Two bugs cause this:
 
-## 2. Add "Transaction Fee" field to orders
+1. **Race condition on mount**: Both `useEffect` hooks run on mount simultaneously. The "mark as seen" effect checks `currentCountsRef.current[path]`, but the fetch hasn't completed yet (it's async), so the value is `undefined` and nothing gets saved to localStorage.
 
-Square charges a processing fee on each transaction. The admin needs a field to record this so it's deducted from profit calculations.
+2. **No re-fetch on navigation**: The fetch only runs once on mount (`[]` dependency). If the admin navigates between admin pages, the counts are never refreshed, so returning to a page doesn't update the badge.
 
-### Database migration
+## Solution
 
-Add a `transaction_fee` column to the `orders` table:
-```sql
-ALTER TABLE orders ADD COLUMN transaction_fee text DEFAULT '0.00';
+Refactor the two `useEffect` hooks in `src/components/admin/AdminSidebar.tsx` into a single, cohesive flow:
+
+### Changes to `src/components/admin/AdminSidebar.tsx`
+
+1. **Re-fetch on every pathname change** -- Change the `fetchCounts` effect dependency from `[]` to `[location.pathname]` so counts refresh each time the admin navigates.
+
+2. **Mark as seen inside the fetch callback** -- After fetching the current counts, immediately check if the admin is currently on a page that has a badge. If so, save the current count to localStorage and set the badge to 0. This eliminates the race condition because "mark as seen" only runs after the data is available.
+
+3. **Remove the second `useEffect`** -- It's no longer needed since the marking logic is handled inside the fetch.
+
+The resulting logic will be:
+```
+useEffect(() => {
+  async function fetchAndMark() {
+    // 1. Fetch current counts from DB
+    // 2. Compute badges (current - seen)
+    // 3. If admin is currently on a badged page, 
+    //    save current count as "seen" and set badge to 0
+  }
+  fetchAndMark();
+}, [location.pathname]);
 ```
 
-### Store type update
-
-**File:** `src/stores/adminStore.ts`
-- Add `transactionFee?: string` to the `AdminOrder` interface
-
-### DB hook update
-
-**File:** `src/hooks/useOrdersDb.ts`
-- Add `transaction_fee` to `DbOrderUpdate` interface
-- Map `transactionFee` in `fetchOrders`, `upsertOrder`, `updateOrderDb`, and `createManualOrder`
-
-### Orders page updates
-
-**File:** `src/pages/admin/Orders.tsx`
-
-- Add `editTransactionFee` state variable alongside existing edit fields
-- Populate it in `handleEdit` from `order.transactionFee`
-- Include it in `saveOrderChanges` call
-- Add a "Transaction Fee" input field in the **Edit Order dialog** (alongside Shipping Cost and Item Cost -- making it a 3-column grid)
-- Add a "Transaction Fee" input in the **Create Manual Order dialog**
-- Update the **View Order dialog** financial summary to show Transaction Fee as a deduction and adjust the displayed Profit to subtract it
-- Add `transactionFee` to the `newOrder` state default and to `handleCreateOrder`
-
-### Dashboard profit calculation update
-
-**File:** `src/pages/admin/Dashboard.tsx`
-- Update `totalNetProfit` calculation to also subtract `parseFloat(order.transactionFee || '0')` from each order's profit
-
-### DB Sync Provider update
-
-**File:** `src/providers/DbSyncProvider.tsx`
-- Include `transaction_fee` in the order mapping within `syncOrders`
-
-## Summary of files changed
+### File changed
 
 | File | Change |
 |---|---|
-| `src/pages/Maintenance.tsx` | Add TikTok SVG icon button |
-| `orders` table (migration) | Add `transaction_fee text DEFAULT '0.00'` column |
-| `src/stores/adminStore.ts` | Add `transactionFee` to `AdminOrder` interface |
-| `src/hooks/useOrdersDb.ts` | Map `transactionFee` in all CRUD operations |
-| `src/pages/admin/Orders.tsx` | Add Transaction Fee input to edit/create/view dialogs; deduct from profit display |
-| `src/pages/admin/Dashboard.tsx` | Deduct transaction fee from net profit calculation |
-| `src/providers/DbSyncProvider.tsx` | Map `transaction_fee` in order sync |
+| `src/components/admin/AdminSidebar.tsx` | Merge two useEffects into one that re-fetches on navigation and marks as seen after data loads |
+
