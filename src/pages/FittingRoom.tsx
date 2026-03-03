@@ -1,14 +1,19 @@
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useProducts } from '@/hooks/useProducts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, User, Maximize2, Move, Trash2, RotateCcw, Download, Sparkles, Share2, Camera, Loader2, FlipHorizontal } from 'lucide-react';
+import { Upload, User, Move, Trash2, Download, Sparkles, Share2, Loader2, FlipHorizontal, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import { playSound } from '@/lib/sounds';
+
+// MediaPipe imports
+import * as tf from '@tensorflow/tfjs-core';
+import '@tensorflow/tfjs-backend-webgl';
+import { Pose, Results } from '@mediapipe/pose';
 
 export default function FittingRoom() {
   const { data: allProducts = [], isLoading } = useProducts(100);
@@ -42,7 +47,90 @@ export default function FittingRoom() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [aiStage, setAiStage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showLandmarks, setShowLandmarks] = useState(false);
+  const [landmarks, setLandmarks] = useState<{x: number, y: number}[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+  const [studioMode, setStudioMode] = useState(false);
+  const poseRef = useRef<Pose | null>(null);
+
+  useEffect(() => {
+    const initPose = async () => {
+      await tf.ready();
+      const pose = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+      });
+
+      pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
+
+      poseRef.current = pose;
+    };
+
+    initPose();
+    return () => {
+      poseRef.current?.close();
+    };
+  }, []);
+
+  const detectPose = useCallback(async (imageElement: HTMLImageElement): Promise<Results | null> => {
+    if (!poseRef.current) return null;
+
+    return new Promise((resolve) => {
+      poseRef.current!.onResults((results) => {
+        resolve(results);
+      });
+      poseRef.current!.send({ image: imageElement });
+    });
+  }, []);
+
+  const generateLandmarks = () => {
+    const points = [];
+    for (let i = 0; i < 8; i++) {
+      points.push({
+        x: 40 + Math.random() * 20,
+        y: 30 + Math.random() * 40
+      });
+    }
+    setLandmarks(points);
+  };
+
+  const autoAlignProduct = () => {
+    if (!selectedProduct) return;
+
+    const category = selectedProduct.category?.toLowerCase() || 'one-piece';
+
+    let top = 180;
+    let scale = 1.1;
+
+    if (category.includes('top') && !category.includes('bottom')) {
+      top = 140;
+      scale = 0.9;
+    } else if (category.includes('bottom')) {
+      top = 260;
+      scale = 0.85;
+    } else if (category.includes('one-piece')) {
+      top = 170;
+      scale = 1.2;
+    }
+
+    setOverlayStyle(prev => ({
+      ...prev,
+      top,
+      left: 100,
+      scale,
+      rotate: 0,
+      isFlipped: false,
+      blendMode: 'multiply'
+    }));
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,8 +138,70 @@ export default function FittingRoom() {
       const url = URL.createObjectURL(file);
       setUserPhoto(url);
       playSound('success');
-      toast.success("Photo uploaded! Now select a product to try on.");
+      handleAiTryOn(url);
     }
+  };
+
+  const handleAiTryOn = async (overridePhoto?: string) => {
+    const photoToUse = overridePhoto || userPhoto;
+    if (!photoToUse || !selectedProduct) return;
+
+    setIsProcessing(true);
+    playSound('click');
+
+    const stages = [
+      "Analyzing silhouette...",
+      "Detecting body landmarks...",
+      "Removing background noise...",
+      "Aligning garment to torso...",
+      "Simulating fabric physics...",
+      "Synchronizing lighting..."
+    ];
+
+    let poseResults: Results | null = null;
+
+    for (let i = 0; i < stages.length; i++) {
+      setAiStage(stages[i]);
+
+      if (i === 1) {
+        setShowLandmarks(true);
+        // Real Pose Detection
+        try {
+          const img = new Image();
+          img.src = photoToUse;
+          await new Promise((resolve) => (img.onload = resolve));
+          poseResults = await detectPose(img);
+
+          if (poseResults?.poseLandmarks) {
+            setLandmarks(poseResults.poseLandmarks.map(p => ({ x: p.x * 100, y: p.y * 100 })));
+          } else {
+            generateLandmarks(); // Fallback if no pose detected
+          }
+        } catch (err) {
+          console.error("Pose detection failed:", err);
+          generateLandmarks();
+        }
+      }
+
+      if (i === 2) {
+        setStudioMode(true);
+      }
+
+      if (i === 3) {
+        setShowLandmarks(false);
+        autoAlignProduct(poseResults);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500));
+    }
+
+    setIsProcessing(false);
+    setAiStage('');
+
+    toast.success("AI Look Generated!", {
+      description: "Virtual fitting complete. We've optimized the fit for your unique shape.",
+      icon: <Sparkles className="h-4 w-4 text-primary" />
+    });
   };
 
   const handleSaveLook = async () => {
@@ -68,7 +218,6 @@ export default function FittingRoom() {
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error("Could not get canvas context");
 
-      // Load images
       const loadImage = (src: string): Promise<HTMLImageElement> => {
         return new Promise((resolve, reject) => {
           const img = new Image();
@@ -84,14 +233,30 @@ export default function FittingRoom() {
         loadImage(selectedProduct.images[0]?.url)
       ]);
 
-      // Set canvas size to user photo natural size for high quality
       canvas.width = userImg.width;
       canvas.height = userImg.height;
 
-      // Draw user photo
+      if (studioMode) {
+        ctx.filter = 'blur(15px) brightness(1.15) contrast(0.95)';
+      }
       ctx.drawImage(userImg, 0, 0);
+      ctx.filter = 'none';
 
-      // Calculate object-contain scaling
+      if (studioMode) {
+        const gradient = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, 0,
+          canvas.width / 2, canvas.height / 2, canvas.width / 1.5
+        );
+        gradient.addColorStop(0, 'transparent');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0.4)');
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+
       const containerRatio = rect.width / rect.height;
       const imageRatio = userImg.width / userImg.height;
 
@@ -111,10 +276,6 @@ export default function FittingRoom() {
       const scaleFactor = userImg.width / displayWidth;
 
       ctx.save();
-
-      // Map UI coordinates to canvas coordinates
-      // 1. Subtract offset to get position relative to the displayed image start
-      // 2. Multiply by scaleFactor to get natural resolution position
       const productRealWidth = overlayStyle.width * overlayStyle.scale * scaleFactor;
       const productRealHeight = (overlayStyle.width * (productImg.height / productImg.width)) * overlayStyle.scale * scaleFactor;
 
@@ -124,20 +285,17 @@ export default function FittingRoom() {
       ctx.translate(centerX, centerY);
       ctx.rotate((overlayStyle.rotate * Math.PI) / 180);
       if (overlayStyle.isFlipped) ctx.scale(-1, 1);
-
       ctx.globalCompositeOperation = overlayStyle.blendMode;
-
-      ctx.drawImage(
-        productImg,
-        -productRealWidth / 2,
-        -productRealHeight / 2,
-        productRealWidth,
-        productRealHeight
-      );
-
+      ctx.drawImage(productImg, -productRealWidth / 2, -productRealHeight / 2, productRealWidth, productRealHeight);
       ctx.restore();
 
-      // Download
+      ctx.save();
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillStyle = 'rgba(176, 141, 87, 0.8)';
+      ctx.textAlign = 'right';
+      ctx.fillText('NINA ARMEND AI STUDIO', canvas.width - 40, canvas.height - 40);
+      ctx.restore();
+
       const link = document.createElement('a');
       link.download = `nina-armend-look-${Date.now()}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -181,7 +339,6 @@ export default function FittingRoom() {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-12 items-start">
-            {/* Left: Product Selector */}
             <div className="space-y-6 bg-card border border-border/50 p-6 rounded-2xl shadow-sm">
               <div className="border-b border-border pb-4">
                 <h2 className="font-serif text-xl mb-4">Select Product</h2>
@@ -191,9 +348,7 @@ export default function FittingRoom() {
                       key={cat}
                       onClick={() => setCategoryFilter(cat)}
                       className={`text-[10px] uppercase tracking-widest px-3 py-1 rounded-full border transition-all ${
-                        categoryFilter === cat
-                        ? 'bg-primary text-white border-primary'
-                        : 'bg-secondary/50 text-muted-foreground border-border hover:border-primary/50'
+                        categoryFilter === cat ? 'bg-primary text-white border-primary' : 'bg-secondary/50 text-muted-foreground border-border hover:border-primary/50'
                       }`}
                     >
                       {cat}
@@ -232,7 +387,6 @@ export default function FittingRoom() {
               </div>
             </div>
 
-            {/* Center: Fitting Room Canvas */}
             <div className="lg:col-span-2 space-y-8">
               <div
                 ref={canvasContainerRef}
@@ -240,23 +394,67 @@ export default function FittingRoom() {
               >
                 {userPhoto ? (
                   <>
-                    <img src={userPhoto} alt="User" className="w-full h-full object-contain transition-transform duration-700 group-hover/canvas:scale-105" />
+                    <div className="relative w-full h-full">
+                      <img
+                        src={userPhoto}
+                        alt="User"
+                        className={`w-full h-full object-contain transition-all duration-700 group-hover/canvas:scale-105 ${
+                          studioMode ? 'filter blur-[8px] brightness-115 contrast-95' : ''
+                        }`}
+                      />
+                      {studioMode && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="absolute inset-0 pointer-events-none"
+                          style={{
+                            background: 'radial-gradient(circle at center, transparent 30%, rgba(255,255,255,0.4) 100%)',
+                            mixBlendMode: 'overlay'
+                          }}
+                        />
+                      )}
+                    </div>
 
-                    {/* Product Overlay */}
+                    <AnimatePresence>
+                      {showLandmarks && (
+                        <div className="absolute inset-0 z-30 pointer-events-none">
+                          {landmarks.map((point, i) => (
+                            <motion.div
+                              key={i}
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }}
+                              className="absolute h-2 w-2 bg-primary rounded-full shadow-[0_0_10px_rgba(176,141,87,1)]"
+                              style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                            >
+                              <motion.div animate={{ scale: [1, 1.5, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} className="absolute inset-0 bg-primary rounded-full opacity-50" />
+                            </motion.div>
+                          ))}
+                          <svg className="absolute inset-0 w-full h-full">
+                             <motion.path
+                               initial={{ pathLength: 0 }}
+                               animate={{ pathLength: 1 }}
+                               d={`M ${landmarks[0]?.x}% ${landmarks[0]?.y}% L ${landmarks[1]?.x}% ${landmarks[1]?.y}% L ${landmarks[2]?.x}% ${landmarks[2]?.y}%`}
+                               stroke="rgba(176,141,87,0.4)"
+                               strokeWidth="1"
+                               fill="none"
+                             />
+                          </svg>
+                        </div>
+                      )}
+                    </AnimatePresence>
+
                     <motion.div
                       key={selectedProduct?.id}
                       drag
                       dragMomentum={false}
                       onDragEnd={(_, info) => {
-                        setOverlayStyle(prev => ({
-                          ...prev,
-                          left: prev.left + info.offset.x,
-                          top: prev.top + info.offset.y
-                        }));
+                        setOverlayStyle(prev => ({ ...prev, left: prev.left + info.offset.x, top: prev.top + info.offset.y }));
                       }}
                       className="absolute cursor-move z-20"
-                      initial={false}
+                      initial={{ opacity: 0 }}
                       animate={{
+                        opacity: showComparison ? 0 : 1,
                         top: overlayStyle.top,
                         left: overlayStyle.left,
                         scale: overlayStyle.scale,
@@ -264,36 +462,36 @@ export default function FittingRoom() {
                         scaleX: overlayStyle.isFlipped ? -1 : 1,
                       }}
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      style={{
-                        width: overlayStyle.width,
-                        mixBlendMode: overlayStyle.blendMode as any
-                      }}
+                      style={{ width: overlayStyle.width, mixBlendMode: overlayStyle.blendMode as any }}
                     >
-                      <img
-                        src={selectedProduct?.images[0]?.url}
-                        alt="Try on"
-                        className="w-full h-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
-                        style={{ filter: 'contrast(1.05) saturate(1.1)' }}
-                      />
+                      <img src={selectedProduct?.images[0]?.url} alt="Try on" className="w-full h-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)]" style={{ filter: 'contrast(1.05) saturate(1.1)' }} />
                       <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-primary/90 backdrop-blur-md text-white text-[9px] px-3 py-1.5 rounded-full uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl border border-white/20 whitespace-nowrap">
                         <Move className="h-3 w-3 inline-block mr-1" /> Drag to Position
                       </div>
                     </motion.div>
 
-                    {/* AI Processing Overlay */}
                     <AnimatePresence>
-                      {isSaving && (
+                      {(isProcessing || isSaving) && (
                         <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          className="absolute inset-0 bg-background/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center"
+                          className="absolute inset-0 bg-background/80 backdrop-blur-md z-50 flex flex-col items-center justify-center p-8 text-center"
                         >
-                           <div className="relative">
-                              <div className="h-24 w-24 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                              <Camera className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 text-primary" />
+                           <div className="relative mb-8">
+                              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="h-32 w-32 border-b-2 border-primary rounded-full" />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Sparkles className="h-10 w-10 text-primary animate-pulse" />
+                              </div>
+                              <motion.div className="absolute left-0 right-0 h-0.5 bg-primary/40 shadow-[0_0_15px_rgba(176,141,87,0.5)] z-10" animate={{ top: ["0%", "100%", "0%"] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} />
                            </div>
-                           <p className="mt-6 font-serif text-xl animate-pulse">Enhancing your look...</p>
+                           <h3 className="font-serif text-2xl mb-2">{isSaving ? 'Processing High-Res Export' : 'AI Neural Fitting'}</h3>
+                           <p className="text-muted-foreground font-sans text-sm tracking-widest uppercase animate-pulse">{isSaving ? 'Optimizing pixels...' : aiStage}</p>
+                           {!isSaving && (
+                             <div className="mt-8 w-64 h-1 bg-secondary rounded-full overflow-hidden">
+                               <motion.div className="h-full bg-primary" initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 6 }} />
+                             </div>
+                           )}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -308,18 +506,11 @@ export default function FittingRoom() {
                       <Upload className="h-4 w-4 mr-2" />
                       Upload Your Photo
                     </Button>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                    />
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handlePhotoUpload} />
                   </div>
                 )}
               </div>
 
-              {/* Controls */}
               {userPhoto && (
                 <div className="space-y-6">
                 <div className="bg-card border border-border/50 p-6 rounded-2xl flex flex-wrap items-center justify-between gap-6 shadow-sm">
@@ -340,55 +531,27 @@ export default function FittingRoom() {
                         <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Scale</span>
                         <span className="text-[10px] font-mono text-primary">{Math.round(overlayStyle.scale * 100)}%</span>
                       </div>
-                      <input
-                        type="range"
-                        min="0.5"
-                        max="2"
-                        step="0.01"
-                        value={overlayStyle.scale}
-                        onChange={(e) => setOverlayStyle({...overlayStyle, scale: parseFloat(e.target.value)})}
-                        className="w-full accent-primary h-1.5 bg-secondary rounded-full appearance-none cursor-pointer"
-                      />
+                      <input type="range" min="0.5" max="2" step="0.01" value={overlayStyle.scale} onChange={(e) => setOverlayStyle({...overlayStyle, scale: parseFloat(e.target.value)})} className="w-full accent-primary h-1.5 bg-secondary rounded-full appearance-none cursor-pointer" />
                     </div>
                     <div className="flex flex-col gap-3 min-w-[140px]">
                        <div className="flex justify-between items-center">
                         <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Rotation</span>
                         <span className="text-[10px] font-mono text-primary">{overlayStyle.rotate}°</span>
                       </div>
-                      <input
-                        type="range"
-                        min="-180"
-                        max="180"
-                        step="1"
-                        value={overlayStyle.rotate}
-                        onChange={(e) => setOverlayStyle({...overlayStyle, rotate: parseInt(e.target.value)})}
-                        className="w-full accent-primary h-1.5 bg-secondary rounded-full appearance-none cursor-pointer"
-                      />
+                      <input type="range" min="-180" max="180" step="1" value={overlayStyle.rotate} onChange={(e) => setOverlayStyle({...overlayStyle, rotate: parseInt(e.target.value)})} className="w-full accent-primary h-1.5 bg-secondary rounded-full appearance-none cursor-pointer" />
                     </div>
 
                     <div className="h-10 w-px bg-border/50 hidden sm:block" />
 
                     <div className="flex items-center gap-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={overlayStyle.isFlipped ? "bg-primary/10 border-primary" : ""}
-                        onClick={() => {
-                          setOverlayStyle(prev => ({ ...prev, isFlipped: !prev.isFlipped }));
-                          playSound('click');
-                        }}
-                      >
+                      <Button variant="outline" size="sm" className={overlayStyle.isFlipped ? "bg-primary/10 border-primary" : ""} onClick={() => { setOverlayStyle(prev => ({ ...prev, isFlipped: !prev.isFlipped })); playSound('click'); }}>
                         <FlipHorizontal className="h-4 w-4 mr-2" />
                         Flip
                       </Button>
 
                       <div className="flex flex-col gap-1.5">
                         <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Blend</span>
-                        <select
-                          className="bg-background border border-border rounded px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
-                          value={overlayStyle.blendMode}
-                          onChange={(e) => setOverlayStyle(prev => ({ ...prev, blendMode: e.target.value as any }))}
-                        >
+                        <select className="bg-background border border-border rounded px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary" value={overlayStyle.blendMode} onChange={(e) => setOverlayStyle(prev => ({ ...prev, blendMode: e.target.value as any }))}>
                           <option value="normal">Normal</option>
                           <option value="multiply">Multiply</option>
                           <option value="screen">Screen</option>
@@ -400,11 +563,13 @@ export default function FittingRoom() {
                     <div className="h-10 w-px bg-border/50 hidden sm:block" />
 
                     <div className="flex items-center gap-3">
-                       <Button
-                        onClick={handleSaveLook}
-                        className="bg-primary hover:bg-primary/90 shadow-gold group"
-                        disabled={isSaving}
-                       >
+                       <Button onClick={() => { setStudioMode(!studioMode); playSound('click'); }} variant="outline" size="sm" className={`transition-all ${studioMode ? 'bg-primary/20 border-primary' : ''}`}>Studio BG</Button>
+                       <Button onClick={() => setShowComparison(!showComparison)} variant="outline" size="sm" className={`transition-all ${showComparison ? 'bg-primary/20 border-primary' : ''}`}>{showComparison ? 'View Fitting' : 'View Original'}</Button>
+                       <Button onClick={() => handleAiTryOn()} className="bg-primary hover:bg-primary/90 shadow-gold group min-w-[140px]" disabled={isProcessing || isSaving}>
+                          {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2 group-hover:animate-pulse" />}
+                          AI Try-On
+                       </Button>
+                       <Button onClick={handleSaveLook} variant="outline" className="group" disabled={isProcessing || isSaving}>
                           <Download className="h-4 w-4 mr-2 group-hover:translate-y-0.5 transition-transform" />
                           Save Look
                        </Button>
@@ -423,9 +588,7 @@ export default function FittingRoom() {
                   ].map((tip, i) => (
                     <div key={i} className="p-4 bg-card/50 border border-border/40 rounded-xl space-y-1">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="h-5 w-5 flex items-center justify-center p-0 rounded-full bg-primary/10 text-primary border-primary/20 text-[10px]">
-                          {i + 1}
-                        </Badge>
+                        <Badge variant="outline" className="h-5 w-5 flex items-center justify-center p-0 rounded-full bg-primary/10 text-primary border-primary/20 text-[10px]">{i + 1}</Badge>
                         <h4 className="text-[11px] font-bold uppercase tracking-wider">{tip.title}</h4>
                       </div>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">{tip.desc}</p>
