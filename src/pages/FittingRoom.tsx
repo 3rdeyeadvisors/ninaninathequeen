@@ -1,20 +1,28 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useProducts } from '@/hooks/useProducts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, User, Maximize2, Move, Trash2, RotateCcw, Download, Sparkles, Share2, Camera, Loader2 } from 'lucide-react';
+import { Upload, User, Maximize2, Move, Trash2, RotateCcw, Download, Sparkles, Share2, Camera, Loader2, FlipHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { playSound } from '@/lib/sounds';
-import { useEffect } from 'react';
 
 export default function FittingRoom() {
-  const { data: allProducts, isLoading } = useProducts(100);
+  const { data: allProducts = [], isLoading } = useProducts(100);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState(allProducts.length > 0 ? allProducts[0] : null);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [categoryFilter, setCategoryFilter] = useState('All');
+
+  const filteredProducts = useMemo(() => {
+    return allProducts.filter(product => {
+      if (categoryFilter === 'All') return true;
+      return product.category?.includes(categoryFilter) || product.productType?.includes(categoryFilter);
+    });
+  }, [allProducts, categoryFilter]);
 
   useEffect(() => {
     if (!selectedProduct && allProducts.length > 0) {
@@ -27,7 +35,9 @@ export default function FittingRoom() {
     top: 150,
     left: 100,
     scale: 1,
-    rotate: 0
+    rotate: 0,
+    isFlipped: false,
+    blendMode: 'normal' as GlobalCompositeOperation
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,17 +54,105 @@ export default function FittingRoom() {
     }
   };
 
-  const handleSaveLook = () => {
+  const handleSaveLook = async () => {
+    if (!userPhoto || !selectedProduct || !canvasContainerRef.current) return;
+
     setIsSaving(true);
     playSound('click');
 
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const container = canvasContainerRef.current;
+      const rect = container.getBoundingClientRect();
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error("Could not get canvas context");
+
+      // Load images
+      const loadImage = (src: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      };
+
+      const [userImg, productImg] = await Promise.all([
+        loadImage(userPhoto),
+        loadImage(selectedProduct.images[0]?.url)
+      ]);
+
+      // Set canvas size to user photo natural size for high quality
+      canvas.width = userImg.width;
+      canvas.height = userImg.height;
+
+      // Draw user photo
+      ctx.drawImage(userImg, 0, 0);
+
+      // Calculate object-contain scaling
+      const containerRatio = rect.width / rect.height;
+      const imageRatio = userImg.width / userImg.height;
+
+      let displayWidth, displayHeight, offsetX, offsetY;
+      if (imageRatio > containerRatio) {
+        displayWidth = rect.width;
+        displayHeight = rect.width / imageRatio;
+        offsetX = 0;
+        offsetY = (rect.height - displayHeight) / 2;
+      } else {
+        displayHeight = rect.height;
+        displayWidth = rect.height * imageRatio;
+        offsetY = 0;
+        offsetX = (rect.width - displayWidth) / 2;
+      }
+
+      const scaleFactor = userImg.width / displayWidth;
+
+      ctx.save();
+
+      // Map UI coordinates to canvas coordinates
+      // 1. Subtract offset to get position relative to the displayed image start
+      // 2. Multiply by scaleFactor to get natural resolution position
+      const productRealWidth = overlayStyle.width * overlayStyle.scale * scaleFactor;
+      const productRealHeight = (overlayStyle.width * (productImg.height / productImg.width)) * overlayStyle.scale * scaleFactor;
+
+      const centerX = (overlayStyle.left - offsetX + (overlayStyle.width * overlayStyle.scale) / 2) * scaleFactor;
+      const centerY = (overlayStyle.top - offsetY + (overlayStyle.width * (productImg.height / productImg.width) * overlayStyle.scale) / 2) * scaleFactor;
+
+      ctx.translate(centerX, centerY);
+      ctx.rotate((overlayStyle.rotate * Math.PI) / 180);
+      if (overlayStyle.isFlipped) ctx.scale(-1, 1);
+
+      ctx.globalCompositeOperation = overlayStyle.blendMode;
+
+      ctx.drawImage(
+        productImg,
+        -productRealWidth / 2,
+        -productRealHeight / 2,
+        productRealWidth,
+        productRealHeight
+      );
+
+      ctx.restore();
+
+      // Download
+      const link = document.createElement('a');
+      link.download = `nina-armend-look-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+
       toast.success("Look saved to your gallery!", {
         description: "Your virtual fitting has been processed with AI enhancement.",
         icon: <Sparkles className="h-4 w-4 text-primary" />
       });
-    }, 2000);
+    } catch (error) {
+      console.error("Error saving look:", error);
+      toast.error("Failed to save look. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const resetOverlay = () => {
@@ -63,7 +161,9 @@ export default function FittingRoom() {
       top: 150,
       left: 100,
       scale: 1,
-      rotate: 0
+      rotate: 0,
+      isFlipped: false,
+      blendMode: 'normal'
     });
   };
 
@@ -83,26 +183,49 @@ export default function FittingRoom() {
           <div className="grid lg:grid-cols-3 gap-12 items-start">
             {/* Left: Product Selector */}
             <div className="space-y-6 bg-card border border-border/50 p-6 rounded-2xl shadow-sm">
-              <h2 className="font-serif text-xl border-b border-border pb-4">Select Product</h2>
+              <div className="border-b border-border pb-4">
+                <h2 className="font-serif text-xl mb-4">Select Product</h2>
+                <div className="flex flex-wrap gap-2">
+                  {['All', 'Top', 'Bottom', 'One-Piece'].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setCategoryFilter(cat)}
+                      className={`text-[10px] uppercase tracking-widest px-3 py-1 rounded-full border transition-all ${
+                        categoryFilter === cat
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-secondary/50 text-muted-foreground border-border hover:border-primary/50'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2">
                 {isLoading ? (
                   <div className="col-span-2 flex justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : (
-                  allProducts.map((product) => (
+                  filteredProducts.map((product) => (
                     <button
                       key={product.id}
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          resetOverlay();
-                          playSound('click');
-                        }}
-                      className={`aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedProduct?.id === product.id ? 'border-primary' : 'border-transparent hover:border-primary/30'
-                      }`}
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        resetOverlay();
+                        playSound('click');
+                      }}
+                      className="group/item flex flex-col gap-2 text-left"
                     >
-                      <img src={product.images[0]?.url} alt={product.title} className="w-full h-full object-cover" />
+                      <div className={`aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedProduct?.id === product.id ? 'border-primary shadow-md' : 'border-transparent group-hover/item:border-primary/30'
+                      }`}>
+                        <img src={product.images[0]?.url} alt={product.title} className="w-full h-full object-cover transition-transform duration-500 group-hover/item:scale-110" />
+                      </div>
+                      <div className="px-1">
+                        <p className="text-[10px] font-medium truncate uppercase tracking-tighter">{product.title}</p>
+                        <p className="text-[10px] text-muted-foreground">${product.price.amount}</p>
+                      </div>
                     </button>
                   ))
                 )}
@@ -111,22 +234,39 @@ export default function FittingRoom() {
 
             {/* Center: Fitting Room Canvas */}
             <div className="lg:col-span-2 space-y-8">
-              <div className="relative aspect-[3/4] bg-secondary/20 rounded-[2rem] border border-border/50 overflow-hidden flex items-center justify-center shadow-2xl group/canvas">
+              <div
+                ref={canvasContainerRef}
+                className="relative aspect-[3/4] bg-secondary/20 rounded-[2rem] border border-border/50 overflow-hidden flex items-center justify-center shadow-2xl group/canvas"
+              >
                 {userPhoto ? (
                   <>
-                    <img src={userPhoto} alt="User" className="w-full h-full object-cover transition-transform duration-700 group-hover/canvas:scale-105" />
+                    <img src={userPhoto} alt="User" className="w-full h-full object-contain transition-transform duration-700 group-hover/canvas:scale-105" />
 
                     {/* Product Overlay */}
                     <motion.div
+                      key={selectedProduct?.id}
                       drag
                       dragMomentum={false}
+                      onDragEnd={(_, info) => {
+                        setOverlayStyle(prev => ({
+                          ...prev,
+                          left: prev.left + info.offset.x,
+                          top: prev.top + info.offset.y
+                        }));
+                      }}
                       className="absolute cursor-move z-20"
-                      style={{
-                        width: overlayStyle.width,
+                      initial={false}
+                      animate={{
                         top: overlayStyle.top,
                         left: overlayStyle.left,
                         scale: overlayStyle.scale,
-                        rotate: overlayStyle.rotate
+                        rotate: overlayStyle.rotate,
+                        scaleX: overlayStyle.isFlipped ? -1 : 1,
+                      }}
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      style={{
+                        width: overlayStyle.width,
+                        mixBlendMode: overlayStyle.blendMode as any
                       }}
                     >
                       <img
@@ -181,7 +321,8 @@ export default function FittingRoom() {
 
               {/* Controls */}
               {userPhoto && (
-                <div className="bg-card border border-border/50 p-6 rounded-2xl flex flex-wrap items-center justify-between gap-6">
+                <div className="space-y-6">
+                <div className="bg-card border border-border/50 p-6 rounded-2xl flex flex-wrap items-center justify-between gap-6 shadow-sm">
                   <div className="flex items-center gap-4">
                     <Button variant="outline" size="sm" onClick={() => { setUserPhoto(null); playSound('remove'); }}>
                       <Trash2 className="h-4 w-4 mr-2" />
@@ -227,6 +368,37 @@ export default function FittingRoom() {
 
                     <div className="h-10 w-px bg-border/50 hidden sm:block" />
 
+                    <div className="flex items-center gap-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={overlayStyle.isFlipped ? "bg-primary/10 border-primary" : ""}
+                        onClick={() => {
+                          setOverlayStyle(prev => ({ ...prev, isFlipped: !prev.isFlipped }));
+                          playSound('click');
+                        }}
+                      >
+                        <FlipHorizontal className="h-4 w-4 mr-2" />
+                        Flip
+                      </Button>
+
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Blend</span>
+                        <select
+                          className="bg-background border border-border rounded px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                          value={overlayStyle.blendMode}
+                          onChange={(e) => setOverlayStyle(prev => ({ ...prev, blendMode: e.target.value as any }))}
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="multiply">Multiply</option>
+                          <option value="screen">Screen</option>
+                          <option value="overlay">Overlay</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="h-10 w-px bg-border/50 hidden sm:block" />
+
                     <div className="flex items-center gap-3">
                        <Button
                         onClick={handleSaveLook}
@@ -241,6 +413,25 @@ export default function FittingRoom() {
                        </Button>
                     </div>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { title: "Full Body Photo", desc: "Use a head-to-toe photo for best results." },
+                    { title: "Plain Background", desc: "Solid colors help the product stand out." },
+                    { title: "Even Lighting", desc: "Avoid harsh shadows or backlighting." }
+                  ].map((tip, i) => (
+                    <div key={i} className="p-4 bg-card/50 border border-border/40 rounded-xl space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="h-5 w-5 flex items-center justify-center p-0 rounded-full bg-primary/10 text-primary border-primary/20 text-[10px]">
+                          {i + 1}
+                        </Badge>
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider">{tip.title}</h4>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{tip.desc}</p>
+                    </div>
+                  ))}
+                </div>
                 </div>
               )}
             </div>
