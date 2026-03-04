@@ -394,6 +394,28 @@ function adminLowStockEmail(data: { productTitle: string; inventory: number; thr
   };
 }
 
+function adminReturnRequestEmail(data: { orderId: string; customerName: string; customerEmail: string; reason: string; adminEmail: string }): { subject: string; html: string } {
+  const orderId = escapeHtml(data.orderId || '');
+  const customerName = escapeHtml(data.customerName || '');
+  const customerEmail = escapeHtml(data.customerEmail || '');
+  const reason = escapeHtml(data.reason || '');
+  return {
+    subject: `Return Request — Order ${orderId.slice(0, 8).toUpperCase()}`,
+    html: baseWrapper(`
+      <h1 style="${S.h1}">New Return Request</h1>
+      <p style="${S.p}">A customer has submitted a return request that requires your attention.</p>
+      <div style="${S.card}">
+        <p style="${S.muted}margin:0 0 8px 0;">Order: <strong style="color:#C9A96E;">${orderId.slice(0, 8).toUpperCase()}</strong></p>
+        <p style="${S.muted}margin:0 0 8px 0;">Customer: <strong style="color:#FFFFFF;">${customerName}</strong> (${customerEmail})</p>
+        <p style="${S.muted}margin:0;">Reason: <strong style="color:#FFFFFF;">${reason}</strong></p>
+      </div>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/admin/orders" style="${S.btn}">View in Admin</a>
+      </div>
+    `),
+  };
+}
+
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<{ success: boolean; error?: string }> {
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (!RESEND_API_KEY) {
@@ -559,6 +581,11 @@ Deno.serve(async (req) => {
       }
       case 'admin_low_stock': {
         const email = adminLowStockEmail(data);
+        results.push(await sendEmail(data.adminEmail, email.subject, email.html));
+        break;
+      }
+      case 'admin_return_request': {
+        const email = adminReturnRequestEmail(data);
         results.push(await sendEmail(data.adminEmail, email.subject, email.html));
         break;
       }
