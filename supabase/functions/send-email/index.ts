@@ -140,6 +140,38 @@ function orderConfirmationEmail(data: { orderId: string; customerName: string; i
   }
 }
 
+function shippingConfirmationEmail(data: { orderId: string; customerName: string; trackingNumber: string; items: Array<{ title: string; quantity: number; price: string; size?: string }>; total: string }): { subject: string; html: string } {
+  const orderId = escapeHtml(data.orderId || '');
+  const customerName = escapeHtml(data.customerName || '');
+  const trackingNumber = escapeHtml(data.trackingNumber || '');
+  const itemsHtml = data.items.map(item =>
+    `<tr>
+      <td style="padding:10px 0;border-bottom:1px solid #222222;color:#FFFFFF;font-size:14px;font-family:Georgia,serif;">
+        ${escapeHtml(item.title)}${item.size ? ` <span style="${S.muted}">(${escapeHtml(item.size)})</span>` : ''} × ${item.quantity}
+      </td>
+    </tr>`
+  ).join('');
+
+  return {
+    subject: `Your Nina Armend Order Has Shipped — ${orderId.slice(0, 8).toUpperCase()}`,
+    html: baseWrapper(`
+      <h1 style="${S.h1}">Your Order Is On Its Way</h1>
+      <p style="${S.p}">Great news, ${customerName} — your order has shipped and is heading to you now.</p>
+      <div style="${S.card}">
+        <p style="${S.muted}margin:0 0 8px 0;">Order Reference: <strong style="color:#C9A96E;">${orderId.slice(0, 8).toUpperCase()}</strong></p>
+        ${trackingNumber ? `<p style="${S.p}margin:0 0 8px 0;">Tracking Number: <strong style="color:#C9A96E;">${trackingNumber}</strong></p>` : ''}
+        <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+          ${itemsHtml}
+        </table>
+      </div>
+      <p style="${S.muted}">International orders typically arrive within 7–14 business days. Domestic orders within 3–7 business days.</p>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/account" style="${S.btn}">Track Your Order</a>
+      </div>
+    `),
+  };
+}
+
 function contactFormToSupport(data: { name: string; email: string; message: string }): { subject: string; html: string } {
   const name = escapeHtml(data.name || '');
   const email = escapeHtml(data.email || '');
@@ -446,6 +478,11 @@ Deno.serve(async (req) => {
       }
       case 'order_confirmation': {
         const email = orderConfirmationEmail(data)
+        results.push(await sendEmail(data.customerEmail, email.subject, email.html))
+        break
+      }
+      case 'shipping_confirmation': {
+        const email = shippingConfirmationEmail(data)
         results.push(await sendEmail(data.customerEmail, email.subject, email.html))
         break
       }
