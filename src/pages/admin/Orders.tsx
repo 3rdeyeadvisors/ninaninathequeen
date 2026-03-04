@@ -2,11 +2,11 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2, Search, X, Filter, Mail } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2, Search, X, Filter, Mail, RefreshCw } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useOrdersDb } from '@/hooks/useOrdersDb';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,17 @@ export default function AdminOrders() {
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  const [returnRequests, setReturnRequests] = useState<Array<{
+    id: string;
+    order_id: string;
+    customer_name: string;
+    customer_email: string;
+    reason: string;
+    status: string;
+    created_at: string;
+  }>>([]);
+  const [isLoadingReturns, setIsLoadingReturns] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 25;
@@ -346,6 +357,37 @@ export default function AdminOrders() {
       case 'Cancelled': return 'bg-rose-100 text-rose-800';
     }
   };
+
+  const fetchReturnRequests = async () => {
+    setIsLoadingReturns(true);
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('return_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (data) setReturnRequests(data);
+    } catch (err) {
+      console.error('Failed to fetch returns:', err);
+    } finally {
+      setIsLoadingReturns(false);
+    }
+  };
+
+  const updateReturnStatus = async (id: string, status: string) => {
+    try {
+      const supabase = getSupabase();
+      await supabase.from('return_requests').update({ status }).eq('id', id);
+      setReturnRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+      toast.success('Return status updated');
+    } catch {
+      toast.error('Failed to update return status');
+    }
+  };
+
+  useEffect(() => {
+    fetchReturnRequests();
+  }, []);
 
   return (
     <div className="min-h-screen bg-secondary/20">
@@ -887,6 +929,64 @@ export default function AdminOrders() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            {/* Return Requests Section */}
+            <div className="mt-12 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-serif text-2xl">Return Requests</h2>
+                <Button variant="outline" size="sm" onClick={fetchReturnRequests} className="font-sans text-[10px] uppercase tracking-widest">
+                  <RefreshCw className="h-3 w-3 mr-2" /> Refresh
+                </Button>
+              </div>
+              {isLoadingReturns ? (
+                <Skeleton className="h-32 w-full" />
+              ) : returnRequests.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-8">No return requests yet.</p>
+              ) : (
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Order</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Customer</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Reason</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Date</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest">Status</TableHead>
+                        <TableHead className="font-sans text-[10px] uppercase tracking-widest text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {returnRequests.map((req) => (
+                        <TableRow key={req.id}>
+                          <TableCell className="font-mono text-xs">{req.order_id?.slice(0, 8).toUpperCase()}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{req.customer_name}</span>
+                              <span className="text-xs text-muted-foreground">{req.customer_email}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{req.reason}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{new Date(req.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-sans tracking-widest uppercase font-medium ${
+                              req.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                              req.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>{req.status}</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-2 justify-end">
+                              <Button size="sm" variant="outline" className="text-[9px] uppercase tracking-widest h-7 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => updateReturnStatus(req.id, 'Approved')}>Approve</Button>
+                              <Button size="sm" variant="outline" className="text-[9px] uppercase tracking-widest h-7 text-red-600 border-red-200 hover:bg-red-50" onClick={() => updateReturnStatus(req.id, 'Rejected')}>Reject</Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
           </main>
         </div>
       </div>
