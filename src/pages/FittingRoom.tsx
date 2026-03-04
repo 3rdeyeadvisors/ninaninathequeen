@@ -102,29 +102,70 @@ export default function FittingRoom() {
     setLandmarks(points);
   };
 
-  const autoAlignProduct = () => {
+  const autoAlignProduct = (poseResults: Results | null = null) => {
     if (!selectedProduct) return;
 
     const category = selectedProduct.category?.toLowerCase() || 'one-piece';
+    const landmarks = poseResults?.poseLandmarks;
 
-    let top = 180;
+    // Default values (as percentages of container)
+    let topPercent = 30;
+    let leftPercent = 25;
     let scale = 1.1;
 
-    if (category.includes('top') && !category.includes('bottom')) {
-      top = 140;
-      scale = 0.9;
-    } else if (category.includes('bottom')) {
-      top = 260;
-      scale = 0.85;
-    } else if (category.includes('one-piece')) {
-      top = 170;
-      scale = 1.2;
+    if (landmarks && canvasContainerRef.current) {
+      const rect = canvasContainerRef.current.getBoundingClientRect();
+      const leftShoulder = landmarks[11];
+      const rightShoulder = landmarks[12];
+      const leftHip = landmarks[23];
+      const rightHip = landmarks[24];
+
+      if (leftShoulder && rightShoulder) {
+        // Calculate midpoints and distances in normalized (0-1) coordinates
+        const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+        const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+        const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+
+        const hipMidX = leftHip && rightHip ? (leftHip.x + rightHip.x) / 2 : shoulderMidX;
+        const hipMidY = leftHip && rightHip ? (leftHip.y + rightHip.y) / 2 : shoulderMidY + 0.3;
+        const hipWidth = leftHip && rightHip ? Math.abs(leftHip.x - rightHip.x) : shoulderWidth;
+
+        // Convert to percentage values relative to the container
+        leftPercent = (shoulderMidX * 100) - (overlayStyle.width / (2 * rect.width) * 50);
+
+        if (category.includes('top') && !category.includes('bottom')) {
+          topPercent = (shoulderMidY * 100);
+          scale = (shoulderWidth * 3.5); // Heuristic multiplier for fit
+        } else if (category.includes('bottom')) {
+          topPercent = (hipMidY * 100) - 5;
+          scale = (hipWidth * 3.2);
+        } else { // One-piece / Default
+          topPercent = (shoulderMidY * 100);
+          const torsoHeight = hipMidY - shoulderMidY;
+          scale = (torsoHeight * 2.8);
+        }
+
+        // Clamp values to reasonable ranges
+        scale = Math.max(0.6, Math.min(2.5, scale));
+      }
+    } else {
+      // Fallback logic if no landmarks detected (percentages)
+      if (category.includes('top') && !category.includes('bottom')) {
+        topPercent = 25;
+        scale = 0.9;
+      } else if (category.includes('bottom')) {
+        topPercent = 45;
+        scale = 0.85;
+      } else {
+        topPercent = 30;
+        scale = 1.2;
+      }
     }
 
     setOverlayStyle(prev => ({
       ...prev,
-      top,
-      left: 100,
+      top: (topPercent / 100) * (canvasContainerRef.current?.clientHeight || 600),
+      left: (leftPercent / 100) * (canvasContainerRef.current?.clientWidth || 450),
       scale,
       rotate: 0,
       isFlipped: false,
@@ -237,7 +278,7 @@ export default function FittingRoom() {
       canvas.height = userImg.height;
 
       if (studioMode) {
-        ctx.filter = 'blur(15px) brightness(1.15) contrast(0.95)';
+        ctx.filter = 'blur(4px) brightness(1.15) contrast(0.95)';
       }
       ctx.drawImage(userImg, 0, 0);
       ctx.filter = 'none';
@@ -399,7 +440,7 @@ export default function FittingRoom() {
                         src={userPhoto}
                         alt="User"
                         className={`w-full h-full object-contain transition-all duration-700 group-hover/canvas:scale-105 ${
-                          studioMode ? 'filter blur-[8px] brightness-115 contrast-95' : ''
+                          studioMode ? 'filter blur-[2px] brightness-115 contrast-95' : ''
                         }`}
                       />
                       {studioMode && (
