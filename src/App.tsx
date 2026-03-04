@@ -10,6 +10,8 @@ import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { DbSyncProvider, useDbSync } from "@/providers/DbSyncProvider";
+import { WaterFilter } from "@/components/WaterFilter";
+import { WaterEffect } from "@/components/WaterEffect";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import ProductPage from "./pages/ProductPage";
@@ -84,6 +86,7 @@ function AppContent() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <WaterEffect>
       <MaintenanceGuard>
         <Routes>
         <Route path="/" element={<Index />} />
@@ -143,6 +146,7 @@ function AppContent() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       </MaintenanceGuard>
+      </WaterEffect>
     </BrowserRouter>
   );
 }
@@ -151,6 +155,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <DbSyncProvider>
+        <WaterFilter />
         <Toaster />
         <Sonner />
         <AppContent />
