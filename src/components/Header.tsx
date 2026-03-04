@@ -7,7 +7,6 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useWishlistStore } from '@/stores/wishlistStore';
-import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { Input } from '@/components/ui/input';
 import { useProducts, type Product } from '@/hooks/useProducts';
@@ -36,7 +35,7 @@ export function Header() {
   // Use the products hook for search
   const { data: allProducts } = useProducts(50);
 
-  const isAdmin = cloudAuth.isAuthenticated && (cloudAuth.user?.isAdmin || cloudAuth.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+  const isAdmin = cloudAuth.isAuthenticated && cloudAuth.user?.isAdmin === true;
 
   useEffect(() => {
     const timer = setTimeout(() => {

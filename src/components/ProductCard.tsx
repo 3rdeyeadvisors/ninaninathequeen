@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ShoppingBag, Loader2, Heart, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
-import { useAuthStore } from '@/stores/authStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 
 interface ProductCardProps {
   product: Product;
@@ -20,7 +20,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const isLoading = useCartStore(state => state.isLoading);
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { productOverrides } = useAdminStore();
-  const { user } = useAuthStore();
+  const { user } = useCloudAuthStore();
   const [isHovered, setIsHovered] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
