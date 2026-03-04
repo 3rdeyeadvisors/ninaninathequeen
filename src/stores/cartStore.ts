@@ -15,11 +15,15 @@ export interface CartItem {
 interface CartStore {
   items: CartItem[];
   isLoading: boolean;
+  lastUpdated: number | null;
+  userEmail: string | null;
   addItem: (item: Omit<CartItem, 'lineId'>) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
   clearCart: () => void;
   getTotal: () => number;
+  setUserEmail: (email: string | null) => void;
+  checkAbandonedCart: () => Promise<void>;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -27,6 +31,8 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       isLoading: false,
+      lastUpdated: null,
+      userEmail: null,
 
       addItem: (item) => {
         const { items } = get();
@@ -38,10 +44,14 @@ export const useCartStore = create<CartStore>()(
               i.variantId === item.variantId 
                 ? { ...i, quantity: i.quantity + item.quantity }
                 : i
-            )
+            ),
+            lastUpdated: Date.now()
           });
         } else {
-          set({ items: [...items, { ...item, lineId: null }] });
+          set({
+            items: [...items, { ...item, lineId: null }],
+            lastUpdated: Date.now()
+          });
         }
       },
 
@@ -55,14 +65,44 @@ export const useCartStore = create<CartStore>()(
         set({
           items: items.map(i => 
             i.variantId === variantId ? { ...i, quantity } : i
-          )
+          ),
+          lastUpdated: Date.now()
         });
       },
 
       removeItem: (variantId) => {
         const { items } = get();
         const newItems = items.filter(i => i.variantId !== variantId);
-        set({ items: newItems });
+        set({
+          items: newItems,
+          lastUpdated: Date.now()
+        });
+      },
+
+      setUserEmail: (email) => set({ userEmail: email }),
+
+      checkAbandonedCart: async () => {
+        const { items, lastUpdated, userEmail } = get();
+        if (!items.length || !userEmail || !lastUpdated) return;
+        const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+        if (lastUpdated > twoHoursAgo) return;
+
+        // Check if we already sent one recently
+        const lastSent = localStorage.getItem(`abandoned_cart_sent_${userEmail}`);
+        if (lastSent && Date.now() - parseInt(lastSent) < 24 * 60 * 60 * 1000) return;
+
+        localStorage.setItem(`abandoned_cart_sent_${userEmail}`, String(Date.now()));
+
+        const { getSupabase } = await import('@/lib/supabaseClient');
+        const supabase = getSupabase();
+        await supabase.functions.invoke('send-abandoned-cart', {
+          body: {
+            email: userEmail,
+            customerName: userEmail.split('@')[0],
+            items: items.map(i => ({ title: i.product.title, quantity: i.quantity, price: i.price.amount })),
+            total: items.reduce((sum, i) => sum + parseFloat(i.price.amount) * i.quantity, 0).toFixed(2),
+          }
+        });
       },
 
       clearCart: () => set({ items: [] }),
@@ -75,7 +115,11 @@ export const useCartStore = create<CartStore>()(
     {
       name: 'nina-armend-cart',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items }),
+      partialize: (state) => ({
+        items: state.items,
+        lastUpdated: state.lastUpdated,
+        userEmail: state.userEmail
+      }),
     }
   )
 );
