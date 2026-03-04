@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2, Search, X, Filter } from 'lucide-react';
+import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2, Search, X, Filter, Mail } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useOrdersDb } from '@/hooks/useOrdersDb';
@@ -41,6 +41,7 @@ export default function AdminOrders() {
   const [isViewing, setIsViewing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 25;
@@ -185,6 +186,32 @@ export default function AdminOrders() {
   const handleView = (order: AdminOrder) => {
     setSelectedOrder(order);
     setIsViewing(true);
+  };
+
+  const handleSendCustomerEmail = async (type: 'order_confirmation' | 'shipping_confirmation') => {
+    if (!selectedOrder) return;
+    setIsSendingEmail(true);
+    try {
+      const supabase = getSupabase();
+      await supabase.functions.invoke('send-email', {
+        body: {
+          type,
+          data: {
+            orderId: selectedOrder.id,
+            customerName: selectedOrder.customerName,
+            customerEmail: selectedOrder.customerEmail,
+            trackingNumber: selectedOrder.trackingNumber || '',
+            items: selectedOrder.items,
+            total: selectedOrder.total,
+          }
+        }
+      });
+      toast.success(`Email sent to ${selectedOrder.customerEmail}`);
+    } catch (err) {
+      toast.error('Failed to send email');
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   const saveOrderChanges = async () => {
@@ -609,6 +636,26 @@ export default function AdminOrders() {
                 )}
 
                 <DialogFooter>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isSendingEmail}
+                    onClick={() => handleSendCustomerEmail('order_confirmation')}
+                    className="font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    {isSendingEmail ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mail className="h-3 w-3 mr-1" />}
+                    Resend Confirmation
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isSendingEmail || !selectedOrder?.trackingNumber}
+                    onClick={() => handleSendCustomerEmail('shipping_confirmation')}
+                    className="font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    {isSendingEmail ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Truck className="h-3 w-3 mr-1" />}
+                    Send Tracking
+                  </Button>
                   <Button onClick={() => setIsViewing(false)} className="font-sans text-[10px] uppercase tracking-widest">Close</Button>
                 </DialogFooter>
               </DialogContent>
