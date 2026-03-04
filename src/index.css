@@ -181,10 +181,10 @@
   .water-overlay {
     background: linear-gradient(
       180deg,
-      rgba(0, 157, 255, 0.15) 0%,
-      rgba(0, 50, 100, 0.25) 100%
+      rgba(0, 157, 255, 0.25) 0%,
+      rgba(0, 50, 100, 0.4) 100%
     );
-    backdrop-filter: blur(2px);
+    backdrop-filter: blur(4px);
   }
 
   .bubble {
@@ -212,22 +212,22 @@
     }
   }
 
-  .wave-svg {
-    position: absolute;
-    width: 200%;
-    height: 100%;
-    top: -50%;
-    left: -50%;
-    opacity: 0.2;
-    animation: wave-rotate 20s linear infinite;
+  .animate-wave-slow {
+    animation: wave 10s linear infinite;
+  }
+  .animate-wave-medium {
+    animation: wave 7s linear infinite;
+  }
+  .animate-wave-fast {
+    animation: wave 5s linear infinite;
   }
 
-  @keyframes wave-rotate {
-    from {
-      transform: rotate(0deg);
+  @keyframes wave {
+    0% {
+      transform: translateX(0);
     }
-    to {
-      transform: rotate(360deg);
+    100% {
+      transform: translateX(-50%);
     }
   }
 }
