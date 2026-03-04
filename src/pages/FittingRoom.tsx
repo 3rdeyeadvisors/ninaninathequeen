@@ -233,7 +233,7 @@ export default function FittingRoom() {
         autoAlignProduct(poseResults);
       }
 
-      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500));
+      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300));
     }
 
     setIsProcessing(false);
