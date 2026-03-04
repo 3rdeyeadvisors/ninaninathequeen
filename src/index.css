@@ -174,42 +174,154 @@
 
   /* Water Effects */
   .underwater {
-    filter: url(#water-distortion);
-    transition: filter 0.5s ease;
+    filter: url(#water-surface);
+    transition: filter 0.3s ease;
   }
 
-  .water-overlay {
+  .water-body {
+    position: absolute;
+    inset: 0;
     background: linear-gradient(
       180deg,
-      rgba(0, 157, 255, 0.25) 0%,
-      rgba(0, 50, 100, 0.4) 100%
+      rgba(120, 210, 255, 0.15) 0%,
+      rgba(0, 80, 160, 0.55) 40%,
+      rgba(0, 30, 80, 0.85) 100%
     );
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(2px);
+  filter: url(#water-surface);
+  }
+
+  .caustic-layer {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 30% at 20% 30%, rgba(255,255,255,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 20% at 70% 60%, rgba(255,255,255,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 80% 40% at 50% 80%, rgba(255,255,255,0.04) 0%, transparent 70%);
+    filter: url(#caustics);
+    mix-blend-mode: screen;
+    animation: caustic-drift 6s ease-in-out infinite alternate;
+  }
+
+  @keyframes caustic-drift {
+    0%   { transform: scale(1) translate(0, 0); }
+    100% { transform: scale(1.05) translate(1%, 0.5%); }
   }
 
   .bubble {
     position: absolute;
-    background: rgba(255, 255, 255, 0.3);
     border-radius: 50%;
     pointer-events: none;
-    animation: rise var(--duration) ease-in infinite;
+    background: radial-gradient(
+      circle at 30% 30%,
+      rgba(255, 255, 255, 0.7),
+      rgba(180, 230, 255, 0.25) 50%,
+      rgba(100, 180, 255, 0.1) 100%
+    );
+    box-shadow:
+      inset -2px -2px 4px rgba(255,255,255,0.4),
+      inset 1px 1px 3px rgba(255,255,255,0.6),
+      0 0 6px rgba(100,200,255,0.3);
+    animation: bubble-rise var(--duration) var(--delay) ease-in infinite;
   }
 
-  @keyframes rise {
-    0% {
-      transform: translateY(100vh) translateX(0);
-      opacity: 0;
-    }
-    20% {
-      opacity: 0.5;
-    }
-    80% {
-      opacity: 0.5;
-    }
-    100% {
-      transform: translateY(-10vh) translateX(var(--drift));
-      opacity: 0;
-    }
+  @keyframes bubble-rise {
+    0%   { transform: translateY(0) translateX(0) scale(1);   opacity: 0; }
+    5%   { opacity: 0.85; }
+    50%  { transform: translateY(var(--rise-half)) translateX(var(--drift-half)) scale(var(--wobble)); }
+    95%  { opacity: 0.6; }
+    100% { transform: translateY(var(--rise-full)) translateX(var(--drift-full)) scale(1); opacity: 0; }
+  }
+
+  /* Surface of draining water — foam + glint */
+  .water-surface {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 90px;
+    overflow: visible;
+    transform: translateY(-42px);
+    pointer-events: none;
+  }
+
+  .foam-layer {
+    position: absolute;
+    top: 30px; left: -10%; right: -10%;
+    height: 28px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 50%;
+    filter: blur(8px);
+    animation: foam-sway 3.5s ease-in-out infinite alternate;
+  }
+  @keyframes foam-sway {
+    0%   { transform: scaleX(1) translateX(0); opacity: 0.18; }
+    100% { transform: scaleX(1.03) translateX(1%); opacity: 0.28; }
+  }
+
+  .glint {
+    position: absolute;
+    top: 18px;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+    animation: glint-move var(--g-dur) linear infinite;
+    opacity: 0;
+    animation-delay: var(--g-delay);
+  }
+  @keyframes glint-move {
+    0%   { left: -30%; opacity: 0; width: 80px; }
+    10%  { opacity: 0.9; }
+    90%  { opacity: 0.7; }
+    100% { left: 110%; opacity: 0; width: 120px; }
+  }
+
+  /* Vortex drain swirl at the bottom */
+  .vortex-wrap {
+    position: absolute;
+    bottom: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 160px;
+    pointer-events: none;
+  }
+  .vortex-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.15);
+    animation: vortex-spin var(--v-dur) linear infinite;
+    transform-origin: center;
+  }
+  @keyframes vortex-spin {
+    0%   { transform: scale(var(--v-scale)) rotate(0deg);   opacity: var(--v-op); }
+    100% { transform: scale(calc(var(--v-scale) * 0.05)) rotate(calc(var(--v-dir) * 720deg)); opacity: 0; }
+  }
+
+  /* Splash droplets — used on page transition */
+  .droplet {
+    position: absolute;
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    background: radial-gradient(
+      circle at 35% 35%,
+      rgba(255,255,255,0.9),
+      rgba(120,200,255,0.6) 50%,
+      rgba(30,120,220,0.3) 100%
+    );
+    box-shadow: 0 0 8px rgba(100,200,255,0.5);
+    pointer-events: none;
+  }
+
+  .ripple-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1.5px solid rgba(100, 200, 255, 0.5);
+    pointer-events: none;
+    animation: ripple-expand var(--r-dur) ease-out forwards;
+  filter: url(#ripple);
+  }
+  @keyframes ripple-expand {
+    0%   { transform: translate(-50%, -50%) scale(0);   opacity: 0.7; }
+    100% { transform: translate(-50%, -50%) scale(var(--r-scale)); opacity: 0; }
   }
 
   .animate-wave-slow {
