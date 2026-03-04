@@ -11,7 +11,7 @@ import { useAdminStore } from '@/stores/adminStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { getSupabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
-import { Loader2, ShieldCheck, Truck, ArrowLeft, CreditCard, Mail, User, Info, Gift } from 'lucide-react';
+import { Loader2, ShieldCheck, Truck, ArrowLeft, CreditCard, Mail, User, Info, Gift, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Checkout() {
@@ -28,6 +28,15 @@ export default function Checkout() {
     firstName: cloudAuth.user?.name?.split(' ')[0] || '',
     lastName: cloudAuth.user?.name?.split(' ').slice(1).join(' ') || '',
     email: cloudAuth.user?.email || ''
+  });
+
+  const [addressData, setAddressData] = useState({
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'US',
   });
 
   // Fetch profile data on load
@@ -101,6 +110,18 @@ export default function Checkout() {
       toast.error('Please enter your full name');
       return false;
     }
+    if (!addressData.addressLine1.trim()) {
+      toast.error('Please enter your street address');
+      return false;
+    }
+    if (!addressData.city.trim()) {
+      toast.error('Please enter your city');
+      return false;
+    }
+    if (!addressData.postalCode.trim()) {
+      toast.error('Please enter your postal code');
+      return false;
+    }
     return true;
   };
 
@@ -114,6 +135,7 @@ export default function Checkout() {
       const orderDetails = {
         customerName: `${formData.firstName} ${formData.lastName}`,
         customerEmail: formData.email,
+        shippingAddress: addressData,
         items: items.map(item => ({
           productId: item.product.id,
           variantId: item.variantId,
@@ -243,6 +265,75 @@ export default function Checkout() {
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
                       />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/50">
+                  <CardHeader>
+                    <CardTitle className="font-serif text-2xl flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-primary" />
+                      Shipping Address
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="addressLine1">Street Address</Label>
+                      <Input
+                        id="addressLine1"
+                        placeholder="123 Main St"
+                        value={addressData.addressLine1}
+                        onChange={(e) => setAddressData({ ...addressData, addressLine1: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="addressLine2">Apartment, suite, etc. (optional)</Label>
+                      <Input
+                        id="addressLine2"
+                        placeholder="Apt 4B"
+                        value={addressData.addressLine2}
+                        onChange={(e) => setAddressData({ ...addressData, addressLine2: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="city">City</Label>
+                        <Input
+                          id="city"
+                          placeholder="New York"
+                          value={addressData.city}
+                          onChange={(e) => setAddressData({ ...addressData, city: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="state">State / Province</Label>
+                        <Input
+                          id="state"
+                          placeholder="NY"
+                          value={addressData.state}
+                          onChange={(e) => setAddressData({ ...addressData, state: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="postalCode">Postal Code</Label>
+                        <Input
+                          id="postalCode"
+                          placeholder="10001"
+                          value={addressData.postalCode}
+                          onChange={(e) => setAddressData({ ...addressData, postalCode: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="country">Country</Label>
+                        <Input
+                          id="country"
+                          placeholder="US"
+                          value={addressData.country}
+                          onChange={(e) => setAddressData({ ...addressData, country: e.target.value })}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
