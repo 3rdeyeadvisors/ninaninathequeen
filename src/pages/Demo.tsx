@@ -66,62 +66,6 @@ export default function Demo() {
               </motion.div>
             </section>
 
-            {/* Feature 2: Fitting Room */}
-            <section className="grid lg:grid-cols-2 gap-12 items-center lg:flex-row-reverse">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                className="order-2 lg:order-1 relative"
-              >
-                <div className="aspect-[4/5] bg-secondary/50 rounded-2xl overflow-hidden border border-border/50 shadow-2xl relative">
-                  <img
-                    src="https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&q=80&w=800"
-                    alt="Virtual Fitting Room Preview"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                    <div className="bg-background/90 backdrop-blur-md p-6 rounded-2xl border border-white/20 shadow-xl text-center max-w-xs">
-                      <Camera className="h-8 w-8 text-primary mx-auto mb-4" />
-                      <h3 className="font-serif text-lg mb-2">Virtual Fitting Room</h3>
-                      <p className="text-xs text-muted-foreground mb-4">Upload your photo to see how our silhouettes celebrate your unique shape.</p>
-                      <Button asChild size="sm" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                        <Link to="/fitting-room">Try It Now</Link>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                className="space-y-6 order-1 lg:order-2"
-              >
-                <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-sans tracking-widest uppercase">
-                  <Camera className="h-3 w-3" /> AI-Powered
-                </div>
-                <h2 className="font-serif text-3xl md:text-4xl">Virtual Fitting Room</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  Eliminate the guesswork of online shopping. Our AI-driven fitting room allows you to
-                  virtually try on different styles and sizes, ensuring you find the perfect match for your silhouette.
-                </p>
-                <ul className="space-y-3">
-                  <li className="flex items-start gap-3 text-sm">
-                    <div className="h-5 w-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Star className="h-3 w-3 text-emerald-500" />
-                    </div>
-                    <span>Privacy-focused photo processing</span>
-                  </li>
-                  <li className="flex items-start gap-3 text-sm">
-                    <div className="h-5 w-5 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Star className="h-3 w-3 text-emerald-500" />
-                    </div>
-                    <span>Accurate size recommendations</span>
-                  </li>
-                </ul>
-              </motion.div>
-            </section>
 
             {/* Feature 3: Mix & Match */}
             <section className="grid lg:grid-cols-2 gap-12 items-center">

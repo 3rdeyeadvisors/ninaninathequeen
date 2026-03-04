@@ -19,7 +19,6 @@ const allLinks = [
   { name: 'Mix & Match', href: '/mix-and-match' },
   { name: 'Shop All', href: '/shop' },
   { name: 'Size Guide', href: '/size-quiz' },
-  { name: 'Fitting Room', href: '/fitting-room' },
   { name: 'Our Story', href: '/about' },
 ];
 
