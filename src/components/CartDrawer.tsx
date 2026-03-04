@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { ShoppingBag, Minus, Plus, Trash2, Loader2, Truck, CheckCircle2 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
+import { useProducts } from '@/hooks/useProducts';
 
 export const CartDrawer = () => {
   const navigate = useNavigate();
@@ -20,6 +21,17 @@ export const CartDrawer = () => {
 
   const totalSets = Math.min(topsCount, bottomsCount) + onePiecesCount;
   const freeShippingEligible = totalSets >= 2;
+
+  const { data: allProducts = [] } = useProducts(20);
+
+  const hasTopsNoBottom = topsCount > 0 && bottomsCount === 0;
+  const hasBottomNoTop = bottomsCount > 0 && topsCount === 0;
+
+  const upsellProduct = hasTopsNoBottom
+    ? allProducts.find(p => p.category === 'Bottom' && !items.some(i => i.product.id === p.id))
+    : hasBottomNoTop
+    ? allProducts.find(p => p.category === 'Top' && !items.some(i => i.product.id === p.id))
+    : null;
 
   const handleCheckout = () => {
     setIsOpen(false);
@@ -110,6 +122,33 @@ export const CartDrawer = () => {
                     </div>
                   ))}
                 </div>
+                {upsellProduct && (
+                  <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-primary mb-3">
+                      Complete Your Set
+                    </p>
+                    <div className="flex gap-3 items-center">
+                      <div className="w-14 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-border">
+                        <img src={upsellProduct.images[0]?.url} alt={upsellProduct.title} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-serif truncate">{upsellProduct.title}</p>
+                        <p className="text-xs text-primary font-medium">${parseFloat(upsellProduct.price.amount).toFixed(2)}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 text-[9px] uppercase tracking-widest border-primary/30 hover:bg-primary hover:text-primary-foreground"
+                        onClick={() => {
+                          setIsOpen(false);
+                          window.location.href = `/products/${upsellProduct.handle}`;
+                        }}
+                      >
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex-shrink-0 space-y-4 pt-6 border-t border-border bg-background">
                 {/* Shipping Progress */}
