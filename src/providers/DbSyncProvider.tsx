@@ -159,12 +159,12 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
     setIsLoading(true);
     try {
       await Promise.all([syncProducts(), syncOrders(), syncCustomers(), syncSettings()]);
-      setIsInitialized(true);
-      isInitializedRef.current = true;
     } catch (err) {
       console.error('Error loading data from database:', err);
       toast.error('Failed to load data from database. Using local cache.');
     } finally {
+      setIsInitialized(true);
+      isInitializedRef.current = true;
       setIsLoading(false);
     }
   }, [syncProducts, syncOrders, syncCustomers, syncSettings]);
@@ -201,68 +201,25 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
   useEffect(() => {
     const supabase = getSupabase();
 
-    const applyProductRow = (product: Record<string, unknown>) => {
-      updateProductOverride(product.id as string, {
-        id: product.id as string,
-        title: product.title as string,
-        price: product.price as string,
-        inventory: product.inventory as number,
-        sizeInventory: (product.size_inventory as Record<string, number>) || {},
-        image: (product.image as string) || '',
-        description: (product.description as string) || '',
-        productType: (product.product_type as string) || 'Bikini',
-        collection: (product.collection as string) || '',
-        category: (product.category as string) || 'Other',
-        status: (product.status as 'Active' | 'Inactive' | 'Draft') || 'Active',
-        itemNumber: (product.item_number as string) || '',
-        colorCodes: (product.color_codes as string[]) || [],
-        sizes: (product.sizes as string[]) || [],
-        isDeleted: (product.is_deleted as boolean) || false,
-        unitCost: (product.unit_cost as string) || '0.00',
-        images: (product.images as string[]) || [],
-      });
-    };
+    const ordersChannel = supabase
+      .channel('db-orders-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        loadAllData(); // call your existing sync function
+      })
+      .subscribe();
 
     const productsChannel = supabase
-      .channel('realtime-products')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-          updateProductOverride((payload.old as Record<string, unknown>).id as string, { isDeleted: true });
-        } else {
-          applyProductRow(payload.new as Record<string, unknown>);
-        }
-      })
-      .subscribe();
-
-    // For orders & customers, do a full re-fetch so sort order is always correct
-    const ordersChannel = supabase
-      .channel('realtime-orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        syncOrders();
-      })
-      .subscribe();
-
-    const customersChannel = supabase
-      .channel('realtime-customers')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
-        syncCustomers();
-      })
-      .subscribe();
-
-    const settingsChannel = supabase
-      .channel('realtime-settings')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
-        syncSettings();
+      .channel('db-products-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        loadAllData();
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(productsChannel);
       supabase.removeChannel(ordersChannel);
-      supabase.removeChannel(customersChannel);
-      supabase.removeChannel(settingsChannel);
+      supabase.removeChannel(productsChannel);
     };
-  }, [updateProductOverride, syncOrders, syncCustomers, syncSettings]);
+  }, [loadAllData]);
 
   // ------------------------------------------------------------------
   // Visibility-change refetch — silently re-sync when the user returns
