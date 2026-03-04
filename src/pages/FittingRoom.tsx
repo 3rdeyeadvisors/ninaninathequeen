@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
@@ -7,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useProducts } from '@/hooks/useProducts';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Upload, User, Move, Trash2, Download, Sparkles,
+  Upload, Move, Download, Sparkles,
   Share2, Loader2, FlipHorizontal, Camera,
   ArrowLeft, CheckCircle2, AlertCircle, Info,
   RefreshCw, ChevronRight, Maximize2
@@ -15,17 +14,7 @@ import {
 import { toast } from 'sonner';
 import { playSound } from '@/lib/sounds';
 
-// MediaPipe imports
-import * as tf from '@tensorflow/tfjs-core';
-import '@tensorflow/tfjs-backend-webgl';
-import { Pose, Results } from '@mediapipe/pose';
-
-type FittingRoomStep = 'START' | 'METHOD' | 'CAMERA' | 'UPLOAD' | 'VALIDATING' | 'FITTING';
-
-interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-}
+type FittingRoomStep = 'START' | 'METHOD' | 'CAMERA' | 'UPLOAD' | 'FITTING';
 
 export default function FittingRoom() {
   const { data: allProducts = [], isLoading } = useProducts(100);
@@ -33,7 +22,12 @@ export default function FittingRoom() {
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [localValidationError, setLocalValidationError] = useState<string | null>(null);
+
+  // Dimensions state
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [userPhotoNaturalSize, setUserPhotoNaturalSize] = useState({ width: 0, height: 0 });
+  const [sizeConfidence, setSizeConfidence] = useState<{ fit: string, note: string } | null>(null);
 
   // Camera refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -52,36 +46,27 @@ export default function FittingRoom() {
     scale: 1,
     rotate: 0,
     isFlipped: false,
-    blendMode: 'multiply' as GlobalCompositeOperation
+    blendMode: 'multiply',
+    brightness: 1.0,
+    contrast: 1.0
   });
 
-  const poseRef = useRef<Pose | null>(null);
-
-  // Initialize MediaPipe Pose
+  // ResizeObserver for container
   useEffect(() => {
-    const initPose = async () => {
-      await tf.ready();
-      const pose = new Pose({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
-      });
+    if (!canvasContainerRef.current) return;
 
-      pose.setOptions({
-        modelComplexity: 1,
-        smoothLandmarks: true,
-        enableSegmentation: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height
+        });
+      }
+    });
 
-      poseRef.current = pose;
-    };
-
-    initPose();
-    return () => {
-      poseRef.current?.close();
-      stopCamera();
-    };
-  }, []);
+    observer.observe(canvasContainerRef.current);
+    return () => observer.disconnect();
+  }, [step]); // Re-run when step changes to ensure ref is captured
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -91,6 +76,7 @@ export default function FittingRoom() {
   };
 
   const startCamera = async () => {
+    setLocalValidationError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -110,6 +96,17 @@ export default function FittingRoom() {
     }
   };
 
+  const validateAndProceed = (url: string, width: number, height: number) => {
+    if (width < 300 || height < 400) {
+      setLocalValidationError("Image is too small. Minimum dimensions are 300x400px.");
+      return false;
+    }
+    setUserPhoto(url);
+    setStep('FITTING');
+    playSound('success');
+    return true;
+  };
+
   const capturePhoto = () => {
     if (!videoRef.current) return;
 
@@ -120,166 +117,125 @@ export default function FittingRoom() {
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0);
       const url = canvas.toDataURL('image/jpeg');
-      setUserPhoto(url);
-      stopCamera();
-      validateImage(url);
+
+      if (validateAndProceed(url, canvas.width, canvas.height)) {
+        stopCamera();
+      }
     }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setUserPhoto(url);
-      validateImage(url);
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      setLocalValidationError("File size exceeds 15MB limit.");
+      return;
     }
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      validateAndProceed(url, img.naturalWidth, img.naturalHeight);
+    };
+    img.src = url;
   };
 
-  const validateImage = async (imgUrl: string) => {
-    setStep('VALIDATING');
-    setValidationErrors([]);
+  const autoAlignProduct = useCallback(() => {
+    if (!selectedProduct || !userPhotoNaturalSize.width || !containerSize.width) return;
 
-    if (!poseRef.current) {
-      // Wait a bit if pose is not ready
-      await new Promise(r => setTimeout(r, 1000));
+    const containerW = containerSize.width;
+    const containerH = containerSize.height;
+    const userPhotoNaturalW = userPhotoNaturalSize.width;
+    const userPhotoNaturalH = userPhotoNaturalSize.height;
+
+    const imgNaturalRatio = userPhotoNaturalW / userPhotoNaturalH;
+    const containerRatio = containerW / containerH;
+
+    // Compute the actual rendered size of the user photo (object-contain)
+    let renderedW, renderedH, offsetX, offsetY;
+    if (imgNaturalRatio > containerRatio) {
+      renderedW = containerW;
+      renderedH = containerW / imgNaturalRatio;
+      offsetX = 0;
+      offsetY = (containerH - renderedH) / 2;
+    } else {
+      renderedH = containerH;
+      renderedW = containerH * imgNaturalRatio;
+      offsetX = (containerW - renderedW) / 2;
+      offsetY = 0;
     }
-
-    try {
-      const img = new Image();
-      img.src = imgUrl;
-      await new Promise((resolve) => (img.onload = resolve));
-
-      const results = await new Promise<Results>((resolve) => {
-        poseRef.current!.onResults((results) => resolve(results));
-        poseRef.current!.send({ image: img });
-      });
-
-      const errors: string[] = [];
-      if (!results.poseLandmarks) {
-        errors.push("No person detected in the image. Please stand in a clear, well-lit area.");
-      } else {
-        const landmarks = results.poseLandmarks;
-        const visibleThreshold = 0.65; // Higher threshold for better accuracy
-
-        const missingBodyParts = [];
-        const isHeadVisible = landmarks[0].visibility! > visibleThreshold;
-        const areShouldersVisible = landmarks[11].visibility! > visibleThreshold && landmarks[12].visibility! > visibleThreshold;
-        const areHipsVisible = landmarks[23].visibility! > visibleThreshold && landmarks[24].visibility! > visibleThreshold;
-        const areKneesVisible = landmarks[25].visibility! > visibleThreshold && landmarks[26].visibility! > visibleThreshold;
-        const areAnklesVisible = landmarks[27].visibility! > visibleThreshold && landmarks[28].visibility! > visibleThreshold;
-
-        if (!isHeadVisible) missingBodyParts.push("head");
-        if (!areShouldersVisible) missingBodyParts.push("shoulders");
-        if (!areHipsVisible) missingBodyParts.push("hips");
-        if (!areKneesVisible) missingBodyParts.push("knees");
-        if (!areAnklesVisible) missingBodyParts.push("ankles/feet");
-
-        if (missingBodyParts.length > 0) {
-          errors.push(`Incomplete silhouette. We couldn't clearly detect your ${missingBodyParts.join(', ')}.`);
-        }
-
-        // Check if the person is too small (too far away) or too large (too close)
-        const torsoHeight = Math.abs(landmarks[11].y - landmarks[23].y);
-        if (torsoHeight < 0.1) {
-          errors.push("You appear too far away. Please move closer to the camera.");
-        } else if (torsoHeight > 0.6) {
-          errors.push("You are too close to the camera. Please stand back to show your full body.");
-        }
-
-        // Check alignment - ensure they are facing the camera
-        const shoulderWidth = Math.abs(landmarks[11].x - landmarks[12].x);
-        const hipWidth = Math.abs(landmarks[23].x - landmarks[24].x);
-        if (shoulderWidth < 0.05 || hipWidth < 0.05) {
-          errors.push("Please face the camera directly for the most accurate fit.");
-        }
-
-        // Check if too close to edges
-        const edgePadding = 0.02;
-        const isNearEdge = landmarks.some(p =>
-          p.visibility! > visibleThreshold &&
-          (p.x < edgePadding || p.x > 1 - edgePadding || p.y < edgePadding || p.y > 1 - edgePadding)
-        );
-        if (isNearEdge) {
-          errors.push("Some body parts are too close to the edge or cut off. Center yourself in the frame.");
-        }
-      }
-
-      if (errors.length > 0) {
-        setValidationErrors(errors);
-        playSound('remove');
-      } else {
-        playSound('success');
-        autoAlignProduct(results);
-        setStep('FITTING');
-      }
-    } catch (err) {
-      console.error("Validation failed:", err);
-      setValidationErrors(["An unexpected error occurred during image analysis."]);
-    }
-  };
-
-  const autoAlignProduct = (results: Results) => {
-    if (!results.poseLandmarks || !selectedProduct) return;
 
     const category = selectedProduct.category?.toLowerCase() || 'one-piece';
-    const landmarks = results.poseLandmarks;
-    const leftShoulder = landmarks[11];
-    const rightShoulder = landmarks[12];
-    const leftHip = landmarks[23];
-    const rightHip = landmarks[24];
+    let centerX, topY, width;
 
-    // Default values
-    let topPercent = 30;
-    let leftPercent = 25;
-    let scale = 1.1;
-
-    // Calculate midpoints and distances in normalized (0-1) coordinates
-    const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
-    const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-    const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
-
-    const hipMidX = (leftHip.x + rightHip.x) / 2;
-    const hipMidY = (leftHip.y + rightHip.y) / 2;
-    const hipWidth = Math.abs(leftHip.x - rightHip.x);
-
-    // Refined placement logic
     if (category.includes('top')) {
-      // Tops should be centered between shoulders and extend down to waist
-      leftPercent = (shoulderMidX * 100);
-      topPercent = (shoulderMidY * 100);
-      scale = (shoulderWidth * 3.8); // Slightly larger for better coverage
+      centerX = offsetX + renderedW * 0.5;
+      topY = offsetY + renderedH * 0.18;
+      width = renderedW * 0.72;
     } else if (category.includes('bottom')) {
-      // Bottoms should be centered between hips
-      leftPercent = (hipMidX * 100);
-      topPercent = (hipMidY * 100);
-      scale = (hipWidth * 3.5);
+      centerX = offsetX + renderedW * 0.5;
+      topY = offsetY + renderedH * 0.48;
+      width = renderedW * 0.65;
     } else {
-      // One-pieces / Bodysuits
-      leftPercent = (shoulderMidX * 100);
-      topPercent = (shoulderMidY * 100);
-      const torsoHeight = Math.abs(hipMidY - shoulderMidY);
-      scale = (torsoHeight * 3.2);
+      // One-piece / default
+      centerX = offsetX + renderedW * 0.5;
+      topY = offsetY + renderedH * 0.16;
+      width = renderedW * 0.72;
     }
-
-    // Adjust leftPercent based on width of the overlay
-    // The overlay is positioned by its top-left corner, so we subtract half its expected width
-    const containerWidth = canvasContainerRef.current?.clientWidth || 450;
-    const containerHeight = canvasContainerRef.current?.clientHeight || 600;
-
-    // Convert normalized leftPercent back to pixels
-    const targetLeft = (leftPercent / 100) * containerWidth - (overlayStyle.width * scale / 2);
-    const targetTop = (topPercent / 100) * containerHeight - (category.includes('bottom') ? 20 : 0);
 
     setOverlayStyle(prev => ({
       ...prev,
-      top: targetTop,
-      left: targetLeft,
-      scale: Math.max(0.4, Math.min(3.0, scale)),
+      left: centerX - width / 2,
+      top: topY,
+      width: width,
+      scale: 1,
       rotate: 0,
       isFlipped: false,
       blendMode: 'multiply'
     }));
-  };
+  }, [selectedProduct, userPhotoNaturalSize, containerSize]);
+
+  // Size confidence logic
+  useEffect(() => {
+    if (!selectedProduct) {
+      setSizeConfidence(null);
+      return;
+    }
+
+    const title = selectedProduct.title?.toLowerCase() || '';
+    const category = selectedProduct.category?.toLowerCase() || '';
+    const fullText = `${title} ${category}`;
+
+    if (fullText.includes('oversized') || fullText.includes('relaxed')) {
+      setSizeConfidence({
+        fit: "Relaxed Fit",
+        note: "This style is forgiving on sizing — when in doubt, size down."
+      });
+    } else if (fullText.includes('fitted') || fullText.includes('bodysuit')) {
+      setSizeConfidence({
+        fit: "Slim Fit",
+        note: "For fitted styles, we recommend your true size."
+      });
+    } else if (fullText.includes('structured') || fullText.includes('blazer')) {
+      setSizeConfidence({
+        fit: "Structured Fit",
+        note: "Tailored to provide a clean silhouette. Stick to your usual size."
+      });
+    } else {
+      setSizeConfidence({
+        fit: "Standard Fit",
+        note: "Fits true to size for most body types."
+      });
+    }
+  }, [selectedProduct]);
+
+  // Trigger auto-align
+  useEffect(() => {
+    if (step === 'FITTING' && selectedProduct && userPhoto && containerSize.width > 0 && userPhotoNaturalSize.width > 0) {
+      autoAlignProduct();
+    }
+  }, [step, selectedProduct, userPhoto, containerSize.width, userPhotoNaturalSize.width]);
 
   const handleSaveLook = async () => {
     if (!userPhoto || !selectedProduct || !canvasContainerRef.current) return;
@@ -340,14 +296,16 @@ export default function FittingRoom() {
       const productRealWidth = overlayStyle.width * overlayStyle.scale * scaleFactor;
       const productRealHeight = (overlayStyle.width * (productImg.height / productImg.width)) * overlayStyle.scale * scaleFactor;
 
-      // The UI center point is invariant during scaling from center
       const centerX = (overlayStyle.left - offsetX + overlayStyle.width / 2) * scaleFactor;
       const centerY = (overlayStyle.top - offsetY + (overlayStyle.width * (productImg.height / productImg.width)) / 2) * scaleFactor;
 
       ctx.translate(centerX, centerY);
       ctx.rotate((overlayStyle.rotate * Math.PI) / 180);
       if (overlayStyle.isFlipped) ctx.scale(-1, 1);
-      ctx.globalCompositeOperation = overlayStyle.blendMode;
+
+      // Apply filters for export
+      ctx.filter = `contrast(${overlayStyle.contrast}) brightness(${overlayStyle.brightness})`;
+      ctx.globalCompositeOperation = overlayStyle.blendMode as GlobalCompositeOperation;
       ctx.drawImage(productImg, -productRealWidth / 2, -productRealHeight / 2, productRealWidth, productRealHeight);
       ctx.restore();
 
@@ -485,6 +443,12 @@ export default function FittingRoom() {
                   <p className="text-muted-foreground text-sm">Please stand 5-7 feet away from your device.</p>
                 </div>
 
+                {localValidationError && (
+                  <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm flex items-center gap-2 mb-4">
+                    <AlertCircle className="h-4 w-4" /> {localValidationError}
+                  </div>
+                )}
+
                 <div className="relative aspect-[3/4] bg-black rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-border/10">
                   <video
                     ref={videoRef}
@@ -597,6 +561,12 @@ export default function FittingRoom() {
                 exit={{ opacity: 0, y: -20 }}
                 className="max-w-2xl mx-auto"
               >
+                {localValidationError && (
+                  <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm flex items-center gap-2 mb-4">
+                    <AlertCircle className="h-4 w-4" /> {localValidationError}
+                  </div>
+                )}
+
                 <div
                   className="aspect-[3/4] border-2 border-dashed border-border/50 rounded-[2rem] flex flex-col items-center justify-center p-12 text-center space-y-6 hover:border-primary/50 transition-colors cursor-pointer"
                   onClick={() => document.getElementById('file-upload')?.click()}
@@ -618,7 +588,7 @@ export default function FittingRoom() {
                   <div className="pt-4 flex flex-wrap justify-center gap-3">
                     <Badge variant="secondary">JPG</Badge>
                     <Badge variant="secondary">PNG</Badge>
-                    <Badge variant="secondary">Max 10MB</Badge>
+                    <Badge variant="secondary">Max 15MB</Badge>
                   </div>
                 </div>
 
@@ -627,58 +597,6 @@ export default function FittingRoom() {
                     <ArrowLeft className="mr-2 h-4 w-4" /> Change Method
                   </Button>
                 </div>
-              </motion.div>
-            )}
-
-            {step === 'VALIDATING' && (
-              <motion.div
-                key="validating"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="max-w-md mx-auto text-center space-y-8 py-20"
-              >
-                <div className="relative">
-                  <div className="h-40 w-40 border-4 border-primary/20 rounded-full mx-auto" />
-                  <motion.div
-                    className="absolute inset-0 h-40 w-40 border-t-4 border-primary rounded-full mx-auto"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Sparkles className="h-12 w-12 text-primary animate-pulse" />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h2 className="font-serif text-3xl">Analyzing Image</h2>
-                  <p className="text-muted-foreground animate-pulse">Detecting silhouette and checking usability...</p>
-                </div>
-
-                {validationErrors.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-6 bg-red-50 border border-red-100 rounded-2xl space-y-4"
-                  >
-                    <div className="flex items-center gap-2 text-red-600 justify-center">
-                      <AlertCircle className="h-5 w-5" />
-                      <h4 className="font-bold uppercase text-xs tracking-widest">Image Not Usable</h4>
-                    </div>
-                    <ul className="text-sm text-red-600 space-y-2 list-disc list-inside text-left">
-                      {validationErrors.map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                    </ul>
-                    <Button
-                      variant="outline"
-                      className="w-full border-red-200 text-red-600 hover:bg-red-100 hover:text-red-700"
-                      onClick={() => setStep('METHOD')}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" /> Try Again
-                    </Button>
-                  </motion.div>
-                )}
               </motion.div>
             )}
 
@@ -747,6 +665,12 @@ export default function FittingRoom() {
                         <img
                           src={userPhoto}
                           alt="User"
+                          onLoad={(e) => {
+                            setUserPhotoNaturalSize({
+                              width: e.currentTarget.naturalWidth,
+                              height: e.currentTarget.naturalHeight
+                            });
+                          }}
                           className={`w-full h-full object-contain transition-all duration-700 ${
                             studioMode ? 'filter blur-[2px] brightness-115 contrast-95' : ''
                           }`}
@@ -755,38 +679,51 @@ export default function FittingRoom() {
                           <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-white/30 pointer-events-none" />
                         )}
 
-                        <motion.div
-                          key={selectedProduct?.id}
-                          drag
-                          dragMomentum={false}
-                          onDragEnd={(_, info) => {
-                            setOverlayStyle(prev => ({ ...prev, left: prev.left + info.offset.x, top: prev.top + info.offset.y }));
+                        {/* Body Shadow Layer */}
+                        <div
+                          className="absolute pointer-events-none z-19"
+                          style={{
+                            width: overlayStyle.width,
+                            top: overlayStyle.top + 4,
+                            left: overlayStyle.left - 2,
+                            height: overlayStyle.width * 1.3,
+                            background: 'radial-gradient(ellipse at 50% 30%, rgba(0,0,0,0.18) 0%, transparent 70%)',
+                            filter: 'blur(12px)',
+                            transform: `scale(${overlayStyle.scale}) rotate(${overlayStyle.rotate}deg)`,
+                            transformOrigin: 'top center',
                           }}
-                          className="absolute cursor-move z-20"
-                          initial={{ opacity: 0, scale: 0.5 }}
-                          animate={{
-                            opacity: showComparison ? 0 : 1,
+                        />
+
+                        {/* Garment Overlay */}
+                        <motion.div
+                          drag dragMomentum={false}
+                          onDragEnd={(_, info) => setOverlayStyle(prev => ({
+                            ...prev, left: prev.left + info.offset.x, top: prev.top + info.offset.y
+                          }))}
+                          className="absolute cursor-move z-20 select-none"
+                          style={{
+                            width: overlayStyle.width,
                             top: overlayStyle.top,
                             left: overlayStyle.left,
-                            scale: overlayStyle.scale,
-                            rotate: overlayStyle.rotate,
-                            scaleX: overlayStyle.isFlipped ? -1 : 1,
+                            transform: `scale(${overlayStyle.scale}) rotate(${overlayStyle.rotate}deg) scaleX(${overlayStyle.isFlipped ? -1 : 1})`,
+                            transformOrigin: 'top center',
+                            mixBlendMode: overlayStyle.blendMode as any,
+                            filter: `drop-shadow(0 8px 24px rgba(0,0,0,0.35)) drop-shadow(0 2px 6px rgba(0,0,0,0.2)) contrast(${overlayStyle.contrast}) brightness(${overlayStyle.brightness})`,
                           }}
-                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                          style={{ width: overlayStyle.width, mixBlendMode: overlayStyle.blendMode as any }}
                         >
                           <img
                             src={selectedProduct?.images[0]?.url}
                             alt="Try on"
-                            className="w-full h-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
-                            style={{ filter: 'contrast(1.05) saturate(1.1)' }}
+                            className="w-full h-auto"
+                            draggable={false}
+                            style={{ display: 'block' }}
                           />
                         </motion.div>
                       </div>
                     )}
 
                     <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between pointer-events-none">
-                       <Badge variant="outline" className="bg-black/20 backdrop-blur-md text-white border-white/20 px-4 py-2 uppercase tracking-widest text-[8px]">AI Precise Alignment</Badge>
+                       <Badge variant="outline" className="bg-black/20 backdrop-blur-md text-white border-white/20 px-4 py-2 uppercase tracking-widest text-[8px]">Pro Virtual Fit</Badge>
                     </div>
 
                     <AnimatePresence>
@@ -830,7 +767,7 @@ export default function FittingRoom() {
                           <span className="text-[10px] font-mono">{Math.round(overlayStyle.scale * 100)}%</span>
                         </div>
                         <input
-                          type="range" min="0.5" max="2" step="0.01" value={overlayStyle.scale}
+                          type="range" min="0.5" max="2.5" step="0.01" value={overlayStyle.scale}
                           onChange={(e) => setOverlayStyle({...overlayStyle, scale: parseFloat(e.target.value)})}
                           className="w-full accent-primary h-1.5 bg-secondary rounded-full appearance-none cursor-pointer"
                         />
@@ -848,32 +785,80 @@ export default function FittingRoom() {
                         />
                       </div>
 
-                      <div className="pt-2 flex gap-2">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <label className="text-[10px] uppercase tracking-widest font-bold">Brightness</label>
+                          <span className="text-[10px] font-mono">{overlayStyle.brightness}</span>
+                        </div>
+                        <input
+                          type="range" min="0.7" max="1.3" step="0.05" value={overlayStyle.brightness}
+                          onChange={(e) => setOverlayStyle({...overlayStyle, brightness: parseFloat(e.target.value)})}
+                          className="w-full accent-primary h-1.5 bg-secondary rounded-full appearance-none cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <label className="text-[10px] uppercase tracking-widest font-bold">Contrast</label>
+                          <span className="text-[10px] font-mono">{overlayStyle.contrast}</span>
+                        </div>
+                        <input
+                          type="range" min="0.8" max="1.3" step="0.05" value={overlayStyle.contrast}
+                          onChange={(e) => setOverlayStyle({...overlayStyle, contrast: parseFloat(e.target.value)})}
+                          className="w-full accent-primary h-1.5 bg-secondary rounded-full appearance-none cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="pt-2 grid grid-cols-2 gap-2">
                         <Button
-                          variant="outline" size="sm" className="flex-1"
+                          variant="outline" size="sm"
                           onClick={() => setOverlayStyle(prev => ({ ...prev, isFlipped: !prev.isFlipped }))}
                         >
                           <FlipHorizontal className="h-4 w-4 mr-2" /> Flip
                         </Button>
                         <select
-                          className="bg-background border border-border rounded-md px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary flex-1"
+                          className="bg-background border border-border rounded-md px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
                           value={overlayStyle.blendMode}
-                          onChange={(e) => setOverlayStyle(prev => ({ ...prev, blendMode: e.target.value as any }))}
+                          onChange={(e) => setOverlayStyle(prev => ({ ...prev, blendMode: e.target.value }))}
                         >
-                          <option value="normal">Normal</option>
-                          <option value="multiply">Multiply</option>
-                          <option value="screen">Screen</option>
+                          <option value="normal">Natural</option>
+                          <option value="multiply">Fabric Shadow</option>
+                          <option value="screen">Light Fabric</option>
+                          <option value="overlay">Deep Blend</option>
                         </select>
                       </div>
+
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="w-full text-[10px] uppercase tracking-widest font-bold"
+                        onClick={autoAlignProduct}
+                      >
+                        <RefreshCw className="h-3 w-3 mr-2" /> Reset Fit
+                      </Button>
                     </div>
                   </div>
+
+                  {sizeConfidence && (
+                    <div className="bg-card border border-border/50 p-6 rounded-3xl shadow-sm space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-serif text-lg">Size Confidence</h3>
+                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-50">
+                          {sizeConfidence.fit}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {sizeConfidence.note}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="bg-primary/5 border border-primary/20 p-6 rounded-3xl space-y-3">
                     <h4 className="font-serif text-sm flex items-center gap-2">
                       <Info className="h-4 w-4 text-primary" /> Pro Tips
                     </h4>
                     <ul className="text-[10px] space-y-2 text-muted-foreground leading-relaxed list-disc list-inside">
-                      <li>Use "Multiply" blend mode for natural fabric shadows.</li>
+                      <li>Use "Fabric Shadow" blend mode for natural shadows.</li>
                       <li>Drag the item to align it perfectly with your body.</li>
                       <li>Studio Mode adds professional lighting effects.</li>
                     </ul>
