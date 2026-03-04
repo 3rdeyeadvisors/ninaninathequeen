@@ -1,10 +1,10 @@
-
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Package, ShoppingBag, Settings, Store, Users, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Keys that store the last count the admin actually SAW (i.e. visited that page)
 const SEEN_KEYS: Record<string, string> = {
   '/admin/orders': 'admin_seen_pending_orders',
   '/admin/customers': 'admin_seen_waitlist',
@@ -13,7 +13,7 @@ const SEEN_KEYS: Record<string, string> = {
 export function AdminSidebar() {
   const location = useLocation();
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
-  
+  const lastMarkedPath = useRef<string>('');
 
   useEffect(() => {
     const fetchAndMark = async () => {
@@ -27,27 +27,51 @@ export function AdminSidebar() {
         '/admin/customers': waitlistRes.count || 0,
       };
 
-      // If admin is on a badged page, mark current count as seen
       const path = location.pathname;
+
+      // Mark the current page as fully seen — persist to localStorage AND sessionStorage
+      // so it survives navigation but resets correctly after logout/login
       const seenKey = SEEN_KEYS[path];
-      if (seenKey) {
-        localStorage.setItem(seenKey, String(counts[path]));
+      if (seenKey && lastMarkedPath.current !== path) {
+        lastMarkedPath.current = path;
+        const currentCount = counts[path] || 0;
+        localStorage.setItem(seenKey, String(currentCount));
+        sessionStorage.setItem(seenKey, String(currentCount));
       }
 
       const badges: Record<string, number> = {};
       for (const [p, key] of Object.entries(SEEN_KEYS)) {
         if (p === path) {
+          // Always zero on the current page — admin is looking at it right now
           badges[p] = 0;
         } else {
-          const seen = parseInt(localStorage.getItem(key) || '0', 10);
-          badges[p] = Math.max(0, counts[p] - seen);
+          // Use sessionStorage first (resets on logout), fall back to localStorage
+          const seenRaw = sessionStorage.getItem(key) ?? localStorage.getItem(key) ?? '0';
+          const seen = parseInt(seenRaw, 10);
+          badges[p] = Math.max(0, (counts[p] || 0) - seen);
         }
       }
 
       setBadgeCounts(badges);
     };
+
     fetchAndMark();
   }, [location.pathname]);
+
+  // Clear all seen counts from sessionStorage when admin logs out
+  // so fresh login shows accurate unseen badge counts
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        Object.values(SEEN_KEYS).forEach(key => sessionStorage.removeItem(key));
+      }
+      if (event === 'SIGNED_IN') {
+        // On fresh login, clear session seen counts so badges reflect reality
+        Object.values(SEEN_KEYS).forEach(key => sessionStorage.removeItem(key));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const links = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
