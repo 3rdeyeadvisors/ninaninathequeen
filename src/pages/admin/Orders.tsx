@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getSupabase } from '@/lib/supabaseClient';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -198,6 +199,30 @@ export default function AdminOrders() {
 
       if (success) {
         toast.success('Order updated successfully');
+
+        // Auto-send shipping confirmation email when status changes to Shipped
+        if (editStatus === 'Shipped' && selectedOrder.status !== 'Shipped' && editTracking) {
+          try {
+            const supabase = getSupabase();
+            await supabase.functions.invoke('send-email', {
+              body: {
+                type: 'shipping_confirmation',
+                data: {
+                  orderId: selectedOrder.id,
+                  customerName: selectedOrder.customerName,
+                  customerEmail: selectedOrder.customerEmail,
+                  trackingNumber: editTracking,
+                  items: selectedOrder.items,
+                  total: selectedOrder.total,
+                }
+              }
+            });
+            toast.success(`Shipping confirmation sent to ${selectedOrder.customerEmail}`);
+          } catch (emailErr) {
+            console.error('Failed to send shipping email:', emailErr);
+          }
+        }
+
         setIsEditing(false);
       } else {
         toast.error('Failed to save. Please try again.');
