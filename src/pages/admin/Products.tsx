@@ -8,6 +8,7 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useProducts, type Product } from '@/hooks/useProducts';
 import { useSpreadsheetSync } from '@/hooks/useSpreadsheetSync';
 import { useProductsDb, type SyncResult } from '@/hooks/useProductsDb';
+import { getSupabase } from '@/lib/supabaseClient';
 
 import { toast } from 'sonner';
 import { useState, useMemo, useRef, useEffect } from 'react';
@@ -649,6 +650,28 @@ export default function AdminProducts() {
       toast.dismiss(loadingToast);
       if (result.success) {
         toast.success(wasAdding ? `"${productName}" added successfully!` : `"${productName}" saved successfully!`);
+
+        // Check if product is now low stock and alert admin
+        const threshold = settings.lowStockThreshold || 10;
+        const newInventory = parseInt(String(productData.inventory || 0));
+        if (newInventory > 0 && newInventory <= threshold) {
+          try {
+            const supabase = getSupabase();
+            await supabase.functions.invoke('send-email', {
+              body: {
+                type: 'admin_low_stock',
+                data: {
+                  productTitle: productData.title,
+                  inventory: newInventory,
+                  threshold,
+                  adminEmail: settings.contactEmail || 'hello@ninaarmend.com',
+                }
+              }
+            });
+          } catch (err) {
+            console.error('Low stock alert failed:', err);
+          }
+        }
       } else {
         const reason = (result as { success: false; reason: string }).reason;
         if (reason === 'auth') {

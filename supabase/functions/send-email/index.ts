@@ -376,6 +376,24 @@ function adminBirthdayReportEmail(data: { count: number; month: string }): { sub
   }
 }
 
+function adminLowStockEmail(data: { productTitle: string; inventory: number; threshold: number; adminEmail: string }): { subject: string; html: string } {
+  const productTitle = escapeHtml(data.productTitle || '');
+  return {
+    subject: `⚠️ Low Stock Alert — ${productTitle}`,
+    html: baseWrapper(`
+      <h1 style="${S.h1}">Low Stock Alert</h1>
+      <p style="${S.p}">A product in your store is running low and may need restocking.</p>
+      <div style="${S.card}">
+        <p style="${S.p}margin:0 0 8px 0;"><span style="${S.highlight}">${productTitle}</span></p>
+        <p style="${S.muted}margin:0;">Current inventory: <strong style="color:#C9A96E;">${data.inventory} units</strong> (threshold: ${data.threshold})</p>
+      </div>
+      <div style="${S.btnCenter}">
+        <a href="${BRAND.siteUrl}/admin/products" style="${S.btn}">Manage Inventory</a>
+      </div>
+    `),
+  };
+}
+
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string): Promise<{ success: boolean; error?: string }> {
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
   if (!RESEND_API_KEY) {
@@ -538,6 +556,11 @@ Deno.serve(async (req) => {
         const email = adminBirthdayReportEmail(data)
         results.push(await sendEmail(data.adminEmail, email.subject, email.html))
         break
+      }
+      case 'admin_low_stock': {
+        const email = adminLowStockEmail(data);
+        results.push(await sendEmail(data.adminEmail, email.subject, email.html));
+        break;
       }
       default:
         throw new Error(`Unknown email type: ${type}`)
