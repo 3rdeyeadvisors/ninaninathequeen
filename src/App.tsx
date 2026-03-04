@@ -10,14 +10,11 @@ import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { DbSyncProvider, useDbSync } from "@/providers/DbSyncProvider";
-import { WaterFilter } from "@/components/WaterFilter";
-import { WaterEffect } from "@/components/WaterEffect";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import ProductPage from "./pages/ProductPage";
 import MixAndMatch from "./pages/MixAndMatch";
 import SizeQuiz from "./pages/SizeQuiz";
-import FittingRoom from "./pages/FittingRoom";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminProducts from "./pages/admin/Products";
 import AdminOrders from "./pages/admin/Orders";
@@ -86,7 +83,6 @@ function AppContent() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <WaterEffect>
       <MaintenanceGuard>
         <Routes>
         <Route path="/" element={<Index />} />
@@ -94,7 +90,6 @@ function AppContent() {
         <Route path="/product/:handle" element={<ProductPage />} />
         <Route path="/mix-and-match" element={<MixAndMatch />} />
         <Route path="/size-quiz" element={<SizeQuiz />} />
-        <Route path="/fitting-room" element={<FittingRoom />} />
 
         {/* Protected Admin Routes */}
         <Route path="/admin" element={
@@ -146,7 +141,6 @@ function AppContent() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       </MaintenanceGuard>
-      </WaterEffect>
     </BrowserRouter>
   );
 }
@@ -155,7 +149,6 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <DbSyncProvider>
-        <WaterFilter />
         <Toaster />
         <Sonner />
         <AppContent />

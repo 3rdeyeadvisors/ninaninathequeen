@@ -172,9 +172,4 @@
     box-shadow: 0 0 20px hsl(35 41% 52% / 0.2);
   }
 
-  /* Water Effects */
-  .is-underwater {
-    filter: url(#underwater);
-    transition: filter 0.4s ease;
-  }
 }
