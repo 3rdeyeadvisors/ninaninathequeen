@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
+import { getSupabase } from '@/lib/supabaseClient';
 import { ADMIN_EMAIL } from '@/stores/authStore';
 import { useProductReviews, useAddReview, useToggleLike, useAddAdminComment, type DbReview } from '@/hooks/useReviewsDb';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,31 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
   
   const { data: productReviews = [], isLoading } = useProductReviews(productId);
   const addReviewMutation = useAddReview();
+  const [hasVerifiedPurchase, setHasVerifiedPurchase] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user?.id || !productId) return;
+    const checkPurchase = async () => {
+      try {
+        const supabase = getSupabase();
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('items')
+          .eq('customer_email', user.email)
+          .in('status', ['Processing', 'Shipped', 'Delivered']);
+
+        if (!orders) { setHasVerifiedPurchase(false); return; }
+
+        const purchased = orders.some(order =>
+          (order.items as any[])?.some((item: any) => item.productId === productId || item.product_id === productId)
+        );
+        setHasVerifiedPurchase(purchased);
+      } catch {
+        setHasVerifiedPurchase(false);
+      }
+    };
+    checkPurchase();
+  }, [user?.id, user?.email, productId]);
   const toggleLikeMutation = useToggleLike();
   const addAdminCommentMutation = useAddAdminComment();
 
@@ -51,6 +77,11 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
     e.preventDefault();
     if (!isAuthenticated || !user) {
       toast.error("Please sign in to leave a review");
+      return;
+    }
+
+    if (hasVerifiedPurchase === false && !isAdmin) {
+      toast.error('Only verified purchasers can leave a review.');
       return;
     }
     
@@ -74,6 +105,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
         user_avatar: user.avatar,
         rating: newRating,
         comment: trimmedComment,
+        verified_purchase: hasVerifiedPurchase === true,
       });
       setNewComment('');
       setNewRating(5);
@@ -165,6 +197,15 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                       <span>{newComment.length} / {MAX_REVIEW_LENGTH}</span>
                     </div>
                   </div>
+                  {hasVerifiedPurchase && (
+                    <div className="flex items-center gap-2 text-emerald-600 text-xs mb-2">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Verified Purchase — your review will show a verified badge</span>
+                    </div>
+                  )}
+                  {hasVerifiedPurchase === false && !isAdmin && (
+                    <p className="text-xs text-muted-foreground mb-2">You must purchase this product to leave a review.</p>
+                  )}
                   <Button 
                     type="submit" 
                     disabled={addReviewMutation.isPending}
@@ -203,7 +244,14 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                 <div className="flex-1">
                   <div className="flex flex-wrap justify-between items-start mb-4 gap-4">
                     <div>
-                      <h4 className="font-sans font-bold text-sm uppercase tracking-tight">{review.user_name}</h4>
+                      <div className="flex items-center">
+                        <h4 className="font-sans font-bold text-sm uppercase tracking-tight">{review.user_name}</h4>
+                        {review.verified_purchase && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 uppercase tracking-widest font-bold ml-2">
+                            <ShieldCheck className="h-3 w-3" /> Verified
+                          </span>
+                        )}
+                      </div>
                       <div className="flex mt-1">
                         {[1, 2, 3, 4, 5].map((s) => (
                           <Star key={s} className={`h-3 w-3 ${s <= review.rating ? 'fill-primary text-primary' : 'text-muted-foreground'}`} />

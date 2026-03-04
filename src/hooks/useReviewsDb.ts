@@ -16,6 +16,7 @@ export interface DbReview {
     authorRole: string;
     createdAt: string;
   } | null;
+  verified_purchase: boolean;
   created_at: string;
 }
 
@@ -62,6 +63,7 @@ export function useAddReview() {
       user_avatar?: string;
       rating: number;
       comment: string;
+      verified_purchase?: boolean;
     }) => {
       const { error } = await supabase
         .from('reviews')
@@ -72,6 +74,7 @@ export function useAddReview() {
           user_avatar: review.user_avatar || null,
           rating: review.rating,
           comment: review.comment,
+          verified_purchase: review.verified_purchase ?? false,
         });
       if (error) {
         if (error.code === '23505') {
