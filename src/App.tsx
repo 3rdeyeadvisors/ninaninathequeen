@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCloudAuthStore } from "@/stores/cloudAuthStore";
 import { useAdminStore } from "@/stores/adminStore";
+import { useCartStore } from "@/stores/cartStore";
 import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -79,6 +80,13 @@ function AppContent() {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    useCartStore.getState().checkAbandonedCart();
+    // Check every 30 minutes while the tab is open
+    const interval = setInterval(() => useCartStore.getState().checkAbandonedCart(), 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
   
   return (
     <BrowserRouter>

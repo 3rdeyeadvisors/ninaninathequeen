@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, createContext, useContext, ReactNode, useCallback } from 'react';
 import { useAdminStore, type ProductOverride, type AdminOrder, type AdminCustomer, type ShippingAddress } from '@/stores/adminStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
+import { useCartStore } from '@/stores/cartStore';
 import { toast } from 'sonner';
 import { getSupabase } from '@/lib/supabaseClient';
 
@@ -179,13 +180,23 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
     isInitializedRef.current = false;
     setIsInitialized(false);
 
+    const handleSync = async () => {
+      await loadAllData();
+
+      // Save user email to cart store for abandoned cart detection
+      const { data: { session } } = await getSupabase().auth.getSession();
+      if (session?.user?.email) {
+        useCartStore.getState().setUserEmail(session.user.email);
+      }
+    };
+
     const store = useAdminStore.getState();
     if (store._hasHydrated) {
-      loadAllData();
+      handleSync();
     } else {
       const unsubscribe = useAdminStore.subscribe((state) => {
         if (state._hasHydrated && !isInitializedRef.current) {
-          loadAllData();
+          handleSync();
           unsubscribe();
         }
       });
