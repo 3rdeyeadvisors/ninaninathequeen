@@ -3,18 +3,24 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
+const HERO_IMAGE = 'https://images.unsplash.com/photo-1541643600914-78b084683702?q=80&w=2000&auto=format&fit=crop';
+
 export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background with gradient overlay */}
-      <div className="absolute inset-0 gradient-dark" />
-      
-      {/* Decorative elements */}
+      {/* Background lifestyle photo */}
       <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/3 rounded-full blur-3xl" />
+        <img
+          src={HERO_IMAGE}
+          alt="Nina Armend luxury swimwear"
+          className="w-full h-full object-cover object-center"
+        />
+        {/* Dark gradient overlay — heavier at bottom for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/70" />
+        {/* Subtle gold accent wash */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-transparent" />
       </div>
-      
+
       {/* Content */}
       <div className="relative container mx-auto px-4 md:px-8 py-32 text-center">
         <motion.div
@@ -27,11 +33,11 @@ export function Hero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.5 }}
-            className="text-primary font-sans text-sm md:text-base tracking-[0.4em] uppercase mb-6"
+            className="text-primary font-sans text-sm md:text-base tracking-[0.4em] uppercase mb-6 drop-shadow"
           >
             Premium Brazilian Swimwear
           </motion.p>
-          
+
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -40,27 +46,27 @@ export function Hero() {
           >
             <span className="gradient-gold-text">Timeless</span>
             <br />
-            <span className="text-foreground">Sophistication</span>
+            <span className="text-white">Sophistication</span>
           </motion.h1>
-          
+
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.9 }}
-            className="text-muted-foreground font-sans text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed"
+            className="text-white/80 font-sans text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed drop-shadow"
           >
             Experience exotic crafted pieces made in Brazil, where swimwear fabrics set the standard. Collections thoughtfully selected to flatter every body type with eco-conscious fabrics.
           </motion.p>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.1 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Button 
+            <Button
               asChild
-              size="lg" 
+              size="lg"
               className="bg-primary hover:bg-primary/90 text-primary-foreground font-sans tracking-wider px-10 py-6 text-base shadow-gold"
             >
               <Link to="/shop">
@@ -68,11 +74,11 @@ export function Hero() {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            <Button 
+            <Button
               asChild
-              variant="outline" 
+              variant="outline"
               size="lg"
-              className="border-primary/50 hover:bg-primary/10 text-foreground font-sans tracking-wider px-10 py-6 text-base"
+              className="border-white/50 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white font-sans tracking-wider px-10 py-6 text-base"
             >
               <Link to="/shop?category=new-arrivals">
                 New Arrivals
@@ -80,7 +86,7 @@ export function Hero() {
             </Button>
           </motion.div>
         </motion.div>
-        
+
         {/* Scroll indicator */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -91,7 +97,7 @@ export function Hero() {
           <motion.div
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="w-px h-16 bg-gradient-to-b from-primary/50 to-transparent"
+            className="w-px h-16 bg-gradient-to-b from-primary/70 to-transparent"
           />
         </motion.div>
       </div>
