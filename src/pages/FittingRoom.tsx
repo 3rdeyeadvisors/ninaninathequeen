@@ -102,99 +102,70 @@ export default function FittingRoom() {
     setLandmarks(points);
   };
 
-  const autoAlignProduct = (poseResults?: Results | null) => {
-    if (!selectedProduct || !canvasContainerRef.current) return;
-
-    const rect = canvasContainerRef.current.getBoundingClientRect();
-    const containerWidth = rect.width;
-    const containerHeight = rect.height;
+  const autoAlignProduct = (poseResults: Results | null = null) => {
+    if (!selectedProduct) return;
 
     const category = selectedProduct.category?.toLowerCase() || 'one-piece';
+    const landmarks = poseResults?.poseLandmarks;
 
-    // Default values if no pose detected
-    let top = 180;
-    let left = containerWidth / 2 - 100;
+    // Default values (as percentages of container)
+    let topPercent = 30;
+    let leftPercent = 25;
     let scale = 1.1;
 
-    if (poseResults && poseResults.poseLandmarks) {
-      const landmarks = poseResults.poseLandmarks;
-      const imgElement = canvasContainerRef.current.querySelector('img') as HTMLImageElement;
+    if (landmarks && canvasContainerRef.current) {
+      const rect = canvasContainerRef.current.getBoundingClientRect();
+      const leftShoulder = landmarks[11];
+      const rightShoulder = landmarks[12];
+      const leftHip = landmarks[23];
+      const rightHip = landmarks[24];
 
-      if (imgElement && imgElement.naturalWidth) {
-        const containerRatio = containerWidth / containerHeight;
-        const imageRatio = imgElement.naturalWidth / imgElement.naturalHeight;
-
-        let displayWidth, displayHeight, offsetX, offsetY;
-        if (imageRatio > containerRatio) {
-          displayWidth = containerWidth;
-          displayHeight = containerWidth / imageRatio;
-          offsetX = 0;
-          offsetY = (containerHeight - displayHeight) / 2;
-        } else {
-          displayHeight = containerHeight;
-          displayWidth = containerHeight * imageRatio;
-          offsetY = 0;
-          offsetX = (containerWidth - displayWidth) / 2;
-        }
-
-        const getPixelPos = (index: number) => ({
-          x: offsetX + landmarks[index].x * displayWidth,
-          y: offsetY + landmarks[index].y * displayHeight
-        });
-
-        const leftShoulder = getPixelPos(11);
-        const rightShoulder = getPixelPos(12);
-        const leftHip = getPixelPos(23);
-        const rightHip = getPixelPos(24);
-
-        const shoulderCenter = {
-          x: (leftShoulder.x + rightShoulder.x) / 2,
-          y: (leftShoulder.y + rightShoulder.y) / 2
-        };
-
-        const hipCenter = {
-          x: (leftHip.x + rightHip.x) / 2,
-          y: (leftHip.y + rightHip.y) / 2
-        };
-
+      if (leftShoulder && rightShoulder) {
+        // Calculate midpoints and distances in normalized (0-1) coordinates
+        const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+        const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
         const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
-        const bodyHeight = Math.abs(hipCenter.y - shoulderCenter.y);
+
+        const hipMidX = leftHip && rightHip ? (leftHip.x + rightHip.x) / 2 : shoulderMidX;
+        const hipMidY = leftHip && rightHip ? (leftHip.y + rightHip.y) / 2 : shoulderMidY + 0.3;
+        const hipWidth = leftHip && rightHip ? Math.abs(leftHip.x - rightHip.x) : shoulderWidth;
+
+        // Convert to percentage values relative to the container
+        leftPercent = (shoulderMidX * 100) - (overlayStyle.width / (2 * rect.width) * 50);
 
         if (category.includes('top') && !category.includes('bottom')) {
-          top = shoulderCenter.y - 10;
-          left = shoulderCenter.x - 100;
-          scale = (shoulderWidth * 1.8) / 200;
+          topPercent = (shoulderMidY * 100);
+          scale = (shoulderWidth * 3.5); // Heuristic multiplier for fit
         } else if (category.includes('bottom')) {
-          top = hipCenter.y - 20;
-          left = hipCenter.x - 100;
-          scale = (shoulderWidth * 1.6) / 200;
-        } else {
-          // One-piece / Full body
-          top = shoulderCenter.y - 10;
-          left = shoulderCenter.x - 100;
-          // Scale based on body length
-          scale = (bodyHeight * 2.8) / 200;
+          topPercent = (hipMidY * 100) - 5;
+          scale = (hipWidth * 3.2);
+        } else { // One-piece / Default
+          topPercent = (shoulderMidY * 100);
+          const torsoHeight = hipMidY - shoulderMidY;
+          scale = (torsoHeight * 2.8);
         }
+
+        // Clamp values to reasonable ranges
+        scale = Math.max(0.6, Math.min(2.5, scale));
       }
     } else {
-      // Fallback to static alignment
+      // Fallback logic if no landmarks detected (percentages)
       if (category.includes('top') && !category.includes('bottom')) {
-        top = 140;
+        topPercent = 25;
         scale = 0.9;
       } else if (category.includes('bottom')) {
-        top = 260;
+        topPercent = 45;
         scale = 0.85;
-      } else if (category.includes('one-piece')) {
-        top = 170;
+      } else {
+        topPercent = 30;
         scale = 1.2;
       }
-      left = containerWidth / 2 - 100;
     }
 
     setOverlayStyle(prev => ({
       ...prev,
-      top,
-      left,
+      top: (topPercent / 100) * (canvasContainerRef.current?.clientHeight || 600),
+      left: (leftPercent / 100) * (canvasContainerRef.current?.clientWidth || 450),
       scale,
       rotate: 0,
       isFlipped: false,
@@ -307,7 +278,7 @@ export default function FittingRoom() {
       canvas.height = userImg.height;
 
       if (studioMode) {
-        ctx.filter = 'blur(3px) brightness(1.05) contrast(1.05)';
+        ctx.filter = 'blur(4px) brightness(1.15) contrast(0.95)';
       }
       ctx.drawImage(userImg, 0, 0);
       ctx.filter = 'none';
@@ -469,7 +440,7 @@ export default function FittingRoom() {
                         src={userPhoto}
                         alt="User"
                         className={`w-full h-full object-contain transition-all duration-700 group-hover/canvas:scale-105 ${
-                          studioMode ? 'filter blur-[2px] brightness-105 contrast-105' : ''
+                          studioMode ? 'filter blur-[2px] brightness-115 contrast-95' : ''
                         }`}
                       />
                       {studioMode && (
