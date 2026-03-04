@@ -17,7 +17,7 @@ import { motion } from 'framer-motion';
 export default function Checkout() {
   const navigate = useNavigate();
   const { items, getTotal } = useCartStore();
-  const { settings } = useAdminStore();
+  const { settings, productOverrides } = useAdminStore();
   const cloudAuth = useCloudAuthStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -124,7 +124,11 @@ export default function Checkout() {
           size: item.selectedOptions.find(o => o.name.toLowerCase() === 'size')?.value || item.variantTitle
         })),
         shippingCost: shippingCost.toFixed(2),
-        itemCost: (subtotal * 0.3).toFixed(2),
+        itemCost: items.reduce((sum, item) => {
+          const match = Object.values(productOverrides).find(p => p.title === item.product.title);
+          const unitCost = parseFloat(match?.unitCost || '0');
+          return sum + (unitCost * item.quantity);
+        }, 0).toFixed(2),
         total: total.toFixed(2),
         discountAmount: discountAmount.toFixed(2),
         discountType
