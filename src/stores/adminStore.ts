@@ -207,6 +207,10 @@ export const useAdminStore = create<AdminStore>()(
     {
       name: 'nina-armend-admin-v2',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => {
+        const { _hasHydrated, ...rest } = state;
+        return rest;
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
