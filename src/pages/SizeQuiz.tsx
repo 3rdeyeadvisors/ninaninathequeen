@@ -1,14 +1,15 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, CheckCircle2 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
+import { getSupabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 import { PRODUCT_SIZES } from '@/lib/constants';
 
@@ -38,11 +39,25 @@ const steps = [
 
 export default function SizeQuiz() {
   const { isAuthenticated, user } = useCloudAuthStore();
+
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [height, setHeight] = useState([165]); // cm
   const [weight, setWeight] = useState([60]); // kg
   const [result, setResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!result || !user?.id) return;
+    const saveSize = async () => {
+      try {
+        const supabase = getSupabase();
+        await supabase.from('profiles').update({ preferred_size: result }).eq('id', user.id);
+      } catch (err) {
+        console.error('Failed to save preferred size:', err);
+      }
+    };
+    saveSize();
+  }, [result, user?.id]);
 
   const handleNext = () => {
     if (currentStep < steps.length) {
@@ -193,6 +208,13 @@ export default function SizeQuiz() {
               <div className="inline-block p-8 border-2 border-primary rounded-2xl mb-12">
                 <span className="text-6xl font-serif text-primary">{result}</span>
               </div>
+
+              {user && (
+                <p className="text-sm text-emerald-600 mb-4 flex items-center justify-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Saved to your profile — we'll pre-select this size when you shop.
+                </p>
+              )}
 
               <div className="flex flex-col gap-4">
                 <Button size="lg" className="w-full bg-primary hover:bg-primary/90" asChild>
