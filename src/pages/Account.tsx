@@ -47,7 +47,6 @@ import { User, Package, Gift, Share2, Camera, LogOut, Lock, Eye, EyeOff, UserPlu
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAuthStore, ADMIN_EMAIL } from '@/stores/authStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { playSound } from '@/lib/sounds';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -62,8 +61,6 @@ const MONTHS = [
 
 export default function Account() {
   const navigate = useNavigate();
-  // Legacy auth store - kept for profile data display only
-  const { user: legacyUser, updateProfile } = useAuthStore();
   
   // Cloud Auth (Supabase) - used for all authentication
   const cloudAuth = useCloudAuthStore();
@@ -73,17 +70,16 @@ export default function Account() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   
-  // Use Cloud Auth user, fallback to legacy for profile display
   const user = cloudAuth.user ? {
     name: cloudAuth.user.name || cloudAuth.user.email.split('@')[0],
     email: cloudAuth.user.email,
     avatar: cloudAuth.user.avatar,
-    points: cloudAuth.user.points || legacyUser?.points || 0,
-    referralCode: cloudAuth.user.referralCode || legacyUser?.referralCode,
-    role: cloudAuth.user.isAdmin ? 'Admin' : legacyUser?.role,
-    preferredSize: cloudAuth.user.preferredSize || legacyUser?.preferredSize,
+    points: cloudAuth.user.points || 0,
+    referralCode: cloudAuth.user.referralCode,
+    role: cloudAuth.user.isAdmin ? 'Founder & Owner' : 'Member',
+    preferredSize: cloudAuth.user.preferredSize,
     birthMonth: cloudAuth.user.birthMonth,
-  } : legacyUser;
+  } : null;
   
   const isAuthenticated = cloudAuth.isAuthenticated;
   const isAdmin = cloudAuth.user?.isAdmin || false;
@@ -194,10 +190,7 @@ export default function Account() {
 
       if (authError) throw authError;
 
-      // 3. Update legacy store (for UI consistency if still used)
-      updateProfile({ name, preferredSize });
-
-      // 4. Update cloud auth store state locally (or let it re-fetch)
+      // 3. Update cloud auth store state locally (or let it re-fetch)
       // Actually we might want to manually update the store to avoid a full refresh
       // but let's assume initialize() will be triggered by onAuthStateChange if metadata changes.
       // Or just toast and play sound.
@@ -285,11 +278,7 @@ export default function Account() {
       const { error } = await cloudAuth.signInWithEmail(loginEmail, loginPassword);
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
-          if (loginEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-            toast.error("Admin account not found. If this is your first time logging in, please use the 'Sign Up' tab with your admin email to establish your account.", { duration: 6000 });
-          } else {
-            toast.error("Invalid email or password. If you haven't created an account yet, please Sign Up first.");
-          }
+          toast.error("Invalid email or password. If you haven't created an account yet, please Sign Up first.");
         } else {
           toast.error(error.message || "Invalid email or password. Please try again.");
         }

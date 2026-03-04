@@ -7,13 +7,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ShoppingBag, RotateCcw, Loader2 } from 'lucide-react';
 import { useCartStore } from '@/stores/cartStore';
 import { toast } from 'sonner';
-import { useAuthStore } from '@/stores/authStore';
+import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { PRODUCT_SIZES } from '@/lib/constants';
 import { useAdminStore } from '@/stores/adminStore';
 import { useMemo } from 'react';
 
 export default function MixAndMatch() {
-  const { user } = useAuthStore();
+  const { user } = useCloudAuthStore();
   const { data: allProducts, isLoading } = useProducts(100);
   const { productOverrides } = useAdminStore();
 

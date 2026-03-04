@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { getSupabase } from '@/lib/supabaseClient';
-import { ADMIN_EMAIL } from '@/stores/authStore';
 import { useProductReviews, useAddReview, useToggleLike, useAddAdminComment, type DbReview } from '@/hooks/useReviewsDb';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,7 +31,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
     role: cloudAuth.user.isAdmin ? 'Admin' : undefined,
   } : null;
   
-  const isAdmin = cloudAuth.isAuthenticated && (cloudAuth.user?.isAdmin || cloudAuth.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+  const isAdmin = cloudAuth.isAuthenticated && cloudAuth.user?.isAdmin === true;
   
   const { data: productReviews = [], isLoading } = useProductReviews(productId);
   const addReviewMutation = useAddReview();
