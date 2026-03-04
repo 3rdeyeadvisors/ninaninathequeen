@@ -3,7 +3,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, ShoppingBag, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, Loader2, AlertCircle, Package, Truck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useCartStore } from '@/stores/cartStore';
 import { getSupabase } from '@/lib/supabaseClient';
@@ -106,26 +106,48 @@ export default function CheckoutSuccess() {
               </div>
             ) : (
               <>
-                <div className="flex justify-center mb-6">
-                  <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center">
-                    <CheckCircle2 className="h-12 w-12 text-primary" />
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+                  className="flex justify-center mb-8"
+                >
+                  <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center ring-4 ring-primary/20">
+                    <CheckCircle2 className="h-14 w-14 text-primary" />
                   </div>
-                </div>
+                </motion.div>
 
-                <h1 className="font-serif text-4xl md:text-5xl mb-4 tracking-tight">Thank You For Your Order!</h1>
-                <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-                  {finalOrderId ? `Your order ${finalOrderId} has been placed successfully.` : "Your order has been placed successfully."} We'll send you a confirmation email with your order details and tracking information once your package ships.
+                <h1 className="font-serif text-4xl md:text-5xl mb-3 tracking-tight">Order Confirmed</h1>
+                <p className="text-muted-foreground text-lg mb-2">
+                  Thank you for your order{finalOrderId ? ` — #${finalOrderId.slice(0, 8).toUpperCase()}` : ''}.
+                </p>
+                <p className="text-muted-foreground text-sm mb-10 leading-relaxed max-w-md mx-auto">
+                  A confirmation email is on its way to you. Your order will be carefully prepared and shipped within 3–5 business days.
                 </p>
 
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4 mb-10 max-w-lg mx-auto">
+                  {[
+                    { icon: CheckCircle2, label: 'Order Confirmed', sub: 'Payment received' },
+                    { icon: Package, label: 'Being Prepared', sub: '3–5 business days' },
+                    { icon: Truck, label: 'Ships to You', sub: 'Tracking via email' },
+                  ].map(({ icon: Icon, label, sub }, i) => (
+                    <div key={i} className="flex flex-col items-center p-4 bg-secondary/20 rounded-2xl border border-border/40">
+                      <Icon className="h-6 w-6 text-primary mb-2" />
+                      <p className="text-xs font-bold uppercase tracking-widest">{label}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{sub}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4 max-w-sm mx-auto">
                   <Button asChild size="lg" className="w-full bg-primary py-6 font-sans uppercase tracking-widest text-xs">
                     <Link to="/shop">
                       <ShoppingBag className="h-4 w-4 mr-2" />
-                      Continue Shopping
+                      Keep Shopping
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="lg" className="w-full py-6 font-sans uppercase tracking-widest text-xs">
-                    <Link to="/account">View Order Status</Link>
+                    <Link to="/account">View My Orders</Link>
                   </Button>
                 </div>
               </>
