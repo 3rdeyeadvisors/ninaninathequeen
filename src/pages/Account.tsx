@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -64,6 +65,10 @@ export default function Account() {
   
   // Cloud Auth (Supabase) - used for all authentication
   const cloudAuth = useCloudAuthStore();
+
+  const [returnOrderId, setReturnOrderId] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState('');
+  const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
   
   const { items: wishlistItems, removeItem: removeFromWishlist } = useWishlistStore();
   const [showPassword, setShowPassword] = useState(false);
@@ -370,6 +375,44 @@ export default function Account() {
     await cloudAuth.signOut();
     navigate('/');
     toast.success("You have been signed out.");
+  };
+
+  const handleSubmitReturn = async () => {
+    if (!returnOrderId || !returnReason.trim()) {
+      toast.error('Please provide a reason for your return.');
+      return;
+    }
+    setIsSubmittingReturn(true);
+    try {
+      const supabase = getSupabase();
+      await supabase.from('return_requests').insert({
+        order_id: returnOrderId,
+        customer_email: user?.email,
+        customer_name: user?.name,
+        reason: returnReason.trim(),
+        status: 'Pending',
+      });
+      // Notify admin via email
+      await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'admin_return_request',
+          data: {
+            orderId: returnOrderId,
+            customerName: user?.name,
+            customerEmail: user?.email,
+            reason: returnReason.trim(),
+            adminEmail: 'hello@ninaarmend.com',
+          }
+        }
+      });
+      toast.success('Return request submitted. We\'ll be in touch within 2 business days.');
+      setReturnOrderId(null);
+      setReturnReason('');
+    } catch (err) {
+      toast.error('Failed to submit return request. Please contact support.');
+    } finally {
+      setIsSubmittingReturn(false);
+    }
   };
 
   const copyReferralLink = () => {
@@ -776,6 +819,7 @@ export default function Account() {
                               <TableHead className="text-[10px] uppercase tracking-widest">Date</TableHead>
                               <TableHead className="text-[10px] uppercase tracking-widest">Status</TableHead>
                               <TableHead className="text-[10px] uppercase tracking-widest text-right">Total</TableHead>
+                              <TableHead className="text-[10px] uppercase tracking-widest"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -785,6 +829,18 @@ export default function Account() {
                                 <TableCell>{order.date}</TableCell>
                                 <TableCell><Badge variant="outline" className="border-green-500/50 text-green-600">{order.status}</Badge></TableCell>
                                 <TableCell className="text-right">{order.total}</TableCell>
+                                <TableCell>
+                                  {(order.status === 'Delivered' || order.status === 'Shipped') && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-[9px] uppercase tracking-widest text-muted-foreground hover:text-primary"
+                                      onClick={() => setReturnOrderId(order.id)}
+                                    >
+                                      Return
+                                    </Button>
+                                  )}
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -812,6 +868,45 @@ export default function Account() {
                     )}
                   </CardContent>
                   </Card>
+                  <Dialog open={!!returnOrderId} onOpenChange={(open) => { if (!open) { setReturnOrderId(null); setReturnReason(''); } }}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle className="font-serif text-2xl">Request a Return</DialogTitle>
+                        <DialogDescription>
+                          Order #{returnOrderId?.slice(0, 8).toUpperCase()} · We'll review your request within 2 business days.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-2">
+                        <div className="grid gap-2">
+                          <Label>Reason for Return</Label>
+                          <select
+                            className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
+                            value={returnReason}
+                            onChange={(e) => setReturnReason(e.target.value)}
+                          >
+                            <option value="">Select a reason...</option>
+                            <option value="Wrong size">Wrong size</option>
+                            <option value="Defective or damaged">Defective or damaged</option>
+                            <option value="Not as described">Not as described</option>
+                            <option value="Changed my mind">Changed my mind</option>
+                            <option value="Received wrong item">Received wrong item</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => { setReturnOrderId(null); setReturnReason(''); }}>Cancel</Button>
+                        <Button
+                          onClick={handleSubmitReturn}
+                          disabled={isSubmittingReturn || !returnReason}
+                          className="bg-primary"
+                        >
+                          {isSubmittingReturn ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Submit Request
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </TabsContent>
 
                 <TabsContent value="points">
