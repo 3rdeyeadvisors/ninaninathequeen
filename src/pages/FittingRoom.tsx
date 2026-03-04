@@ -102,29 +102,99 @@ export default function FittingRoom() {
     setLandmarks(points);
   };
 
-  const autoAlignProduct = () => {
-    if (!selectedProduct) return;
+  const autoAlignProduct = (poseResults?: Results | null) => {
+    if (!selectedProduct || !canvasContainerRef.current) return;
+
+    const rect = canvasContainerRef.current.getBoundingClientRect();
+    const containerWidth = rect.width;
+    const containerHeight = rect.height;
 
     const category = selectedProduct.category?.toLowerCase() || 'one-piece';
 
+    // Default values if no pose detected
     let top = 180;
+    let left = containerWidth / 2 - 100;
     let scale = 1.1;
 
-    if (category.includes('top') && !category.includes('bottom')) {
-      top = 140;
-      scale = 0.9;
-    } else if (category.includes('bottom')) {
-      top = 260;
-      scale = 0.85;
-    } else if (category.includes('one-piece')) {
-      top = 170;
-      scale = 1.2;
+    if (poseResults && poseResults.poseLandmarks) {
+      const landmarks = poseResults.poseLandmarks;
+      const imgElement = canvasContainerRef.current.querySelector('img') as HTMLImageElement;
+
+      if (imgElement && imgElement.naturalWidth) {
+        const containerRatio = containerWidth / containerHeight;
+        const imageRatio = imgElement.naturalWidth / imgElement.naturalHeight;
+
+        let displayWidth, displayHeight, offsetX, offsetY;
+        if (imageRatio > containerRatio) {
+          displayWidth = containerWidth;
+          displayHeight = containerWidth / imageRatio;
+          offsetX = 0;
+          offsetY = (containerHeight - displayHeight) / 2;
+        } else {
+          displayHeight = containerHeight;
+          displayWidth = containerHeight * imageRatio;
+          offsetY = 0;
+          offsetX = (containerWidth - displayWidth) / 2;
+        }
+
+        const getPixelPos = (index: number) => ({
+          x: offsetX + landmarks[index].x * displayWidth,
+          y: offsetY + landmarks[index].y * displayHeight
+        });
+
+        const leftShoulder = getPixelPos(11);
+        const rightShoulder = getPixelPos(12);
+        const leftHip = getPixelPos(23);
+        const rightHip = getPixelPos(24);
+
+        const shoulderCenter = {
+          x: (leftShoulder.x + rightShoulder.x) / 2,
+          y: (leftShoulder.y + rightShoulder.y) / 2
+        };
+
+        const hipCenter = {
+          x: (leftHip.x + rightHip.x) / 2,
+          y: (leftHip.y + rightHip.y) / 2
+        };
+
+        const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+        const bodyHeight = Math.abs(hipCenter.y - shoulderCenter.y);
+
+        if (category.includes('top') && !category.includes('bottom')) {
+          top = shoulderCenter.y - 10;
+          left = shoulderCenter.x - 100;
+          scale = (shoulderWidth * 1.8) / 200;
+        } else if (category.includes('bottom')) {
+          top = hipCenter.y - 20;
+          left = hipCenter.x - 100;
+          scale = (shoulderWidth * 1.6) / 200;
+        } else {
+          // One-piece / Full body
+          top = shoulderCenter.y - 10;
+          left = shoulderCenter.x - 100;
+          // Scale based on body length
+          scale = (bodyHeight * 2.8) / 200;
+        }
+      }
+    } else {
+      // Fallback to static alignment
+      if (category.includes('top') && !category.includes('bottom')) {
+        top = 140;
+        scale = 0.9;
+      } else if (category.includes('bottom')) {
+        top = 260;
+        scale = 0.85;
+      } else if (category.includes('one-piece')) {
+        top = 170;
+        scale = 1.2;
+      }
+      left = containerWidth / 2 - 100;
     }
 
     setOverlayStyle(prev => ({
       ...prev,
       top,
-      left: 100,
+      left,
       scale,
       rotate: 0,
       isFlipped: false,
@@ -192,7 +262,7 @@ export default function FittingRoom() {
         autoAlignProduct(poseResults);
       }
 
-      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500));
+      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 300));
     }
 
     setIsProcessing(false);
@@ -237,7 +307,7 @@ export default function FittingRoom() {
       canvas.height = userImg.height;
 
       if (studioMode) {
-        ctx.filter = 'blur(15px) brightness(1.15) contrast(0.95)';
+        ctx.filter = 'blur(3px) brightness(1.05) contrast(1.05)';
       }
       ctx.drawImage(userImg, 0, 0);
       ctx.filter = 'none';
@@ -399,7 +469,7 @@ export default function FittingRoom() {
                         src={userPhoto}
                         alt="User"
                         className={`w-full h-full object-contain transition-all duration-700 group-hover/canvas:scale-105 ${
-                          studioMode ? 'filter blur-[8px] brightness-115 contrast-95' : ''
+                          studioMode ? 'filter blur-[2px] brightness-105 contrast-105' : ''
                         }`}
                       />
                       {studioMode && (
