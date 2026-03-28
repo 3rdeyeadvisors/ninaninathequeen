@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     </table>
   </div>
   <div style="text-align:center;padding:24px 0;">
-    <a href="${SUPABASE_URL.replace('ykhgqjownxmioexytfzc.supabase.co', 'ninaarmend.co')}/checkout" style="display:inline-block;background:#C9A96E;color:#000000;padding:16px 40px;border-radius:50px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;">Complete Your Order</a>
+    <a href="https://ninaarmend.co/checkout" style="display:inline-block;background:#C9A96E;color:#000000;padding:16px 40px;border-radius:50px;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:2px;text-transform:uppercase;">Complete Your Order</a>
   </div>
   <p style="color:#999999;font-size:14px;text-align:center;">This is a one-time reminder. We won't send another.</p>
   <div style="text-align:center;padding-top:32px;border-top:1px solid #222222;margin-top:32px;">
