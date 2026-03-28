@@ -149,6 +149,24 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_orders: {
+        Row: {
+          created_at: string | null
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          metadata: Json
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          metadata?: Json
+        }
+        Relationships: []
+      }
       product_views: {
         Row: {
           first_viewed_at: string
@@ -311,6 +329,39 @@ export type Database = {
           referred_id?: string
           referrer_id?: string
           status?: string
+        }
+        Relationships: []
+      }
+      return_requests: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          id: string
+          order_id: string
+          reason: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          id?: string
+          order_id: string
+          reason: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          id?: string
+          order_id?: string
+          reason?: string
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
