@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,13 @@ export default function CheckoutSuccess() {
   const [isFinalizing, setIsFinalizing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [finalOrderId, setFinalOrderId] = useState<string | null>(null);
+  const hasFinalized = useRef(false);
 
   useEffect(() => {
     const finalizeOrder = async () => {
+      if (hasFinalized.current) return;
+      hasFinalized.current = true;
+
       // Clear cart immediately upon successful payment return
       clearCart();
 
