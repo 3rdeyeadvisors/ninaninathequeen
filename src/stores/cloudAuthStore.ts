@@ -46,25 +46,24 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
     try {
       const supabase = getSupabase();
       
-      // Get current session
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user: initialUser } } = await supabase.auth.getUser();
       
       const handleUserSession = async (session: Session | null) => {
-        if (session?.user) {
-          const isAdmin = await get().checkIsAdmin(session.user.id);
+        const authUser = session?.user ?? null;
+        if (authUser) {
+          const isAdmin = await get().checkIsAdmin(authUser.id);
 
-          // Fetch additional profile data
           const { data: profile } = await supabase
             .from('profiles')
             .select('preferred_size, birth_month, points, referral_code')
-            .eq('id', session.user.id)
+            .eq('id', authUser.id)
             .single();
 
           const userData: CloudAuthUser = {
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
-            avatar: session.user.user_metadata?.avatar_url,
+            id: authUser.id,
+            email: authUser.email || '',
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0],
+            avatar: authUser.user_metadata?.avatar_url,
             isAdmin,
             preferredSize: profile?.preferred_size,
             birthMonth: profile?.birth_month,
@@ -90,7 +89,7 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
         }
       };
 
-      await handleUserSession(session);
+      await handleUserSession(initialUser ? { user: initialUser } as Session : null);
 
       // Listen for auth changes
       if (authSubscription) {
