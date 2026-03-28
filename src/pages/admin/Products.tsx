@@ -409,8 +409,8 @@ export default function AdminProducts() {
     setIsAiGenerating(true);
     try {
       const { supabase } = await import('@/integrations/supabase/client');
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      const { data: { user } } = await supabase.auth.getUser();
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
 
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`, {
         method: 'POST',
