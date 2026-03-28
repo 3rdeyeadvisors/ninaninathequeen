@@ -167,6 +167,7 @@ Deno.serve(async (req) => {
 
     // Build order metadata to pass through the redirect URL so finalize-square-order
     // can create the order record AFTER payment is confirmed (no more premature Pending orders)
+    const pendingId = crypto.randomUUID();
     const orderMetadata = {
       customerName: orderDetails.customerName || '',
       customerEmail: orderDetails.customerEmail || '',
@@ -177,12 +178,26 @@ Deno.serve(async (req) => {
       discountAmount: orderDetails.discountAmount || '0',
       discountType: orderDetails.discountType || '',
     };
-    const metadataEncoded = encodeURIComponent(JSON.stringify(orderMetadata));
+
+    const { error: pendingError } = await supabase
+      .from('pending_orders')
+      .insert({ id: pendingId, metadata: orderMetadata, created_at: new Date().toISOString() });
+
+    if (pendingError) {
+      console.error('[CreateSquareCheckout] Failed to store pending order:', pendingError.message);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Failed to initialize checkout. Please try again.'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     const body: any = {
       idempotency_key: crypto.randomUUID(),
       checkout_options: {
-        redirect_url: `${origin}/checkout/success?metadata=${metadataEncoded}`,
+        redirect_url: `${origin}/checkout/success?pending_id=${pendingId}`,
         ask_for_shipping_address: true,
       },
       order: {

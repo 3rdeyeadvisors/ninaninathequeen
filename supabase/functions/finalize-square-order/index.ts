@@ -18,10 +18,25 @@ Deno.serve(async (req) => {
 
   console.time('FinalizeOrder_TotalExecutionTime');
   try {
-    const { squareOrderId, metadata } = await req.json()
-    if (!squareOrderId && !metadata) {
-      throw new Error('Square Order ID or order metadata is required')
+    const { squareOrderId, pendingId } = await req.json()
+    if (!squareOrderId) {
+      throw new Error('Square Order ID is required')
     }
+    if (!pendingId) {
+      throw new Error('Pending order ID is required')
+    }
+
+    const { data: pendingRow, error: pendingFetchError } = await supabase
+      .from('pending_orders')
+      .select('metadata')
+      .eq('id', pendingId)
+      .maybeSingle();
+
+    if (pendingFetchError || !pendingRow) {
+      throw new Error('Could not retrieve order details. Please contact support.');
+    }
+
+    const metadata = pendingRow.metadata;
 
     // Get secrets
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')?.trim()
@@ -123,6 +138,8 @@ Deno.serve(async (req) => {
         console.error(`[FinalizeSquareOrder] DB Insert Error:`, insertError.message)
         throw new Error(`Failed to create order record: ${insertError.message}`);
       }
+
+      await supabase.from('pending_orders').delete().eq('id', pendingId);
 
       // Decrement Inventory
       console.log(`[FinalizeSquareOrder] Decrementing inventory for items in order ${orderId}`)
