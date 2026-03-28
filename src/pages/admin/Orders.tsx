@@ -377,7 +377,7 @@ export default function AdminOrders() {
   const updateReturnStatus = async (id: string, status: string) => {
     try {
       const supabase = getSupabase();
-      await supabase.from('return_requests').update({ status }).eq('id', id);
+      await supabase.from('return_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
       setReturnRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
       toast.success('Return status updated');
     } catch {
