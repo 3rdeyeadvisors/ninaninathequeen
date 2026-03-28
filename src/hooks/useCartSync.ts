@@ -41,7 +41,7 @@ export function useCartSync() {
                 user_id: user.id,
                 product_id: item.id
               })),
-              { onConflict: 'user_id, product_id' }
+              { onConflict: 'user_id,product_id' }
             );
 
           if (uploadError) {
