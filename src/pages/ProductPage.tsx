@@ -23,10 +23,10 @@ const ProductPage = () => {
   useEffect(() => {
     if (product) {
       // DB tracking for authenticated users via atomic RPC (fire-and-forget)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user?.id) {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user?.id) {
           supabase.rpc('increment_product_view', {
-            p_user_id: session.user.id,
+            p_user_id: user.id,
             p_product_id: product.id,
             p_product_title: product.title,
           }).then(() => {});
