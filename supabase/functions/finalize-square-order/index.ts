@@ -18,27 +18,6 @@ Deno.serve(async (req) => {
 
   console.time('FinalizeOrder_TotalExecutionTime');
   try {
-    // Clean up legacy stale Pending orders (older than 1 hour) — safety net for old data
-    try {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      const { data: staleOrders, error: staleError } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('status', 'Pending')
-        .lt('created_at', oneHourAgo);
-      
-      if (!staleError && staleOrders && staleOrders.length > 0) {
-        const staleIds = staleOrders.map(o => o.id);
-        await supabase
-          .from('orders')
-          .update({ status: 'Cancelled', updated_at: new Date().toISOString() })
-          .in('id', staleIds);
-        console.log(`[FinalizeSquareOrder] Cancelled ${staleIds.length} stale Pending orders`);
-      }
-    } catch (cleanupErr) {
-      console.error('[FinalizeSquareOrder] Stale order cleanup error (non-critical):', cleanupErr);
-    }
-
     const { squareOrderId, metadata } = await req.json()
     if (!squareOrderId && !metadata) {
       throw new Error('Square Order ID or order metadata is required')
