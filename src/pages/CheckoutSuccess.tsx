@@ -12,7 +12,7 @@ import { useDbSync } from '@/providers/DbSyncProvider';
 
 export default function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
-  const metadataParam = searchParams.get('metadata');
+  const pendingId = searchParams.get('pending_id');
   const { clearCart } = useCartStore();
   const { syncProducts, syncOrders } = useDbSync();
   const [isFinalizing, setIsFinalizing] = useState(true);
@@ -28,9 +28,8 @@ export default function CheckoutSuccess() {
       // Clear cart immediately upon successful payment return
       clearCart();
 
-      if (metadataParam) {
+      if (pendingId) {
         try {
-          const metadata = JSON.parse(decodeURIComponent(metadataParam));
           const supabase = getSupabase();
 
           // The redirect URL from Square includes the Square order ID as a query param
@@ -45,7 +44,7 @@ export default function CheckoutSuccess() {
 
           // Call the secure backend function to finalize and CREATE the order
           const { data, error: functionError } = await supabase.functions.invoke('finalize-square-order', {
-            body: { squareOrderId, metadata }
+            body: { squareOrderId, pendingId }
           });
 
           if (functionError || !data?.success) {
@@ -68,7 +67,7 @@ export default function CheckoutSuccess() {
     };
 
     finalizeOrder();
-  }, [metadataParam, clearCart]);
+  }, [pendingId, clearCart]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
