@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
-import { useCartSync } from "@/hooks/useCartSync";
+import { useWishlistSync } from "@/hooks/useWishlistSync";
 import { useCloudAuthStore } from "@/stores/cloudAuthStore";
 import { useAdminStore } from "@/stores/adminStore";
 import { useCartStore } from "@/stores/cartStore";
@@ -74,7 +74,7 @@ function InviteCapture() {
 }
 
 function AppContent() {
-  useCartSync();
+  useWishlistSync();
   const { initialize } = useCloudAuthStore();
 
   useEffect(() => {

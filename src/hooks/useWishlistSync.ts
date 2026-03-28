@@ -6,7 +6,7 @@ import { getSupabase } from '@/lib/supabaseClient';
 /**
  * Hook to sync local wishlist with Supabase when user logs in.
  */
-export function useCartSync() {
+export function useWishlistSync() {
   const { items: wishlistItems, addItem: addToWishlist } = useWishlistStore();
   const { user, isAuthenticated, isInitialized } = useCloudAuthStore();
 
