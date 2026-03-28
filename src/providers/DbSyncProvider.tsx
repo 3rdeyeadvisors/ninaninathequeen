@@ -184,9 +184,9 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
       await loadAllData();
 
       // Save user email to cart store for abandoned cart detection
-      const { data: { session } } = await getSupabase().auth.getSession();
-      if (session?.user?.email) {
-        useCartStore.getState().setUserEmail(session.user.email);
+      const { data: { user } } = await getSupabase().auth.getUser();
+      if (user?.email) {
+        useCartStore.getState().setUserEmail(user.email);
       }
     };
 
