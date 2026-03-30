@@ -11,6 +11,7 @@ import { useAdminStore } from '@/stores/adminStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { getSupabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+import { calculateSetDiscount } from '@/lib/utils';
 import { Loader2, ShieldCheck, Truck, ArrowLeft, CreditCard, Mail, User, Info, Gift, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -58,6 +59,7 @@ export default function Checkout() {
   }, [cloudAuth.user?.id]);
 
   const subtotal = getTotal();
+  const setDiscount = calculateSetDiscount(items);
   const topsCount = items.filter(i => i.product.category === 'Top').reduce((sum, i) => sum + i.quantity, 0);
   const bottomsCount = items.filter(i => i.product.category === 'Bottom').reduce((sum, i) => sum + i.quantity, 0);
   const onePiecesCount = items.filter(i => i.product.category === 'One-Piece').reduce((sum, i) => sum + i.quantity, 0);
@@ -98,7 +100,7 @@ export default function Checkout() {
     }
   }, [profileData, hasEnoughPoints, isBirthMonth, toastShown]);
 
-  const total = Math.max(0, subtotal + shippingCost - discountAmount);
+  const total = Math.max(0, subtotal - setDiscount + shippingCost - discountAmount);
 
   const validateContact = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -153,7 +155,8 @@ export default function Checkout() {
         }, 0).toFixed(2),
         total: total.toFixed(2),
         discountAmount: discountAmount.toFixed(2),
-        discountType
+        discountType,
+        setDiscountAmount: setDiscount.toFixed(2),
       };
 
       const { data, error } = await supabase.functions.invoke('create-square-checkout', {
@@ -455,6 +458,12 @@ export default function Checkout() {
                             {discountType}
                           </span>
                           <span>-${discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {setDiscount > 0 && (
+                        <div className="flex justify-between text-sm font-sans text-green-600">
+                          <span>Matching Set Savings</span>
+                          <span>-${setDiscount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-xl font-serif pt-4 border-t border-border/30">

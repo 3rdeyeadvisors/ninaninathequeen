@@ -7,6 +7,7 @@ import { ShoppingBag, Minus, Plus, Trash2, Loader2, Truck, CheckCircle2 } from "
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
 import { useProducts } from '@/hooks/useProducts';
+import { calculateSetDiscount } from '@/lib/utils';
 
 export const CartDrawer = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export const CartDrawer = () => {
   const { items, isLoading, updateQuantity, removeItem, clearCart } = useCartStore();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price.amount) * item.quantity), 0);
+  const setDiscount = calculateSetDiscount(items);
 
   const topsCount = items.filter(i => i.product.category === 'Top').reduce((sum, i) => sum + i.quantity, 0);
   const bottomsCount = items.filter(i => i.product.category === 'Bottom').reduce((sum, i) => sum + i.quantity, 0);
@@ -178,9 +180,15 @@ export const CartDrawer = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-serif">Subtotal</span>
                   <span className="text-xl font-serif text-primary">
-                    {items[0]?.price.currencyCode || 'USD'} {totalPrice.toFixed(2)}
+                    {items[0]?.price.currencyCode || 'USD'} {(totalPrice - setDiscount).toFixed(2)}
                   </span>
                 </div>
+                {setDiscount > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-green-600 font-medium">Matching Set Savings</span>
+                    <span className="text-green-600 font-medium">-${setDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground">
                   Shipping and taxes calculated at checkout
                 </p>
