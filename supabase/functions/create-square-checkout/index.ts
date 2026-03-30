@@ -165,6 +165,17 @@ Deno.serve(async (req) => {
       })
     }
 
+    const setDiscountAmount = parseFloat(orderDetails.setDiscountAmount || '0')
+    if (setDiscountAmount > 0) {
+      discounts.push({
+        name: 'Matching Set Savings',
+        amount_money: {
+          amount: Math.round(setDiscountAmount * 100),
+          currency: 'USD'
+        }
+      })
+    }
+
     // Build order metadata to pass through the redirect URL so finalize-square-order
     // can create the order record AFTER payment is confirmed (no more premature Pending orders)
     const pendingId = crypto.randomUUID();
@@ -177,6 +188,7 @@ Deno.serve(async (req) => {
       total: orderDetails.total || '0.00',
       discountAmount: orderDetails.discountAmount || '0',
       discountType: orderDetails.discountType || '',
+      setDiscountAmount: orderDetails.setDiscountAmount || '0',
     };
 
     const { error: pendingError } = await supabase

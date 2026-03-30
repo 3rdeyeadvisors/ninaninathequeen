@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
           item_cost: metadata.itemCost || '0.00',
           discount_amount: parseFloat(metadata.discountAmount || '0') || 0,
           discount_type: metadata.discountType || null,
+          set_discount_amount: parseFloat(metadata.setDiscountAmount || '0') || 0,
           tracking_number: '',
           square_order_id: squareOrderId,
           shipping_address: shippingAddress,
