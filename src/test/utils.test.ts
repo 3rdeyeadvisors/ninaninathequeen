@@ -1,132 +1,93 @@
 import { describe, it, expect } from 'vitest';
-import { calculateSetDiscount } from '../lib/utils';
-import { CartItem } from '../stores/cartStore';
+import { getCollectionKey, calculateSetDiscount } from '../lib/utils';
+import type { CartItem } from '../stores/cartStore';
+
+describe('getCollectionKey', () => {
+  it('should strip bikini top/bottom suffixes', () => {
+    expect(getCollectionKey('Copacabana Triangle White Bikini Top')).toBe('copacabana triangle white');
+    expect(getCollectionKey('Copacabana Triangle White Bikini Bottom')).toBe('copacabana triangle white');
+    expect(getCollectionKey('Maravilhosa Top')).toBe('maravilhosa');
+    expect(getCollectionKey('Maravilhosa Bottom')).toBe('maravilhosa');
+  });
+
+  it('should normalize spaces and casing', () => {
+    expect(getCollectionKey('  Bela   Black  Top  ')).toBe('bela black');
+  });
+});
 
 describe('calculateSetDiscount', () => {
-  const mockProduct = (id: string, title: string, category: string) => ({
-    id,
-    title,
-    category,
-    description: '',
-    handle: '',
-    price: { amount: '50.00', currencyCode: 'USD' },
-    images: [],
-    variants: [],
-    options: []
+  const createItem = (title: string, category: string, price: string, quantity: number = 1): CartItem => ({
+    lineId: null,
+    product: {
+      id: title.toLowerCase().replace(/\s+/g, '-'),
+      title,
+      category,
+      description: '',
+      handle: title.toLowerCase().replace(/\s+/g, '-'),
+      price: { amount: price, currencyCode: 'USD' },
+      images: [],
+      variants: [],
+      options: []
+    },
+    variantId: `${title}-v`,
+    variantTitle: 'S',
+    price: { amount: price, currencyCode: 'USD' },
+    quantity,
+    selectedOptions: []
   });
 
-  it('returns 0 for an empty cart', () => {
-    expect(calculateSetDiscount([])).toBe(0);
-  });
-
-  it('returns 0 when there are only tops', () => {
-    const items: CartItem[] = [
-      {
-        lineId: null,
-        product: mockProduct('1', 'Ocean Breeze', 'Top'),
-        variantId: 'v1',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 2,
-        selectedOptions: []
-      }
+  it('should calculate discount for a matching set', () => {
+    const items = [
+      createItem('Maravilhosa Top', 'Top', '45.00'),
+      createItem('Maravilhosa Bottom', 'Bottom', '45.00'),
     ];
-    expect(calculateSetDiscount(items)).toBe(0);
-  });
-
-  it('returns 10 for one matching set', () => {
-    const items: CartItem[] = [
-      {
-        lineId: null,
-        product: mockProduct('1', 'Ocean Breeze', 'Top'),
-        variantId: 'v1',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 1,
-        selectedOptions: []
-      },
-      {
-        lineId: null,
-        product: mockProduct('2', 'Ocean Breeze', 'Bottom'),
-        variantId: 'v2',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 1,
-        selectedOptions: []
-      }
-    ];
+    // Maravilhosa set price is 80. Combined is 90. Discount should be 10.
     expect(calculateSetDiscount(items)).toBe(10);
   });
 
-  it('returns 20 for two matching sets of the same product', () => {
-    const items: CartItem[] = [
-      {
-        lineId: null,
-        product: mockProduct('1', 'Ocean Breeze', 'Top'),
-        variantId: 'v1',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 2,
-        selectedOptions: []
-      },
-      {
-        lineId: null,
-        product: mockProduct('2', 'Ocean Breeze', 'Bottom'),
-        variantId: 'v2',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 2,
-        selectedOptions: []
-      }
+  it('should handle multiple quantities for sets', () => {
+    const items = [
+      createItem('Maravilhosa Top', 'Top', '45.00', 2),
+      createItem('Maravilhosa Bottom', 'Bottom', '45.00', 2),
     ];
     expect(calculateSetDiscount(items)).toBe(20);
   });
 
-  it('returns 10 when quantities are mismatched', () => {
-    const items: CartItem[] = [
-      {
-        lineId: null,
-        product: mockProduct('1', 'Ocean Breeze', 'Top'),
-        variantId: 'v1',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 1,
-        selectedOptions: []
-      },
-      {
-        lineId: null,
-        product: mockProduct('2', 'Ocean Breeze', 'Bottom'),
-        variantId: 'v2',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 2,
-        selectedOptions: []
-      }
+  it('should handle mismatched quantities (partial sets)', () => {
+    const items = [
+      createItem('Maravilhosa Top', 'Top', '45.00', 2),
+      createItem('Maravilhosa Bottom', 'Bottom', '45.00', 1),
     ];
     expect(calculateSetDiscount(items)).toBe(10);
   });
 
-  it('returns 0 for tops and bottoms of different products', () => {
-    const items: CartItem[] = [
-      {
-        lineId: null,
-        product: mockProduct('1', 'Ocean Breeze', 'Top'),
-        variantId: 'v1',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 1,
-        selectedOptions: []
-      },
-      {
-        lineId: null,
-        product: mockProduct('2', 'Midnight Sun', 'Bottom'),
-        variantId: 'v2',
-        variantTitle: 'S',
-        price: { amount: '50.00', currencyCode: 'USD' },
-        quantity: 1,
-        selectedOptions: []
-      }
+  it('should not discount mixed sets', () => {
+    const items = [
+      createItem('Maravilhosa Top', 'Top', '45.00'),
+      createItem('Bela Black Bottom', 'Bottom', '45.00'),
     ];
     expect(calculateSetDiscount(items)).toBe(0);
+  });
+
+  it('should not discount if set price is higher than individual sum', () => {
+    const items = [
+      createItem('Boa Top', 'Top', '30.00'),
+      createItem('Boa Bottom', 'Bottom', '30.00'),
+    ];
+    // Boa set price is 78. Combined is 60. No discount.
+    expect(calculateSetDiscount(items)).toBe(0);
+  });
+
+  it('should handle multiple different collections', () => {
+    const items = [
+      createItem('Maravilhosa Top', 'Top', '45.00'),
+      createItem('Maravilhosa Bottom', 'Bottom', '45.00'),
+      createItem('Boa Top', 'Top', '50.00'),
+      createItem('Boa Bottom', 'Bottom', '50.00'),
+    ];
+    // Maravilhosa discount: 90 - 80 = 10
+    // Boa discount: 100 - 78 = 22
+    // Total: 32
+    expect(calculateSetDiscount(items)).toBe(32);
   });
 });

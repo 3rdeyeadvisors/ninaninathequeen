@@ -1,37 +1,73 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { CartItem } from "@/stores/cartStore";
+import { MATCHING_SET_PRICES } from './constants';
+import type { CartItem } from '@/stores/cartStore';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * Calculates the discount for matching sets in the cart.
- * A matching set is defined as one 'Top' and one 'Bottom' of the same product title.
- * Each matching set receives a $10 discount.
+ * Returns the collection key for a product title by stripping
+ * common suffixes ("top", "bottom", "bikini top", "bikini bottom").
+ */
+export function getCollectionKey(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/\s*(bikini\s*)?(top|bottom)\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Calculates the total discount from matching set deals.
+ *
+ * Rules:
+ * - A "matching set" = one Top + one Bottom whose titles share the same
+ *   collection key AND whose combined individual prices exceed the set price.
+ * - Each matched pair is counted once (greedy: cheapest discount first).
+ * - Mixed sets (different collections) receive no discount.
+ *
+ * Returns: discount amount in dollars (0 if no matching sets).
  */
 export function calculateSetDiscount(items: CartItem[]): number {
-  const tops: Record<string, number> = {};
-  const bottoms: Record<string, number> = {};
-
+  // Flatten items into individual units for easier matching
+  const flattenedItems: CartItem[] = [];
   items.forEach(item => {
-    const category = item.product.category;
-    const title = item.product.title;
-    if (category === 'Top') {
-      tops[title] = (tops[title] || 0) + item.quantity;
-    } else if (category === 'Bottom') {
-      bottoms[title] = (bottoms[title] || 0) + item.quantity;
+    for (let i = 0; i < item.quantity; i++) {
+      flattenedItems.push({ ...item, quantity: 1 });
     }
   });
 
-  let totalDiscount = 0;
-  const productTitles = new Set([...Object.keys(tops), ...Object.keys(bottoms)]);
+  const tops = flattenedItems.filter(i => i.product.category === 'Top');
+  const bottoms = flattenedItems.filter(i => i.product.category === 'Bottom');
 
-  productTitles.forEach(title => {
-    const sets = Math.min(tops[title] || 0, bottoms[title] || 0);
-    totalDiscount += sets * 10;
-  });
+  let totalDiscount = 0;
+  // Track which bottom indices have already been matched
+  const usedBottoms = new Set<number>();
+
+  for (const top of tops) {
+    const topKey = getCollectionKey(top.product.title);
+    const setPrice = MATCHING_SET_PRICES[topKey];
+    if (setPrice === undefined) continue; // no set deal for this collection
+
+    // Find the first unmatched bottom from the same collection
+    const matchIndex = bottoms.findIndex(
+      (b, idx) => !usedBottoms.has(idx) && getCollectionKey(b.product.title) === topKey
+    );
+
+    if (matchIndex === -1) continue; // no matching bottom in cart
+
+    usedBottoms.add(matchIndex);
+    const topPrice = parseFloat(top.price.amount);
+    const bottomPrice = parseFloat(bottoms[matchIndex].price.amount);
+    const combined = topPrice + bottomPrice;
+
+    // Only apply discount if set price is actually less than buying separately
+    if (setPrice < combined) {
+      totalDiscount += combined - setPrice;
+    }
+  }
 
   return totalDiscount;
 }
