@@ -100,7 +100,6 @@ export type Database = {
           id: string
           item_cost: string | null
           items: Json
-          set_discount_amount: number | null
           shipping_address: Json | null
           shipping_cost: string | null
           square_order_id: string | null
@@ -120,7 +119,6 @@ export type Database = {
           id: string
           item_cost?: string | null
           items?: Json
-          set_discount_amount?: number | null
           shipping_address?: Json | null
           shipping_cost?: string | null
           square_order_id?: string | null
@@ -140,7 +138,6 @@ export type Database = {
           id?: string
           item_cost?: string | null
           items?: Json
-          set_discount_amount?: number | null
           shipping_address?: Json | null
           shipping_cost?: string | null
           square_order_id?: string | null
