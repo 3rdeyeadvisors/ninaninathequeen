@@ -102,7 +102,18 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
               <span className="font-sans text-[10px] uppercase tracking-wider font-bold">Save $10</span>
             </motion.div>
           )}
-          
+
+          {/* $10 Off Set Badge for individual Top/Bottom in a matching collection */}
+          {hasMatchingSet && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="absolute top-4 left-4 bg-primary text-primary-foreground px-2 py-1 rounded-sm flex items-center gap-1"
+            >
+              <Tag className="h-3 w-3" />
+              <span className="font-sans text-[10px] uppercase tracking-wider font-bold">$10 off set</span>
+            </motion.div>
+          )}
           {mainImage && (
             <>
               <motion.img
