@@ -3,21 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
-const HERO_IMAGE = 'https://images.unsplash.com/photo-1541643600914-78b084683702?q=80&w=2000&auto=format&fit=crop';
-
 export function Hero() {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background lifestyle photo */}
+      {/* Background gradients */}
       <div className="absolute inset-0">
-        <img
-          src={HERO_IMAGE}
-          alt="Nina Armend luxury swimwear"
-          className="w-full h-full object-cover object-center"
-        />
-        {/* Dark gradient overlay — heavier at bottom for text legibility */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/70" />
-        {/* Subtle gold accent wash */}
         <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-transparent" />
       </div>
 
