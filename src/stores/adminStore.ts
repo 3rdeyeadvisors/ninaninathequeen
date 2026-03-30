@@ -58,6 +58,7 @@ export interface ProductOverride {
   itemNumber?: string;
   colorCodes?: string[];
   unitCost?: string;
+  setPrice?: string; // Price when bought as a matching top+bottom set
 }
 
 export interface AdminSettings {
