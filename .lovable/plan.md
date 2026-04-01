@@ -1,71 +1,72 @@
 
 
-## Migrating from Resend to Lovable Branded Emails
+## Plan: Migrate All Emails from Resend to Lovable Cloud
 
-### Current State
+No more Resend. Every email goes through Lovable's system via `notify.ninaarmend.co`. DNS is currently verifying — templates and code can be set up now, emails start flowing once DNS propagates.
 
-Your project has a robust email system built on Resend with **16 email template types** across two edge functions:
+### How the "bulk" emails will work
 
-- **`send-email`** — 15 template types: welcome, order confirmation, shipping confirmation, contact form (dual: to support + to customer), referral success, shipping update, waitlist confirmation, waitlist notification, launch announcement (bulk), birthday month, discount applied, admin birthday report, admin low stock, admin return request
-- **`send-abandoned-cart`** — 1 template: abandoned cart reminder
+The 3 emails previously flagged as "marketing" will work as **individual transactional sends**, each triggered by a specific event for a specific person:
 
-These are called from ~10 places across the app (Contact, Maintenance, Account, Orders, Customers, Dashboard, Products, cloudAuthStore, plus edge-to-edge calls from create-square-checkout, finalize-square-order, and send-birthday-emails).
+- **Birthday month**: Admin clicks "Send Birthday Emails" → the `send-birthday-emails` edge function queries matching profiles and calls `send-transactional-email` once per user. Each is a 1:1 account notification for that user's birthday.
+- **Abandoned cart**: Triggered by a specific user's cart inactivity (2hr timeout). Goes to 1 person based on their action.
+- **Launch announcement**: Admin selects waitlist entries and clicks "Send Launch Email" → code calls `send-transactional-email` once per selected entry. Each is a 1:1 notification that the product they signed up for is now available.
 
-### What Needs to Happen
+All 16 templates, zero Resend dependency.
 
-#### Step 1: Set Up Lovable Email Domain (blocked on client)
-You're waiting on Namecheap credentials from the client. Once you have them, we'll configure the email domain through Lovable Cloud. This involves adding NS records at Namecheap to delegate a subdomain (e.g., `notify.ninaarmend.co`) to Lovable's nameservers.
+### Technical Steps
 
-#### Step 2: Set Up Email Infrastructure
-Once the domain is configured, I'll set up the email queue infrastructure (needed for reliable delivery with retries).
+**Step 1: Scaffold transactional email system**
+Use the scaffolding tool to create `send-transactional-email`, `handle-email-unsubscribe`, and `handle-email-suppression` edge functions.
 
-#### Step 3: Migrate Transactional Email Templates
-Convert all 16 Resend HTML templates into React Email components for Lovable's transactional email system, preserving the existing brand styling (black background with gold #C9A96E accents, Georgia serif font, luxury aesthetic). Templates to create:
+**Step 2: Create 16 React Email templates**
+Create `.tsx` files in `supabase/functions/_shared/transactional-email-templates/` preserving the exact Nina Armend luxury styling (black #000 container, gold #C9A96E accents, Georgia serif, rounded gold CTAs):
 
-1. `welcome` — New user welcome with 50-point reward
-2. `order-confirmation` — Order receipt with items table
-3. `shipping-confirmation` — Shipping notification with tracking
-4. `contact-form-to-support` — Customer inquiry forwarded to admin
-5. `contact-form-to-customer` — Auto-reply confirmation
-6. `referral-success` — Points awarded notification
-7. `shipping-update` — Status change notification
-8. `waitlist-confirmation` — Waitlist signup confirmation
-9. `waitlist-notification` — Admin alert for new waitlist entry
-10. `birthday-month` — Monthly birthday discount email
-11. `discount-applied` — Discount confirmation
-12. `admin-birthday-report` — Monthly birthday summary for admin
-13. `admin-low-stock` — Low inventory alert
-14. `admin-return-request` — Return request notification
-15. `abandoned-cart` — Cart reminder
-16. `launch-announcement` — Waitlist launch email
+1. `welcome` — 50-point reward welcome
+2. `order-confirmation` — items table + total
+3. `shipping-confirmation` — tracking number + items
+4. `contact-form-to-support` — inquiry forwarded to admin
+5. `contact-form-to-customer` — auto-reply confirmation
+6. `referral-success` — points awarded
+7. `shipping-update` — status change notification
+8. `waitlist-confirmation` — waitlist signup confirmation
+9. `waitlist-notification` — admin alert for new waitlist entry
+10. `discount-applied` — discount confirmation
+11. `birthday-month` — monthly birthday discount
+12. `admin-birthday-report` — monthly summary for admin
+13. `admin-low-stock` — low inventory alert
+14. `admin-return-request` — return request notification
+15. `abandoned-cart` — cart reminder with items table
+16. `launch-announcement` — "The Wait Is Over" with 50-point CTA
 
-**Note on marketing emails:** The launch announcement (bulk to waitlist) and abandoned cart emails are borderline marketing. Lovable's transactional system is designed for 1:1 triggered emails. These two may need to stay on a separate sending mechanism or be restructured. I'll flag this during implementation.
+**Step 3: Register all templates in `registry.ts`**
 
-#### Step 4: Update All Call Sites
-Replace all `supabase.functions.invoke('send-email', ...)` calls across the app with calls to `send-transactional-email`, updating the payload format (switching from `{ type, data }` to `{ templateName, recipientEmail, templateData, idempotencyKey }`).
+**Step 4: Deploy all edge functions**
 
-Files to update:
-- `src/pages/Contact.tsx`
-- `src/pages/Maintenance.tsx`
-- `src/pages/Account.tsx`
-- `src/pages/admin/Orders.tsx`
-- `src/pages/admin/Customers.tsx`
-- `src/pages/admin/Dashboard.tsx`
-- `src/pages/admin/Products.tsx`
-- `src/stores/cloudAuthStore.ts`
-- `supabase/functions/create-square-checkout/index.ts`
-- `supabase/functions/finalize-square-order/index.ts`
-- `supabase/functions/send-birthday-emails/index.ts`
+**Step 5: Update all call sites** (replace `send-email` / `send-abandoned-cart` invocations with `send-transactional-email`):
+- `src/pages/Contact.tsx` — contact form (2 emails)
+- `src/stores/cloudAuthStore.ts` — welcome on signup
+- `src/pages/Maintenance.tsx` — waitlist confirmation + notification
+- `src/pages/admin/Orders.tsx` — order/shipping confirmation + shipping update
+- `src/pages/admin/Customers.tsx` — launch announcement (per-entry sends)
+- `src/pages/admin/Dashboard.tsx` — admin birthday report
+- `src/pages/admin/Products.tsx` — admin low stock
+- `src/stores/cartStore.ts` — abandoned cart
+- `supabase/functions/finalize-square-order/index.ts` — order confirmation
+- `supabase/functions/create-square-checkout/index.ts` — discount applied
+- `supabase/functions/send-birthday-emails/index.ts` — birthday month + admin report
 
-#### Step 5: Create Unsubscribe Page
-Lovable's transactional system requires a branded unsubscribe page in the app.
+**Step 6: Create branded `/unsubscribe` page**
+Matches the black/gold aesthetic. Handles token validation and confirmation.
 
-#### Step 6: Clean Up
-Remove the old `send-email` and `send-abandoned-cart` edge functions and the `RESEND_API_KEY` secret once everything is verified working.
+**Step 7: Remove Resend**
+- Delete `supabase/functions/send-email/` edge function
+- Delete `supabase/functions/send-abandoned-cart/` edge function
+- Remove `RESEND_API_KEY` secret
+- Clean up `supabase/config.toml` entries
 
-### What You Can Do Now
-
-Nothing is blocked on my end code-wise — **once your client provides the Namecheap credentials**, the first step is to configure the email domain through the setup dialog in Cloud. After DNS propagation (can take up to 72 hours), emails will start sending from your branded domain.
-
-In the meantime, the existing Resend-based system continues to work. Would you like me to proceed with the domain setup once you have the credentials?
+### What stays the same
+- Email infrastructure (pgmq queues, cron, tables) — already set up
+- `process-email-queue` dispatcher — already deployed
+- All existing brand styling preserved exactly
 
