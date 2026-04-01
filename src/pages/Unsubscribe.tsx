@@ -132,7 +132,7 @@ export default function Unsubscribe() {
             <p className="text-muted-foreground text-sm font-sans">
               {state === 'invalid'
                 ? 'This unsubscribe link is invalid or has expired.'
-                : 'We couldn't process your request. Please try again later.'}
+                : "We couldn't process your request. Please try again later."}
             </p>
           </div>
         )}
