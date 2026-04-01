@@ -36,6 +36,7 @@ import Contact from "./pages/Contact";
 import Account from "./pages/Account";
 import Demo from "./pages/Demo";
 import Maintenance from "./pages/Maintenance";
+import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
