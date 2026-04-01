@@ -216,7 +216,6 @@ Deno.serve(async (req) => {
 
       // Send order confirmation email
       try {
-        const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
         if (metadata.customerEmail) {
           const emailItems = Array.isArray(metadata.items) ? (metadata.items as Array<{ title?: string; name?: string; quantity: number; price: string; size?: string }>) : [];
           const emailRes = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
