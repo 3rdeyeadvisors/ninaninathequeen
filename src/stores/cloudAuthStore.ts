@@ -166,6 +166,29 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
         localStorage.removeItem('referral_code');
       }
 
+      // Send referral-success email to the referrer (fire-and-forget)
+      if (referralCode && data?.user?.id) {
+        try {
+          const { data: referrerEmail } = await supabase.rpc('get_referrer_email', { code: referralCode });
+          if (referrerEmail) {
+            supabase.functions.invoke('send-transactional-email', {
+              body: {
+                templateName: 'referral-success',
+                recipientEmail: referrerEmail,
+                idempotencyKey: `referral-success-${data.user.id}`,
+                templateData: {
+                  referrerName: '',
+                  referredName: name || email.split('@')[0],
+                  pointsAwarded: 25,
+                },
+              },
+            }).catch(err => console.error('Referral email failed:', err));
+          }
+        } catch (e) {
+          console.error('Referral email lookup error:', e);
+        }
+      }
+
       // Send welcome email (fire-and-forget)
       try {
         const displayName = name || email.split('@')[0];

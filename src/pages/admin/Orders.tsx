@@ -264,6 +264,29 @@ export default function AdminOrders() {
           }
         }
 
+        // Auto-send shipping update email for Out for Delivery or Delivered
+        if (editStatus === 'Delivered' && editStatus !== selectedOrder.status) {
+          try {
+            const supabase = getSupabase();
+            await supabase.functions.invoke('send-transactional-email', {
+              body: {
+                templateName: 'shipping-update',
+                recipientEmail: selectedOrder.customerEmail,
+                idempotencyKey: `shipping-update-${selectedOrder.id}-${editStatus}`,
+                templateData: {
+                  orderId: selectedOrder.id,
+                  customerName: selectedOrder.customerName,
+                  status: editStatus,
+                  trackingNumber: editTracking || selectedOrder.trackingNumber || '',
+                },
+              }
+            });
+            toast.success(`Shipping update sent to ${selectedOrder.customerEmail}`);
+          } catch (emailErr) {
+            console.error('Failed to send shipping update email:', emailErr);
+          }
+        }
+
         setIsEditing(false);
       } else {
         toast.error('Failed to save. Please try again.');
