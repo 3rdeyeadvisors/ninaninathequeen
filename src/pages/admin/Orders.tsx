@@ -265,7 +265,7 @@ export default function AdminOrders() {
         }
 
         // Auto-send shipping update email for Out for Delivery or Delivered
-        if ((editStatus === 'Out for Delivery' || editStatus === 'Delivered') && editStatus !== selectedOrder.status) {
+        if (editStatus === 'Delivered' && editStatus !== selectedOrder.status) {
           try {
             const supabase = getSupabase();
             await supabase.functions.invoke('send-transactional-email', {
