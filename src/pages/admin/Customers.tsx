@@ -127,8 +127,14 @@ export default function AdminCustomers() {
     setWaitlistPage(1);
   }, [waitlistSearch]);
 
-  const handleDeleteWaitlistEntry = async (id: string) => {
-    if (!confirm('Remove this person from the waitlist?')) return;
+  const handleDeleteWaitlistEntry = (id: string) => {
+    setShowDeleteConfirm(id);
+  };
+
+  const confirmDelete = async () => {
+    const id = showDeleteConfirm;
+    if (!id) return;
+    setShowDeleteConfirm(null);
     try {
       const { error } = await supabase
         .from('waitlist')
