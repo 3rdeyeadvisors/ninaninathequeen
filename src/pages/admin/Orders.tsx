@@ -204,13 +204,15 @@ export default function AdminOrders() {
     setIsSendingEmail(true);
     try {
       const supabase = getSupabase();
-      await supabase.functions.invoke('send-email', {
+      const templateName = type === 'order_confirmation' ? 'order-confirmation' : 'shipping-confirmation';
+      await supabase.functions.invoke('send-transactional-email', {
         body: {
-          type,
-          data: {
+          templateName,
+          recipientEmail: selectedOrder.customerEmail,
+          idempotencyKey: `${templateName}-${selectedOrder.id}`,
+          templateData: {
             orderId: selectedOrder.id,
             customerName: selectedOrder.customerName,
-            customerEmail: selectedOrder.customerEmail,
             trackingNumber: selectedOrder.trackingNumber || '',
             items: selectedOrder.items,
             total: selectedOrder.total,
