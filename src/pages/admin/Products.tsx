@@ -657,14 +657,15 @@ export default function AdminProducts() {
         if (newInventory > 0 && newInventory <= threshold) {
           try {
             const supabase = getSupabase();
-            await supabase.functions.invoke('send-email', {
+            await supabase.functions.invoke('send-transactional-email', {
               body: {
-                type: 'admin_low_stock',
-                data: {
+                templateName: 'admin-low-stock',
+                recipientEmail: settings.contactEmail || 'support@ninaarmend.co',
+                idempotencyKey: `low-stock-${productData.id || productData.title}-${newInventory}`,
+                templateData: {
                   productTitle: productData.title,
                   inventory: newInventory,
                   threshold,
-                  adminEmail: settings.contactEmail || 'hello@ninaarmend.com',
                 }
               }
             });

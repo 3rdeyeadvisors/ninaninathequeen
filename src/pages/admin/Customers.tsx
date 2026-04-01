@@ -179,17 +179,25 @@ export default function AdminCustomers() {
 
     setIsSendingLaunch(true);
     try {
-      const emails = selected.map(w => w.email);
-      const names: Record<string, string> = {};
-      selected.forEach(w => { if (w.name) names[w.email] = w.name; });
+      // Send launch announcement to each selected entry individually
+      let sentCount = 0;
+      for (const entry of selected) {
+        try {
+          await supabase.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'launch-announcement',
+              recipientEmail: entry.email,
+              idempotencyKey: `launch-${entry.id}`,
+              templateData: { name: entry.name || undefined },
+            },
+          });
+          sentCount++;
+        } catch (err) {
+          console.error(`Launch email to ${entry.email} failed:`, err);
+        }
+      }
 
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: { type: 'launch_announcement', data: { emails, names } },
-      });
-      if (error) throw error;
-      if (data && !data.success) throw new Error(data.error || 'Failed to send');
-
-      toast.success(`Launch email sent to ${selected.length} recipient${selected.length > 1 ? 's' : ''}!`);
+      toast.success(`Launch email sent to ${sentCount} recipient${sentCount > 1 ? 's' : ''}!`);
       setSelectedIds(new Set());
     } catch (err) {
       console.error('Send launch email failed:', err);

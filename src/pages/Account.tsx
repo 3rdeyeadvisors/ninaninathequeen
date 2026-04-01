@@ -393,15 +393,16 @@ export default function Account() {
         status: 'Pending',
       });
       // Notify admin via email
-      await supabase.functions.invoke('send-email', {
+      await supabase.functions.invoke('send-transactional-email', {
         body: {
-          type: 'admin_return_request',
-          data: {
+          templateName: 'admin-return-request',
+          recipientEmail: 'support@ninaarmend.co',
+          idempotencyKey: `return-request-${returnOrderId}`,
+          templateData: {
             orderId: returnOrderId,
             customerName: user?.name,
             customerEmail: user?.email,
             reason: returnReason.trim(),
-            adminEmail: 'hello@ninaarmend.com',
           }
         }
       });

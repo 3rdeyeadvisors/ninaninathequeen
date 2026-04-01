@@ -95,12 +95,16 @@ export const useCartStore = create<CartStore>()(
 
         const { getSupabase } = await import('@/lib/supabaseClient');
         const supabase = getSupabase();
-        await supabase.functions.invoke('send-abandoned-cart', {
+        await supabase.functions.invoke('send-transactional-email', {
           body: {
-            email: userEmail,
-            customerName: userEmail.split('@')[0],
-            items: items.map(i => ({ title: i.product.title, quantity: i.quantity, price: i.price.amount })),
-            total: items.reduce((sum, i) => sum + parseFloat(i.price.amount) * i.quantity, 0).toFixed(2),
+            templateName: 'abandoned-cart',
+            recipientEmail: userEmail,
+            idempotencyKey: `abandoned-cart-${userEmail}-${Date.now()}`,
+            templateData: {
+              customerName: userEmail.split('@')[0],
+              items: items.map(i => ({ title: i.product.title, quantity: i.quantity, price: i.price.amount })),
+              total: items.reduce((sum, i) => sum + parseFloat(i.price.amount) * i.quantity, 0).toFixed(2),
+            },
           }
         });
       },

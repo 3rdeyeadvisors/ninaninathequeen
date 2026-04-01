@@ -59,18 +59,23 @@ export default function Maintenance() {
         toast.success("You're on the list! We'll let you know when we launch.");
 
         // Send confirmation email (fire-and-forget)
-        supabase.functions.invoke('send-email', {
+        const waitlistId = crypto.randomUUID();
+        supabase.functions.invoke('send-transactional-email', {
           body: {
-            type: 'waitlist_confirmation',
-            data: { email: parsed.data.email, name: parsed.data.name || 'there' },
+            templateName: 'waitlist-confirmation',
+            recipientEmail: parsed.data.email,
+            idempotencyKey: `waitlist-confirm-${waitlistId}`,
+            templateData: { name: parsed.data.name || 'there' },
           },
         }).catch(err => console.error('Waitlist confirmation email failed:', err));
 
         // Notify admin (fire-and-forget)
-        supabase.functions.invoke('send-email', {
+        supabase.functions.invoke('send-transactional-email', {
           body: {
-            type: 'waitlist_notification',
-            data: { email: parsed.data.email, name: parsed.data.name || 'Not provided' },
+            templateName: 'waitlist-notification',
+            recipientEmail: 'support@ninaarmend.co',
+            idempotencyKey: `waitlist-notify-${waitlistId}`,
+            templateData: { email: parsed.data.email, name: parsed.data.name || 'Not provided' },
           },
         }).catch(err => console.error('Waitlist admin notification failed:', err));
       }

@@ -244,13 +244,14 @@ export default function AdminOrders() {
         if (editStatus === 'Shipped' && selectedOrder.status !== 'Shipped' && editTracking) {
           try {
             const supabase = getSupabase();
-            await supabase.functions.invoke('send-email', {
+            await supabase.functions.invoke('send-transactional-email', {
               body: {
-                type: 'shipping_confirmation',
-                data: {
+                templateName: 'shipping-confirmation',
+                recipientEmail: selectedOrder.customerEmail,
+                idempotencyKey: `shipping-confirm-${selectedOrder.id}`,
+                templateData: {
                   orderId: selectedOrder.id,
                   customerName: selectedOrder.customerName,
-                  customerEmail: selectedOrder.customerEmail,
                   trackingNumber: editTracking,
                   items: selectedOrder.items,
                   total: selectedOrder.total,
