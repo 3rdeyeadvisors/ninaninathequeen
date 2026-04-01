@@ -1,72 +1,61 @@
 
 
-## Plan: Migrate All Emails from Resend to Lovable Cloud
+## Audit: Email Flows and Button Wiring
 
-No more Resend. Every email goes through Lovable's system via `notify.ninaarmend.co`. DNS is currently verifying — templates and code can be set up now, emails start flowing once DNS propagates.
+### Summary
 
-### How the "bulk" emails will work
+All 16 templates are registered in the registry and the `send-transactional-email` edge function is correctly structured. No old Resend references remain. However, **2 templates are never triggered** and there's **1 missing email trigger** in an existing flow.
 
-The 3 emails previously flagged as "marketing" will work as **individual transactional sends**, each triggered by a specific event for a specific person:
+### Issues Found
 
-- **Birthday month**: Admin clicks "Send Birthday Emails" → the `send-birthday-emails` edge function queries matching profiles and calls `send-transactional-email` once per user. Each is a 1:1 account notification for that user's birthday.
-- **Abandoned cart**: Triggered by a specific user's cart inactivity (2hr timeout). Goes to 1 person based on their action.
-- **Launch announcement**: Admin selects waitlist entries and clicks "Send Launch Email" → code calls `send-transactional-email` once per selected entry. Each is a 1:1 notification that the product they signed up for is now available.
+**Issue 1: `referral-success` template is never sent**
+The `handle_new_user` database trigger processes referrals (awards 25 points to referrer), but no code ever sends the `referral-success` email to notify the referrer. The trigger runs in PL/pgSQL so it can't call an edge function directly.
 
-All 16 templates, zero Resend dependency.
+**Fix:** After signup in `cloudAuthStore.ts`, when a referral code was used, fire a `referral-success` email to the referrer. Since we don't know the referrer's email client-side, we have two options:
+- Query the `profiles` table by referral code to get the referrer's email, then send the email (requires an RLS policy allowing reading another user's email by referral code — not ideal).
+- Better: Add the referral-success email send inside the `send-birthday-emails`-style pattern — create a small check in the signup flow. Actually, the simplest approach: after signup succeeds and a referral code was used, call `send-transactional-email` with `referral-success` and pass the referral code. The edge function can look up the referrer, OR we add a DB function that returns the referrer email.
 
-### Technical Steps
+**Recommended approach:** Create a small DB function `get_referrer_email(referral_code text)` that returns the referrer's email. Call it client-side after signup, then send the `referral-success` email.
 
-**Step 1: Scaffold transactional email system**
-Use the scaffolding tool to create `send-transactional-email`, `handle-email-unsubscribe`, and `handle-email-suppression` edge functions.
+**Issue 2: `shipping-update` template is never sent**
+Registered in the registry but no code ever invokes it. The Orders page sends `shipping-confirmation` when status changes to "Shipped", but there's no trigger for general shipping status updates (e.g., "Out for Delivery", "Delivered").
 
-**Step 2: Create 16 React Email templates**
-Create `.tsx` files in `supabase/functions/_shared/transactional-email-templates/` preserving the exact Nina Armend luxury styling (black #000 container, gold #C9A96E accents, Georgia serif, rounded gold CTAs):
+**Fix:** Add a `shipping-update` email send in the `saveOrderChanges` function in `Orders.tsx` — when the status changes to a shipping-related status other than "Shipped" (which already sends `shipping-confirmation`), send a `shipping-update` email.
 
-1. `welcome` — 50-point reward welcome
-2. `order-confirmation` — items table + total
-3. `shipping-confirmation` — tracking number + items
-4. `contact-form-to-support` — inquiry forwarded to admin
-5. `contact-form-to-customer` — auto-reply confirmation
-6. `referral-success` — points awarded
-7. `shipping-update` — status change notification
-8. `waitlist-confirmation` — waitlist signup confirmation
-9. `waitlist-notification` — admin alert for new waitlist entry
-10. `discount-applied` — discount confirmation
-11. `birthday-month` — monthly birthday discount
-12. `admin-birthday-report` — monthly summary for admin
-13. `admin-low-stock` — low inventory alert
-14. `admin-return-request` — return request notification
-15. `abandoned-cart` — cart reminder with items table
-16. `launch-announcement` — "The Wait Is Over" with 50-point CTA
+**Issue 3: No issues (verified working)**
+These 14 templates are all correctly wired:
+- `welcome` — triggered on signup in `cloudAuthStore.ts`
+- `order-confirmation` — triggered in `finalize-square-order` and manual resend in `Orders.tsx`
+- `shipping-confirmation` — triggered on status change to "Shipped" and manual resend in `Orders.tsx`
+- `contact-form-to-support` — triggered on contact form submit
+- `contact-form-to-customer` — triggered on contact form submit (fire-and-forget)
+- `waitlist-confirmation` — triggered on waitlist signup in `Maintenance.tsx`
+- `waitlist-notification` — triggered on waitlist signup (admin notification)
+- `discount-applied` — triggered in `create-square-checkout` when discount > 0
+- `birthday-month` — triggered via `send-birthday-emails` edge function
+- `admin-birthday-report` — triggered in `Dashboard.tsx` after birthday batch
+- `admin-low-stock` — triggered in `Products.tsx` on save when inventory is low
+- `admin-return-request` — triggered in `Account.tsx` on return request submit
+- `abandoned-cart` — triggered in `cartStore.ts` on 2hr inactivity check
+- `launch-announcement` — triggered in `Customers.tsx` for selected waitlist entries
 
-**Step 3: Register all templates in `registry.ts`**
+### Implementation Steps
 
-**Step 4: Deploy all edge functions**
+**Step 1: Create `get_referrer_email` DB function**
+A `SECURITY DEFINER` function that takes a referral code and returns the referrer's email. This avoids exposing other users' emails via RLS.
 
-**Step 5: Update all call sites** (replace `send-email` / `send-abandoned-cart` invocations with `send-transactional-email`):
-- `src/pages/Contact.tsx` — contact form (2 emails)
-- `src/stores/cloudAuthStore.ts` — welcome on signup
-- `src/pages/Maintenance.tsx` — waitlist confirmation + notification
-- `src/pages/admin/Orders.tsx` — order/shipping confirmation + shipping update
-- `src/pages/admin/Customers.tsx` — launch announcement (per-entry sends)
-- `src/pages/admin/Dashboard.tsx` — admin birthday report
-- `src/pages/admin/Products.tsx` — admin low stock
-- `src/stores/cartStore.ts` — abandoned cart
-- `supabase/functions/finalize-square-order/index.ts` — order confirmation
-- `supabase/functions/create-square-checkout/index.ts` — discount applied
-- `supabase/functions/send-birthday-emails/index.ts` — birthday month + admin report
+**Step 2: Wire `referral-success` email in `cloudAuthStore.ts`**
+After successful signup with a referral code, call the new DB function to get the referrer's email, then invoke `send-transactional-email` with `referral-success`.
 
-**Step 6: Create branded `/unsubscribe` page**
-Matches the black/gold aesthetic. Handles token validation and confirmation.
+**Step 3: Wire `shipping-update` email in `Orders.tsx`**
+In `saveOrderChanges`, when the order status changes to "Out for Delivery" or "Delivered" (not "Shipped" which already sends `shipping-confirmation`), send a `shipping-update` email.
 
-**Step 7: Remove Resend**
-- Delete `supabase/functions/send-email/` edge function
-- Delete `supabase/functions/send-abandoned-cart/` edge function
-- Remove `RESEND_API_KEY` secret
-- Clean up `supabase/config.toml` entries
+### Technical Details
 
-### What stays the same
-- Email infrastructure (pgmq queues, cron, tables) — already set up
-- `process-email-queue` dispatcher — already deployed
-- All existing brand styling preserved exactly
+```text
+File changes:
+1. New migration: CREATE FUNCTION get_referrer_email(code text) RETURNS text
+2. src/stores/cloudAuthStore.ts — add referral-success send after signup
+3. src/pages/admin/Orders.tsx — add shipping-update send in saveOrderChanges
+```
 
