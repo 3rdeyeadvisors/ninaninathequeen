@@ -190,11 +190,16 @@ export default function AdminCustomers() {
     }
   };
 
-  const handleSendLaunchEmail = async () => {
+  const handleSendLaunchEmail = () => {
     const selected = waitlist.filter(w => selectedIds.has(w.id));
     if (selected.length === 0) return;
-    if (!confirm(`Send launch announcement email to ${selected.length} recipient${selected.length > 1 ? 's' : ''}?`)) return;
+    setShowLaunchConfirm(true);
+  };
 
+  const confirmSendLaunch = async () => {
+    setShowLaunchConfirm(false);
+    const selected = waitlist.filter(w => selectedIds.has(w.id));
+    if (selected.length === 0) return;
     setIsSendingLaunch(true);
     try {
       // Send launch announcement to each selected entry individually
