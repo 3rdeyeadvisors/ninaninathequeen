@@ -54,6 +54,8 @@ export default function AdminCustomers() {
   const [activeTab, setActiveTab] = useState('customers');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSendingLaunch, setIsSendingLaunch] = useState(false);
+  const [showLaunchConfirm, setShowLaunchConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const [customerPage, setCustomerPage] = useState(1);
   const [waitlistPage, setWaitlistPage] = useState(1);
