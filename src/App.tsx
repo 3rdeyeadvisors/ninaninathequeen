@@ -36,6 +36,7 @@ import Contact from "./pages/Contact";
 import Account from "./pages/Account";
 import Demo from "./pages/Demo";
 import Maintenance from "./pages/Maintenance";
+import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -145,6 +146,7 @@ function AppContent() {
         <Route path="/account" element={<Account />} />
         <Route path="/invite/:code" element={<InviteCapture />} />
         <Route path="/demo" element={<Demo />} />
+        <Route path="/unsubscribe" element={<Unsubscribe />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>

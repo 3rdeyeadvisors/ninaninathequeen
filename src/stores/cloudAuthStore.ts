@@ -169,12 +169,14 @@ export const useCloudAuthStore = create<CloudAuthState>((set, get) => ({
       // Send welcome email (fire-and-forget)
       try {
         const displayName = name || email.split('@')[0];
-        supabase.functions.invoke('send-email', {
+        supabase.functions.invoke('send-transactional-email', {
           body: {
-            type: 'welcome',
-            data: {
-              email,
+            templateName: 'welcome',
+            recipientEmail: email,
+            idempotencyKey: `welcome-${data?.user?.id || email}`,
+            templateData: {
               name: displayName,
+              referralCode: data?.user?.user_metadata?.referral_code,
             },
           },
         }).catch(err => console.error('Welcome email failed:', err));

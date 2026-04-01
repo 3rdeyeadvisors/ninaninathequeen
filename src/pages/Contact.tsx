@@ -31,15 +31,27 @@ export default function Contact() {
 
     setIsSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-email', {
+      const contactId = crypto.randomUUID();
+      // Send to support
+      const { error: supportErr } = await supabase.functions.invoke('send-transactional-email', {
         body: {
-          type: 'contact_form',
-          data: { name: name.trim(), email: email.trim(), message: message.trim() },
+          templateName: 'contact-form-to-support',
+          recipientEmail: 'support@ninaarmend.co',
+          idempotencyKey: `contact-support-${contactId}`,
+          templateData: { name: name.trim(), email: email.trim(), message: message.trim() },
         },
       });
+      if (supportErr) throw supportErr;
 
-      if (error) throw error;
-      if (data && !data.success) throw new Error(data.error || 'Failed to send');
+      // Send confirmation to customer (fire-and-forget)
+      supabase.functions.invoke('send-transactional-email', {
+        body: {
+          templateName: 'contact-form-to-customer',
+          recipientEmail: email.trim(),
+          idempotencyKey: `contact-customer-${contactId}`,
+          templateData: { name: name.trim(), message: message.trim() },
+        },
+      }).catch(err => console.error('Contact confirmation email failed:', err));
 
       toast.success("Thank you for your message. Our concierge will be in touch shortly.");
       setName('');

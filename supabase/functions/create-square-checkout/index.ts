@@ -271,16 +271,17 @@ Deno.serve(async (req) => {
       // Send discount applied email if applicable (we still have customer info)
       if (discountAmount > 0 && orderDetails.customerEmail) {
         try {
-          await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+          await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              type: 'discount_applied',
-              data: {
-                customerEmail: orderDetails.customerEmail,
+              templateName: 'discount-applied',
+              recipientEmail: orderDetails.customerEmail,
+              idempotencyKey: `discount-${pendingId}`,
+              templateData: {
                 customerName: orderDetails.customerName,
                 discountType: orderDetails.discountType,
                 amountSaved: orderDetails.discountAmount,

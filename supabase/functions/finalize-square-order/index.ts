@@ -216,23 +216,22 @@ Deno.serve(async (req) => {
 
       // Send order confirmation email
       try {
-        const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-        if (RESEND_API_KEY && metadata.customerEmail) {
+        if (metadata.customerEmail) {
           const emailItems = Array.isArray(metadata.items) ? (metadata.items as Array<{ title?: string; name?: string; quantity: number; price: string; size?: string }>) : [];
-          const emailBody = {
-            type: 'order_confirmation',
-            data: {
-              orderId: orderId,
-              customerName: metadata.customerName,
-              customerEmail: metadata.customerEmail,
-              items: emailItems.map(i => ({ title: i.title || i.name || 'Item', quantity: i.quantity || 1, price: i.price || '0', size: i.size })),
-              total: metadata.total,
-            },
-          };
-          const emailRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+          const emailRes = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
-            body: JSON.stringify(emailBody),
+            body: JSON.stringify({
+              templateName: 'order-confirmation',
+              recipientEmail: metadata.customerEmail,
+              idempotencyKey: `order-confirm-${orderId}`,
+              templateData: {
+                orderId: orderId,
+                customerName: metadata.customerName,
+                items: emailItems.map(i => ({ title: i.title || i.name || 'Item', quantity: i.quantity || 1, price: i.price || '0', size: i.size })),
+                total: metadata.total,
+              },
+            }),
           });
           if (!emailRes.ok) {
             console.error('[FinalizeSquareOrder] Email send failed:', await emailRes.text());

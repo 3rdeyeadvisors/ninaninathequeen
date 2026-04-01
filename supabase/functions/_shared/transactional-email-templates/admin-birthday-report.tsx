@@ -1,0 +1,68 @@
+import * as React from 'npm:react@18.3.1'
+import {
+  Body, Container, Head, Heading, Html, Preview, Text, Button, Section, Hr,
+} from 'npm:@react-email/components@0.0.22'
+import type { TemplateEntry } from './registry.ts'
+
+const SITE_NAME = 'Nina Armend'
+const SITE_URL = 'https://ninaarmend.co'
+
+interface AdminBirthdayReportProps {
+  count?: number
+  month?: string
+}
+
+const AdminBirthdayReportEmail = ({ count = 0, month = '' }: AdminBirthdayReportProps) => {
+  const year = new Date().getFullYear()
+  const nextMonthName = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleString('default', { month: 'long' })
+  return (
+    <Html lang="en" dir="ltr">
+      <Head />
+      <Preview>Birthday Emails Sent — {month} {year}</Preview>
+      <Body style={main}>
+        <Container style={container}>
+          <Text style={logo}>{SITE_NAME}</Text>
+          <Hr style={divider} />
+          <Heading style={{ ...h1, textAlign: 'center' as const }}>Birthday Report</Heading>
+          <Text style={{ ...text, textAlign: 'center' as const }}>This month's automated birthday celebrations have been sent.</Text>
+          <Section style={{ ...card, textAlign: 'center' as const }}>
+            <Text style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#999999', textTransform: 'uppercase' as const, letterSpacing: '2px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>Campaign Success</Text>
+            <Text style={{ margin: '0 0 8px 0' }}><span style={pointsBadge}>{count} EMAILS SENT</span></Text>
+            <Text style={{ margin: '0', color: '#FFFFFF', fontSize: '15px', fontFamily: 'Georgia, serif' }}>Celebrating our customers born in <span style={highlight}>{month}</span>.</Text>
+          </Section>
+          <Text style={{ ...muted, textAlign: 'center' as const, marginTop: '24px' }}>
+            Your customers have received their $5 birthday discount, auto-applied to their accounts for the entire month of {month}.
+          </Text>
+          <Text style={{ ...muted, textAlign: 'center' as const }}>Next automated check: <strong>1st of {nextMonthName}</strong>.</Text>
+          <Section style={btnCenter}>
+            <Button href={`${SITE_URL}/admin`} style={btn}>View Dashboard</Button>
+          </Section>
+          <Hr style={footerDivider} />
+          <Text style={footer}>© {year} {SITE_NAME}. All rights reserved.</Text>
+        </Container>
+      </Body>
+    </Html>
+  )
+}
+
+export const template = {
+  component: AdminBirthdayReportEmail,
+  subject: (data: Record<string, any>) => `Birthday Emails Sent — ${data.month || ''} ${new Date().getFullYear()}`,
+  displayName: 'Admin birthday report',
+  previewData: { count: 12, month: 'April' },
+} satisfies TemplateEntry
+
+const main = { backgroundColor: '#ffffff', fontFamily: 'Georgia, serif' }
+const container = { maxWidth: '600px', margin: '0 auto', backgroundColor: '#000000', padding: '40px 32px' }
+const logo: React.CSSProperties = { fontSize: '36px', color: '#C9A96E', fontWeight: 400, fontFamily: 'Georgia, serif', textAlign: 'center', margin: '0 0 24px 0' }
+const divider = { borderColor: '#C9A96E', opacity: 0.4, margin: '0 0 32px 0' }
+const h1 = { color: '#FFFFFF', fontSize: '24px', fontWeight: 400, margin: '0 0 16px 0', fontFamily: 'Georgia, serif' }
+const text: React.CSSProperties = { color: '#FFFFFF', fontSize: '16px', lineHeight: '1.7', margin: '0 0 16px 0', fontFamily: 'Georgia, serif' }
+const muted: React.CSSProperties = { color: '#999999', fontSize: '14px', lineHeight: '1.6', fontFamily: 'Georgia, serif' }
+const highlight: React.CSSProperties = { color: '#C9A96E', fontWeight: 600 }
+const card: React.CSSProperties = { backgroundColor: '#111111', border: '1px solid #222222', borderRadius: '16px', padding: '24px', margin: '16px 0' }
+const pointsBadge: React.CSSProperties = { display: 'inline-block', backgroundColor: '#C9A96E', color: '#000', padding: '4px 14px', borderRadius: '50px', fontSize: '13px', fontWeight: 700, letterSpacing: '1px', fontFamily: "'Helvetica Neue', Arial, sans-serif" }
+const btn: React.CSSProperties = { display: 'inline-block', backgroundColor: '#C9A96E', color: '#000000', padding: '16px 40px', borderRadius: '50px', textDecoration: 'none', fontSize: '14px', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Helvetica Neue', Arial, sans-serif" }
+const btnCenter: React.CSSProperties = { textAlign: 'center', padding: '24px 0' }
+const footerDivider = { borderColor: '#222222', margin: '32px 0 0 0' }
+const footer: React.CSSProperties = { color: '#999999', fontSize: '12px', textAlign: 'center', fontFamily: 'Georgia, serif', margin: '16px 0 0 0' }

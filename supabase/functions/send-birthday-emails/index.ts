@@ -76,16 +76,17 @@ Deno.serve(async (req) => {
     if (profiles && profiles.length > 0) {
       for (const profile of profiles) {
         try {
-          const emailRes = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+          const emailRes = await fetch(`${SUPABASE_URL}/functions/v1/send-transactional-email`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              type: 'birthday_month',
-              data: {
-                email: profile.email,
+              templateName: 'birthday-month',
+              recipientEmail: profile.email,
+              idempotencyKey: `birthday-${profile.email}-${currentMonth}-${new Date().getFullYear()}`,
+              templateData: {
                 name: profile.name
               }
             })

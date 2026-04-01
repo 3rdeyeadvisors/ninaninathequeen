@@ -434,13 +434,14 @@ ${behavioralInsights.length > 0
 
       // Send admin notification
       const monthName = new Date().toLocaleString('default', { month: 'long' });
-      await supabase.functions.invoke('send-email', {
+      await supabase.functions.invoke('send-transactional-email', {
         body: {
-          type: 'admin_birthday_report',
-          data: {
+          templateName: 'admin-birthday-report',
+          recipientEmail: settings.contactEmail || 'support@ninaarmend.co',
+          idempotencyKey: `admin-birthday-report-${new Date().getFullYear()}-${new Date().getMonth() + 1}`,
+          templateData: {
             count: sentCount,
             month: monthName,
-            adminEmail: settings.contactEmail || 'hello@ninaarmend.com'
           }
         }
       });
