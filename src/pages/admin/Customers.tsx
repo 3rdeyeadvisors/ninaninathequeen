@@ -555,6 +555,48 @@ export default function AdminCustomers() {
               </TabsContent>
             </Tabs>
 
+            {/* Delete Waitlist Confirmation */}
+            <AlertDialog open={!!showDeleteConfirm} onOpenChange={(open) => !open && setShowDeleteConfirm(null)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-serif">Remove from Waitlist</AlertDialogTitle>
+                  <AlertDialogDescription className="font-sans">
+                    Are you sure you want to remove this person from the waitlist? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="font-sans text-[10px] uppercase tracking-widest">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={confirmDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    Remove
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Launch Email Confirmation */}
+            <AlertDialog open={showLaunchConfirm} onOpenChange={setShowLaunchConfirm}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-serif">Send Launch Email</AlertDialogTitle>
+                  <AlertDialogDescription className="font-sans">
+                    This will send a launch announcement email to {selectedIds.size} recipient{selectedIds.size !== 1 ? 's' : ''}. Continue?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="font-sans text-[10px] uppercase tracking-widest">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={confirmSendLaunch}
+                    className="font-sans text-[10px] uppercase tracking-widest"
+                  >
+                    Send
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
             {/* Customer Detail Dialog */}
             <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
               <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-primary/20">
