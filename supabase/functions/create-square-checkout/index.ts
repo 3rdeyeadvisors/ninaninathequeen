@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     const locationId = Deno.env.get('SQUARE_LOCATION_ID') || requestLocationId || 'L09Y3ZCB23S11'
 
     // Ensure we have a valid origin for redirects, and sanitize it
-    let origin = req.headers.get('origin') || 'https://ninaarmend.com'
+    let origin = req.headers.get('origin') || 'https://ninaarmend.co'
     if (origin.endsWith('/')) {
       origin = origin.slice(0, -1)
     }

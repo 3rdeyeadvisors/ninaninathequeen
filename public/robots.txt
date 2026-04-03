@@ -14,4 +14,4 @@ User-agent: *
 Allow: /
 
 Disallow: /admin
-Sitemap: https://ninaarmend.com/sitemap.xml
+Sitemap: https://ninaarmend.co/sitemap.xml

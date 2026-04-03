@@ -6,7 +6,7 @@ import { join } from 'path';
 // In the production environment, these will be correctly populated by the CI/CD pipeline or hosting platform.
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-const BASE_URL = 'https://ninaarmend.com';
+const BASE_URL = 'https://ninaarmend.co';
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   console.error('Error: SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is not defined in the environment.');
