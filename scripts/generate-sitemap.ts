@@ -4,14 +4,9 @@ import { join } from 'path';
 
 // For local/build-time execution, we use environment variables.
 // In the production environment, these will be correctly populated by the CI/CD pipeline or hosting platform.
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://ykhgqjownxmioexytfzc.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlraGdxam93bnhtaW9leHl0ZnpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Njc0MTksImV4cCI6MjA4NjE0MzQxOX0.fTKjyR0Sb6VYPyW4YfwWQYWNWS_CsxUlS8qhg61i2q4";
 const BASE_URL = 'https://ninaarmend.co';
-
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  console.error('Error: SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY is not defined in the environment.');
-  process.exit(1);
-}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
