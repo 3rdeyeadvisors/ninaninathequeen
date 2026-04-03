@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { ReactNode } from 'react';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -13,13 +14,7 @@ export const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRoutePr
 
   // Show loading placeholder while checking auth
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse font-serif text-2xl tracking-[0.3em] text-primary/40">
-          NINA ARMEND
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!isAuthenticated) {
