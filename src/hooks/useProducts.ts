@@ -145,7 +145,7 @@ export function useProduct(handle: string) {
 
     // Find product in overrides by handle
     const override = Object.values(productOverrides).find(
-      o => o.title && toHandle(o.title) === handle && !o.isDeleted
+      o => o.title && toHandle(o.title) === toHandle(handle) && !o.isDeleted
     );
 
     return override ? overrideToProduct(override) : null;
