@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { ShoppingBag, Heart, Minus, Plus, Loader2, ChevronLeft, Truck, Shield, RotateCcw, Box } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import { playAddToCart, playWishlistToggle } from '@/lib/sounds';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -184,6 +185,7 @@ const ProductPage = () => {
       description: `${product.title} × ${quantity}`,
       position: 'top-center',
     });
+    playAddToCart();
   };
 
   return (
@@ -418,6 +420,7 @@ const ProductPage = () => {
                     } else {
                       toast.info('Removed from wishlist');
                     }
+                    playWishlistToggle();
                   }}
                 >
                   <Heart className={`h-5 w-5 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
