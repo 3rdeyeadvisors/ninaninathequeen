@@ -87,11 +87,13 @@ export const useCartStore = create<CartStore>()(
         const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
         if (lastUpdated > twoHoursAgo) return;
 
-        // Check if we already sent one recently
-        const lastSent = localStorage.getItem(`abandoned_cart_sent_${userEmail}`);
-        if (lastSent && Date.now() - parseInt(lastSent) < 24 * 60 * 60 * 1000) return;
+        // Check if we already sent one for this exact cart state
+        const cartDay = Math.floor(lastUpdated / 86400000); // calendar day of cart
+        const sentKey = `abandoned_cart_sent_${userEmail}_${cartDay}`;
+        const lastSent = localStorage.getItem(sentKey);
+        if (lastSent) return;
 
-        localStorage.setItem(`abandoned_cart_sent_${userEmail}`, String(Date.now()));
+        localStorage.setItem(sentKey, String(Date.now()));
 
         const { getSupabase } = await import('@/lib/supabaseClient');
         const supabase = getSupabase();
