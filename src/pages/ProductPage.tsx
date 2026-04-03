@@ -3,6 +3,7 @@ import { useProduct } from '@/hooks/useProducts';
 import { useProductReviews } from '@/hooks/useReviewsDb';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { SEO } from '@/components/SEO';
@@ -136,15 +137,7 @@ const ProductPage = () => {
   }, [product, selectedVariant, reviews, averageRating]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="flex items-center justify-center min-h-[60vh] pt-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <Footer />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (isError || !product) {

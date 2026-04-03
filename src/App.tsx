@@ -53,11 +53,7 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   // This ensures that isMaintenanceMode, seoTitle, and social links are correctly
   // hydrated from the database before the UI is rendered.
   if (!isInitialized) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-        <div className="animate-pulse font-serif text-2xl tracking-[0.3em] text-primary/40">NINA ARMEND</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (settings.isMaintenanceMode && !isAdmin) {

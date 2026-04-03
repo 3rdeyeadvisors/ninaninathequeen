@@ -99,6 +99,10 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        "shimmer-luxury": {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
         float: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-10px)" },
@@ -110,6 +114,7 @@ export default {
         "fade-in": "fade-in 0.6s ease-out forwards",
         "fade-in-up": "fade-in-up 0.8s ease-out forwards",
         shimmer: "shimmer 2s infinite linear",
+        "shimmer-luxury": "shimmer-luxury 2s ease-in-out infinite",
         float: "float 6s ease-in-out infinite",
       },
     },
