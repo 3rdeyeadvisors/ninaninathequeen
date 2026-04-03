@@ -1,13 +1,13 @@
-
 import { useEffect } from 'react';
 import { useAdminStore } from '@/stores/adminStore';
 
 interface SEOProps {
   title?: string;
   description?: string;
+  noindex?: boolean;
 }
 
-export const SEO = ({ title, description }: SEOProps) => {
+export const SEO = ({ title, description, noindex }: SEOProps) => {
   const { settings } = useAdminStore();
 
   useEffect(() => {
@@ -43,16 +43,57 @@ export const SEO = ({ title, description }: SEOProps) => {
     }
 
     // Set OG Image
-    const ogImageUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-image`;
-    let ogImage = document.querySelector('meta[property="og:image"]');
-    if (ogImage) {
-      ogImage.setAttribute('content', ogImageUrl);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (supabaseUrl) {
+      const ogImageUrl = `${supabaseUrl}/functions/v1/og-image`;
+      let ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage) {
+        ogImage.setAttribute('content', ogImageUrl);
+      }
+      let twitterImage = document.querySelector('meta[name="twitter:image"]');
+      if (twitterImage) {
+        twitterImage.setAttribute('content', ogImageUrl);
+      }
     }
-    let twitterImage = document.querySelector('meta[name="twitter:image"]');
-    if (twitterImage) {
-      twitterImage.setAttribute('content', ogImageUrl);
+
+    // Set og:url
+    const currentUrl = window.location.origin + window.location.pathname;
+    let ogUrl = document.querySelector('meta[property="og:url"]');
+    if (!ogUrl) {
+      ogUrl = document.createElement('meta');
+      ogUrl.setAttribute('property', 'og:url');
+      document.head.appendChild(ogUrl);
     }
-  }, [title, description, settings.seoTitle, settings.seoDescription]);
+    ogUrl.setAttribute('content', currentUrl);
+
+    // Set canonical
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', currentUrl);
+
+    // Handle noindex
+    let robots = document.querySelector('meta[name="robots"]');
+    if (noindex) {
+      if (!robots) {
+        robots = document.createElement('meta');
+        robots.setAttribute('name', 'robots');
+        document.head.appendChild(robots);
+      }
+      robots.setAttribute('content', 'noindex, nofollow');
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.querySelector('link[rel="canonical"]')?.remove();
+      if (noindex) {
+        document.querySelector('meta[name="robots"]')?.remove();
+      }
+    };
+  }, [title, description, settings.seoTitle, settings.seoDescription, window.location.pathname, noindex]);
 
   return null;
 };

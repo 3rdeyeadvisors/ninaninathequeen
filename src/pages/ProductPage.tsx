@@ -130,6 +130,46 @@ const ProductPage = () => {
     };
   }, [product, selectedVariant, reviews, averageRating]);
 
+  const images = product?.images || [];
+  const variants = product?.variants || [];
+  const selectedVariant = variants.length > selectedVariantIndex ? variants[selectedVariantIndex] : variants[0];
+  const mainImage = images.length > selectedImageIndex ? images[selectedImageIndex] : images[0];
+
+  useEffect(() => {
+    if (!product) return;
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": product.title,
+      "description": product.description,
+      "image": images.map(img => img.url),
+      "brand": {
+        "@type": "Brand",
+        "name": "NINA ARMEND"
+      },
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": product.price.currencyCode,
+        "price": product.price.amount,
+        "availability": selectedVariant?.availableForSale
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+        "url": window.location.href
+      }
+    };
+    let scriptEl = document.querySelector('#product-schema');
+    if (!scriptEl) {
+      scriptEl = document.createElement('script');
+      scriptEl.id = 'product-schema';
+      scriptEl.setAttribute('type', 'application/ld+json');
+      document.head.appendChild(scriptEl);
+    }
+    scriptEl.textContent = JSON.stringify(schema);
+    return () => {
+      document.querySelector('#product-schema')?.remove();
+    };
+  }, [product, selectedVariant]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">

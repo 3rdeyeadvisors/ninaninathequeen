@@ -11,9 +11,15 @@ export const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRoutePr
   const { isAuthenticated, user: cloudUser, isLoading } = useCloudAuthStore();
   const location = useLocation();
 
-  // Show nothing while checking auth
+  // Show loading placeholder while checking auth
   if (isLoading) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse font-serif text-2xl tracking-[0.3em] text-primary/40">
+          NINA ARMEND
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
