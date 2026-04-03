@@ -1,6 +1,5 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
-import { Logo } from '@/components/Logo';
 import { playPageTransition } from '@/lib/sounds';
 import { useEffect } from 'react';
 
@@ -8,39 +7,22 @@ export function PageTransition() {
   const location = useLocation();
 
   useEffect(() => {
-    // Play the transition sound on every route change
     playPageTransition();
   }, [location.pathname]);
 
   return (
-    <motion.div
-      key={location.pathname}
-      className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none"
-      style={{
-        background: 'hsl(var(--background))',
-      }}
-      initial={{ x: '-100%' }}
-      animate={{ x: ['-100%', '0%', '0%', '100%'] }}
-      transition={{
-        duration: 1.2,
-        times: [0, 0.4, 0.6, 1],
-        ease: [0.76, 0, 0.24, 1]
-      }}
-    >
+    <AnimatePresence mode="wait">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{
-          opacity: [0, 1, 1, 0],
-          scale: [0.9, 1.05, 1.05, 0.9],
+        key={location.pathname}
+        className="fixed top-0 left-0 right-0 z-[9999] h-[2px] pointer-events-none"
+        style={{
+          background: 'linear-gradient(90deg, transparent, hsl(var(--gold)), hsl(var(--gold-light)), hsl(var(--gold)), transparent)',
         }}
-        transition={{
-          duration: 1.2,
-          times: [0, 0.4, 0.6, 1],
-          ease: "easeInOut"
-        }}
-      >
-        <Logo />
-      </motion.div>
-    </motion.div>
+        initial={{ scaleX: 0, opacity: 1, transformOrigin: 'left center' }}
+        animate={{ scaleX: 1, opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.45, ease: [0.76, 0, 0.24, 1] }}
+      />
+    </AnimatePresence>
   );
 }
