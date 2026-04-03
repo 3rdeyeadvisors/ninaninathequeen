@@ -83,9 +83,14 @@ function AppContent() {
   }, [initialize]);
 
   useEffect(() => {
-    useCartStore.getState().checkAbandonedCart();
+    const check = () => {
+      if (useCartStore.getState().items.length > 0) {
+        useCartStore.getState().checkAbandonedCart();
+      }
+    };
+    check();
     // Check every 30 minutes while the tab is open
-    const interval = setInterval(() => useCartStore.getState().checkAbandonedCart(), 30 * 60 * 1000);
+    const interval = setInterval(check, 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
   
