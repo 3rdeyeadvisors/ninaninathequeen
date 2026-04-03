@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useParams, Navigate, useLocation } from "react-router-dom";
 import { useWishlistSync } from "@/hooks/useWishlistSync";
 import { useCloudAuthStore } from "@/stores/cloudAuthStore";
 import { useAdminStore } from "@/stores/adminStore";
@@ -10,6 +10,8 @@ import { useCartStore } from "@/stores/cartStore";
 import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { PageTransition } from "@/components/PageTransition";
+import { AnimatePresence } from "framer-motion";
 import { DbSyncProvider, useDbSync } from "@/providers/DbSyncProvider";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
@@ -74,31 +76,12 @@ function InviteCapture() {
   return <Navigate to="/account" replace />;
 }
 
-function AppContent() {
-  useWishlistSync();
-  const { initialize } = useCloudAuthStore();
-
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  useEffect(() => {
-    const check = () => {
-      if (useCartStore.getState().items.length > 0) {
-        useCartStore.getState().checkAbandonedCart();
-      }
-    };
-    check();
-    // Check every 30 minutes while the tab is open
-    const interval = setInterval(check, 30 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+function AnimatedRoutes() {
+  const location = useLocation();
   
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <MaintenanceGuard>
-        <Routes>
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Index />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/product/:handle" element={<ProductPage />} />
@@ -155,6 +138,36 @@ function AppContent() {
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+    </AnimatePresence>
+  );
+}
+
+function AppContent() {
+  useWishlistSync();
+  const { initialize } = useCloudAuthStore();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    const check = () => {
+      if (useCartStore.getState().items.length > 0) {
+        useCartStore.getState().checkAbandonedCart();
+      }
+    };
+    check();
+    // Check every 30 minutes while the tab is open
+    const interval = setInterval(check, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <ScrollToTop />
+      <PageTransition />
+      <MaintenanceGuard>
+        <AnimatedRoutes />
       </MaintenanceGuard>
     </BrowserRouter>
   );
