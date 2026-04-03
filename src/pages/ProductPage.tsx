@@ -1,5 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useProduct } from '@/hooks/useProducts';
+import { useProductReviews } from '@/hooks/useReviewsDb';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { Header } from '@/components/Header';
@@ -19,6 +20,25 @@ const ProductPage = () => {
   const navigate = useNavigate();
   const { handle } = useParams<{ handle: string }>();
   const { data: product, isLoading, isError } = useProduct(handle || '');
+  const { data: reviews = [] } = useProductReviews(product?.id || '');
+
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [is360View, setIs360View] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
+
+  const addItem = useCartStore(state => state.addItem);
+  const isCartLoading = useCartStore(state => state.isLoading);
+  const { toggleItem, isInWishlist } = useWishlistStore();
+  const { user } = useCloudAuthStore();
+
+  const variants = product?.variants || [];
+  const selectedVariant = variants.length > selectedVariantIndex ? variants[selectedVariantIndex] : variants[0];
+
+  const averageRating = reviews.length > 0
+    ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
+    : 0;
 
   useEffect(() => {
     if (product) {
@@ -34,12 +54,6 @@ const ProductPage = () => {
       });
     }
   }, [product]);
-  const addItem = useCartStore(state => state.addItem);
-  const isCartLoading = useCartStore(state => state.isLoading);
-  const { toggleItem, isInWishlist } = useWishlistStore();
-  const { user } = useCloudAuthStore();
-  
-  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
 
   // Auto-select preferred size
   useEffect(() => {
@@ -53,10 +67,68 @@ const ProductPage = () => {
     }
   }, [product, user?.preferredSize]);
 
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [is360View, setIs360View] = useState(false);
-  const [quantity, setQuantity] = useState(1);
-  const [isAdding, setIsAdding] = useState(false);
+  // JSON-LD Structured Data
+  useEffect(() => {
+    if (!product || !selectedVariant) return;
+
+    const schema: any = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": product.title,
+      "description": product.description,
+      "image": product.images.map(img => img.url),
+      "brand": {
+        "@type": "Brand",
+        "name": "NINA ARMEND"
+      },
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": selectedVariant.price.currencyCode,
+        "price": selectedVariant.price.amount,
+        "availability": selectedVariant.availableForSale
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+        "url": window.location.href
+      }
+    };
+
+    if (reviews.length > 0) {
+      schema.aggregateRating = {
+        "@type": "AggregateRating",
+        "ratingValue": averageRating.toFixed(1),
+        "reviewCount": reviews.length,
+        "bestRating": "5",
+        "worstRating": "1"
+      };
+
+      schema.review = reviews.slice(0, 5).map(r => ({
+        "@type": "Review",
+        "author": { "@type": "Person", "name": r.user_name },
+        "datePublished": r.created_at,
+        "reviewBody": r.comment,
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": r.rating,
+          "bestRating": "5",
+          "worstRating": "1"
+        }
+      }));
+    }
+
+    let scriptEl = document.querySelector('#product-schema');
+    if (!scriptEl) {
+      scriptEl = document.createElement('script');
+      scriptEl.id = 'product-schema';
+      scriptEl.setAttribute('type', 'application/ld+json');
+      document.head.appendChild(scriptEl);
+    }
+    scriptEl.textContent = JSON.stringify(schema);
+
+    return () => {
+      const el = document.querySelector('#product-schema');
+      if (el) el.remove();
+    };
+  }, [product, selectedVariant, reviews, averageRating]);
 
   const images = product?.images || [];
   const variants = product?.variants || [];
@@ -125,6 +197,9 @@ const ProductPage = () => {
       </div>
     );
   }
+
+  const images = product.images || [];
+  const mainImage = images.length > selectedImageIndex ? images[selectedImageIndex] : images[0];
 
   const handleAddToCart = async (redirectToCheckout = false) => {
     if (!selectedVariant) return;
