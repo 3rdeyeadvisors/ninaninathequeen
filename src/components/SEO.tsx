@@ -93,7 +93,7 @@ export const SEO = ({ title, description, noindex }: SEOProps) => {
         document.querySelector('meta[name="robots"]')?.remove();
       }
     };
-  }, [title, description, settings.seoTitle, settings.seoDescription, window.location.pathname, noindex]);
+  }, [title, description, settings.seoTitle, settings.seoDescription, noindex]);
 
   return null;
 };
