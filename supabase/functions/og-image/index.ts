@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     <text x="600" y="390" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#8B8B8B" letter-spacing="12" text-transform="uppercase">BRAZILIAN SWIMWEAR</text>
     
     <!-- Website -->
-    <text x="600" y="550" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#555555" letter-spacing="6">NINAARMEND.COM</text>
+    <text x="600" y="550" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#555555" letter-spacing="6">NINAARMEND.CO</text>
   </svg>`;
 
   return new Response(svg, {

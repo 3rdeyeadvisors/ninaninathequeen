@@ -114,7 +114,7 @@ const INITIAL_SETTINGS: AdminSettings = {
   instagramUrl: 'https://instagram.com/ninaarmend',
   facebookUrl: '',
   tiktokUrl: '',
-  contactEmail: 'hello@ninaarmend.com',
+  contactEmail: 'hello@ninaarmend.co',
   contactPhone: '',
   isMaintenanceMode: false
 };
