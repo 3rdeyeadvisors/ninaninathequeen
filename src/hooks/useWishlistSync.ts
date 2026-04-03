@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { getSupabase } from '@/lib/supabaseClient';
+import { toHandle } from './useProducts';
 
 /**
  * Hook to sync local wishlist with Supabase when user logs in.
@@ -68,7 +69,7 @@ export function useWishlistSync() {
               addToWishlist({
                 id: p.id,
                 title: p.title,
-                handle: p.title.toLowerCase().replace(/\s+/g, '-'),
+                handle: toHandle(p.title),
                 image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : (p.image || ''),
                 price: p.price
               });
