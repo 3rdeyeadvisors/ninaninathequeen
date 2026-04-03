@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getCollectionKey, calculateSetDiscount } from '../lib/utils';
 import type { CartItem } from '../stores/cartStore';
+import { toHandle } from '../hooks/useProducts';
 
 describe('getCollectionKey', () => {
   it('should strip bikini top/bottom suffixes', () => {
@@ -19,11 +20,11 @@ describe('calculateSetDiscount', () => {
   const createItem = (title: string, category: string, price: string, quantity: number = 1): CartItem => ({
     lineId: null,
     product: {
-      id: title.toLowerCase().replace(/\s+/g, '-'),
+      id: toHandle(title),
       title,
       category,
       description: '',
-      handle: title.toLowerCase().replace(/\s+/g, '-'),
+      handle: toHandle(title),
       price: { amount: price, currencyCode: 'USD' },
       images: [],
       variants: [],

@@ -2,6 +2,20 @@ import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 import { useMemo } from 'react';
 import { PRODUCT_SIZES } from '@/lib/constants';
 
+/**
+ * Robust slugify logic consistent with the app's frontend handle generation.
+ * Handles special characters, accents, and multiple spaces.
+ */
+export function toHandle(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip accents
+    .replace(/[^a-z0-9\s-]/g, '') // remove special chars
+    .trim()
+    .replace(/\s+/g, '-'); // spaces to hyphens
+}
+
 // Product type used throughout the app (fully flattened)
 export interface Product {
   id: string;
@@ -44,7 +58,7 @@ function overrideToProduct(override: ProductOverride): Product {
     id: override.id,
     title: override.title,
     description: override.description || '',
-    handle: override.title.toLowerCase().replace(/\s+/g, '-'),
+    handle: toHandle(override.title),
     productType: override.productType,
     category: override.category,
     price: {
@@ -131,7 +145,7 @@ export function useProduct(handle: string) {
 
     // Find product in overrides by handle
     const override = Object.values(productOverrides).find(
-      o => o.title && o.title.toLowerCase().replace(/\s+/g, '-') === handle && !o.isDeleted
+      o => o.title && toHandle(o.title) === handle && !o.isDeleted
     );
 
     return override ? overrideToProduct(override) : null;
