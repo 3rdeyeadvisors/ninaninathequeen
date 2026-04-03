@@ -11,7 +11,7 @@ import { ThreeSixtyViewer } from '@/components/ThreeSixtyViewer';
 import { ReviewSection } from '@/components/ReviewSection';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Heart, Minus, Plus, Loader2, ChevronLeft, Truck, Shield, RotateCcw, Box } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,11 +34,15 @@ const ProductPage = () => {
   const { user } = useCloudAuthStore();
 
   const variants = product?.variants || [];
+  const images = product?.images || [];
   const selectedVariant = variants.length > selectedVariantIndex ? variants[selectedVariantIndex] : variants[0];
+  const mainImage = images.length > selectedImageIndex ? images[selectedImageIndex] : images[0];
 
-  const averageRating = reviews.length > 0
-    ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
-    : 0;
+  const averageRating = useMemo(() =>
+    reviews.length > 0
+      ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
+      : 0
+  , [reviews]);
 
   useEffect(() => {
     if (product) {
@@ -130,46 +134,6 @@ const ProductPage = () => {
     };
   }, [product, selectedVariant, reviews, averageRating]);
 
-  const images = product?.images || [];
-  const variants = product?.variants || [];
-  const selectedVariant = variants.length > selectedVariantIndex ? variants[selectedVariantIndex] : variants[0];
-  const mainImage = images.length > selectedImageIndex ? images[selectedImageIndex] : images[0];
-
-  useEffect(() => {
-    if (!product) return;
-    const schema = {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      "name": product.title,
-      "description": product.description,
-      "image": images.map(img => img.url),
-      "brand": {
-        "@type": "Brand",
-        "name": "NINA ARMEND"
-      },
-      "offers": {
-        "@type": "Offer",
-        "priceCurrency": product.price.currencyCode,
-        "price": product.price.amount,
-        "availability": selectedVariant?.availableForSale
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
-        "url": window.location.href
-      }
-    };
-    let scriptEl = document.querySelector('#product-schema');
-    if (!scriptEl) {
-      scriptEl = document.createElement('script');
-      scriptEl.id = 'product-schema';
-      scriptEl.setAttribute('type', 'application/ld+json');
-      document.head.appendChild(scriptEl);
-    }
-    scriptEl.textContent = JSON.stringify(schema);
-    return () => {
-      document.querySelector('#product-schema')?.remove();
-    };
-  }, [product, selectedVariant]);
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -197,9 +161,6 @@ const ProductPage = () => {
       </div>
     );
   }
-
-  const images = product.images || [];
-  const mainImage = images.length > selectedImageIndex ? images[selectedImageIndex] : images[0];
 
   const handleAddToCart = async (redirectToCheckout = false) => {
     if (!selectedVariant) return;

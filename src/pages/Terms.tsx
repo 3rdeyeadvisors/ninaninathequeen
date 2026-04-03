@@ -1,10 +1,15 @@
 
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 
 export default function Terms() {
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Terms of Service"
+        description="Read the terms and conditions for using the NINA ARMEND website and placing orders."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8 max-w-4xl">

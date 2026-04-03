@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { SEO } from '@/components/SEO';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
@@ -67,6 +68,7 @@ export default function Unsubscribe() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+      <SEO title="Unsubscribe" noindex={true} />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

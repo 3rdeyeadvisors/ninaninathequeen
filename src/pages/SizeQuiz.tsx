@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Check, CheckCircle2 } from 'lucide-react';
@@ -100,6 +101,10 @@ export default function SizeQuiz() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Find My Size"
+        description="Take the NINA ARMEND size quiz to find your perfect fit in our Brazilian swimwear."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 max-w-2xl">

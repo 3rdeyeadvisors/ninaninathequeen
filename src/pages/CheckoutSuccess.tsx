@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, ShoppingBag, Loader2, AlertCircle, Package, Truck } from 'lucide-react';
@@ -71,6 +72,7 @@ export default function CheckoutSuccess() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO title="Order Confirmed" noindex={true} />
       <Header />
       <main className="flex-1 pt-32 md:pt-40 pb-20 flex items-center">
         <div className="container mx-auto px-4 text-center max-w-2xl">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { useProducts } from '@/hooks/useProducts';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -99,6 +100,10 @@ export default function MixAndMatch() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Mix & Match"
+        description="Build your perfect set — mix and match NINA ARMEND tops and bottoms for a curated look."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-12">
         <div className="container mx-auto px-4">

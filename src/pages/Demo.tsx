@@ -1,6 +1,7 @@
 
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { ThreeSixtyViewer } from '@/components/ThreeSixtyViewer';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -17,6 +18,7 @@ const mockSequence = [
 export default function Demo() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <SEO title="Innovation & Features" noindex={true} />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">

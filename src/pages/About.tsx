@@ -1,12 +1,17 @@
 
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { motion } from 'framer-motion';
 import ninaVisionAboutImg from '@/assets/nina-vision-about.jpeg';
 
 export default function About() {
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Our Story"
+        description="Learn about NINA ARMEND — a luxury Brazilian swimwear brand crafting eco-conscious pieces that flatter every body type."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">

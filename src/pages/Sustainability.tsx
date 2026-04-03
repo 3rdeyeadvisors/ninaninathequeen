@@ -1,6 +1,7 @@
 
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { motion } from 'framer-motion';
 import { Leaf, Recycle, Heart } from 'lucide-react';
 import slowFashionImg from '@/assets/slow-fashion.jpeg';
@@ -10,6 +11,10 @@ import waterConservationImg from '@/assets/water-conservation.jpeg';
 export default function Sustainability() {
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Sustainability"
+        description="NINA ARMEND's commitment to eco-conscious fabrics and slow fashion made in Brazil."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">

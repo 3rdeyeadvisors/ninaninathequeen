@@ -1,6 +1,7 @@
 
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const faqs = [
@@ -29,6 +30,10 @@ const faqs = [
 export default function FAQ() {
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="FAQ"
+        description="Answers to common questions about NINA ARMEND swimwear, shipping, returns, and sizing."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8 max-w-3xl">

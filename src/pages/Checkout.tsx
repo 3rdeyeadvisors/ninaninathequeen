@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { CheckoutHeader } from '@/components/checkout/CheckoutHeader';
 import { CheckoutFooter } from '@/components/checkout/CheckoutFooter';
+import { SEO } from '@/components/SEO';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -185,6 +186,7 @@ export default function Checkout() {
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
+        <SEO title="Checkout" noindex={true} />
         <CheckoutHeader />
         <main className="flex-1 pt-32 md:pt-40 pb-20 flex items-center">
           <div className="container mx-auto px-4 text-center">
@@ -199,6 +201,7 @@ export default function Checkout() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SEO title="Checkout" noindex={true} />
       <CheckoutHeader />
       <main className="flex-1 pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">
