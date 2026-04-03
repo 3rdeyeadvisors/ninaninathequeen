@@ -6,8 +6,7 @@ import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAdminStore } from '@/stores/adminStore';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag, Loader2, Heart, Tag } from 'lucide-react';
-import { getCollectionKey } from '@/lib/utils';
-import { MATCHING_SET_PRICES } from '@/lib/constants';
+import { MATCHING_SET_DISCOUNT } from '@/lib/constants';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
@@ -39,11 +38,10 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const originalPrice = parseFloat(price.amount);
   const discountedPrice = isTopAndBottom ? originalPrice - 10 : originalPrice;
 
-  // Check if this individual Top/Bottom belongs to a matching set collection
+  // All individual Top/Bottom products qualify for the $10 off matching set deal
   const isTopOrBottom = (override?.category === 'Top' || override?.category === 'Bottom' ||
                          product.category === 'Top' || product.category === 'Bottom');
-  const collectionKey = getCollectionKey(product.title);
-  const hasMatchingSet = isTopOrBottom && !isTopAndBottom && MATCHING_SET_PRICES[collectionKey] !== undefined;
+  const hasMatchingSet = isTopOrBottom && !isTopAndBottom;
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();

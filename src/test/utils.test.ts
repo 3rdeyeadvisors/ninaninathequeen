@@ -36,12 +36,11 @@ describe('calculateSetDiscount', () => {
     selectedOptions: []
   });
 
-  it('should calculate discount for a matching set', () => {
+  it('should apply flat $10 discount for a matching set', () => {
     const items = [
       createItem('Maravilhosa Top', 'Top', '45.00'),
       createItem('Maravilhosa Bottom', 'Bottom', '45.00'),
     ];
-    // Maravilhosa set price is 80. Combined is 90. Discount should be 10.
     expect(calculateSetDiscount(items)).toBe(10);
   });
 
@@ -69,13 +68,13 @@ describe('calculateSetDiscount', () => {
     expect(calculateSetDiscount(items)).toBe(0);
   });
 
-  it('should not discount if set price is higher than individual sum', () => {
+  it('should apply $10 per matched pair regardless of price', () => {
     const items = [
       createItem('Boa Top', 'Top', '30.00'),
       createItem('Boa Bottom', 'Bottom', '30.00'),
     ];
-    // Boa set price is 78. Combined is 60. No discount.
-    expect(calculateSetDiscount(items)).toBe(0);
+    // Flat $10 off regardless of individual prices
+    expect(calculateSetDiscount(items)).toBe(10);
   });
 
   it('should handle multiple different collections', () => {
@@ -85,9 +84,7 @@ describe('calculateSetDiscount', () => {
       createItem('Boa Top', 'Top', '50.00'),
       createItem('Boa Bottom', 'Bottom', '50.00'),
     ];
-    // Maravilhosa discount: 90 - 80 = 10
-    // Boa discount: 100 - 78 = 22
-    // Total: 32
-    expect(calculateSetDiscount(items)).toBe(32);
+    // $10 per matched pair × 2 = $20
+    expect(calculateSetDiscount(items)).toBe(20);
   });
 });
