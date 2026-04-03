@@ -1,11 +1,16 @@
 
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { Truck, RotateCcw, Globe } from 'lucide-react';
 
 export default function Shipping() {
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Shipping & Returns"
+        description="Shipping policies, delivery times, and return details for NINA ARMEND orders."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8 max-w-4xl">

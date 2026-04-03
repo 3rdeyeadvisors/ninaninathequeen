@@ -1,6 +1,7 @@
 
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { ProductCard } from '@/components/ProductCard';
 import { useSearchParams } from 'react-router-dom';
 import { useProducts } from '@/hooks/useProducts';
@@ -14,6 +15,10 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Search"
+        description="Search the NINA ARMEND collection."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">

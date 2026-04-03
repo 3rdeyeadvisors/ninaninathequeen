@@ -1,5 +1,6 @@
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SEO } from '@/components/SEO';
 import { ProductCard } from '@/components/ProductCard';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { Heart } from 'lucide-react';
@@ -36,6 +37,10 @@ export default function Wishlist() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="My Wishlist"
+        description="Your saved NINA ARMEND pieces."
+      />
       <Header />
       <main className="pt-32 md:pt-40 pb-20">
         <div className="container mx-auto px-4 md:px-8">
