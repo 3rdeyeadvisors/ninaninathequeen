@@ -208,9 +208,20 @@ const ProductPage = () => {
                 {product.title}
               </h1>
               
-              <p className="text-2xl md:text-3xl text-primary font-serif mb-6">
+              <p className="text-2xl md:text-3xl text-primary font-serif mb-2">
                 {selectedVariant?.price.currencyCode} {parseFloat(selectedVariant?.price.amount || '0').toFixed(2)}
               </p>
+
+              {(product.category === 'Top' || product.category === 'Bottom') && (
+                <p className="text-sm text-primary/80 font-sans mb-6 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" />
+                  Save $10 when you buy the matching {product.category === 'Top' ? 'bottom' : 'top'}
+                </p>
+              )}
+
+              {product.category !== 'Top' && product.category !== 'Bottom' && (
+                <div className="mb-6" />
+              )}
 
               {product.description && (
                 <p className="text-muted-foreground leading-relaxed mb-8">

@@ -206,7 +206,13 @@ export default function MixAndMatch() {
             </Button>
             <Button size="lg" className="rounded-full px-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-gold" onClick={handleAddSetToCart}>
               <ShoppingBag className="h-4 w-4 mr-2" />
-              Add Set to Bag — ${(parseFloat(currentTop.price.amount) + parseFloat(currentBottom.price.amount)).toFixed(2)}
+              Add Set to Bag —{' '}
+              <span className="line-through opacity-60 mr-1">
+                ${(parseFloat(currentTop.price.amount) + parseFloat(currentBottom.price.amount)).toFixed(2)}
+              </span>
+              <span>
+                ${(parseFloat(currentTop.price.amount) + parseFloat(currentBottom.price.amount) - MATCHING_SET_DISCOUNT).toFixed(2)}
+              </span>
             </Button>
           </div>
         </div>

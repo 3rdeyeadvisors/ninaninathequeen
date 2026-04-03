@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { MATCHING_SET_PRICES } from './constants';
+import { MATCHING_SET_DISCOUNT } from './constants';
 import type { CartItem } from '@/stores/cartStore';
 
 export function cn(...inputs: ClassValue[]) {
@@ -24,8 +24,8 @@ export function getCollectionKey(title: string): string {
  *
  * Rules:
  * - A "matching set" = one Top + one Bottom whose titles share the same
- *   collection key AND whose combined individual prices exceed the set price.
- * - Each matched pair is counted once (greedy: cheapest discount first).
+ *   collection key.
+ * - Each matched pair gets a flat $10 discount.
  * - Mixed sets (different collections) receive no discount.
  *
  * Returns: discount amount in dollars (0 if no matching sets).
@@ -43,30 +43,19 @@ export function calculateSetDiscount(items: CartItem[]): number {
   const bottoms = flattenedItems.filter(i => i.product.category === 'Bottom');
 
   let totalDiscount = 0;
-  // Track which bottom indices have already been matched
   const usedBottoms = new Set<number>();
 
   for (const top of tops) {
     const topKey = getCollectionKey(top.product.title);
-    const setPrice = MATCHING_SET_PRICES[topKey];
-    if (setPrice === undefined) continue; // no set deal for this collection
 
-    // Find the first unmatched bottom from the same collection
     const matchIndex = bottoms.findIndex(
       (b, idx) => !usedBottoms.has(idx) && getCollectionKey(b.product.title) === topKey
     );
 
-    if (matchIndex === -1) continue; // no matching bottom in cart
+    if (matchIndex === -1) continue;
 
     usedBottoms.add(matchIndex);
-    const topPrice = parseFloat(top.price.amount);
-    const bottomPrice = parseFloat(bottoms[matchIndex].price.amount);
-    const combined = topPrice + bottomPrice;
-
-    // Only apply discount if set price is actually less than buying separately
-    if (setPrice < combined) {
-      totalDiscount += combined - setPrice;
-    }
+    totalDiscount += MATCHING_SET_DISCOUNT;
   }
 
   return totalDiscount;

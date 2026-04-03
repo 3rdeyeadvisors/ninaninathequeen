@@ -38,11 +38,10 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const originalPrice = parseFloat(price.amount);
   const discountedPrice = isTopAndBottom ? originalPrice - 10 : originalPrice;
 
-  // Check if this individual Top/Bottom belongs to a matching set collection
+  // All individual Top/Bottom products qualify for the $10 off matching set deal
   const isTopOrBottom = (override?.category === 'Top' || override?.category === 'Bottom' ||
                          product.category === 'Top' || product.category === 'Bottom');
-  const collectionKey = getCollectionKey(product.title);
-  const hasMatchingSet = isTopOrBottom && !isTopAndBottom && MATCHING_SET_PRICES[collectionKey] !== undefined;
+  const hasMatchingSet = isTopOrBottom && !isTopAndBottom;
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
