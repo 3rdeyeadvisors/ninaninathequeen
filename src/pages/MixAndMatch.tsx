@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, ShoppingBag, RotateCcw, Loader2 } from 'luci
 import { useCartStore } from '@/stores/cartStore';
 import { toast } from 'sonner';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
-import { PRODUCT_SIZES } from '@/lib/constants';
+import { PRODUCT_SIZES, MATCHING_SET_DISCOUNT } from '@/lib/constants';
 import { useAdminStore } from '@/stores/adminStore';
 import { useMemo } from 'react';
 
