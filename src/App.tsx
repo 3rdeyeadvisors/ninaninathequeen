@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { PageTransition } from "@/components/PageTransition";
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { AnimatePresence } from "framer-motion";
 import { DbSyncProvider, useDbSync } from "@/providers/DbSyncProvider";
 import Index from "./pages/Index";
