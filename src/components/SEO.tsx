@@ -43,14 +43,17 @@ export const SEO = ({ title, description, noindex }: SEOProps) => {
     }
 
     // Set OG Image
-    const ogImageUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-image`;
-    let ogImage = document.querySelector('meta[property="og:image"]');
-    if (ogImage) {
-      ogImage.setAttribute('content', ogImageUrl);
-    }
-    let twitterImage = document.querySelector('meta[name="twitter:image"]');
-    if (twitterImage) {
-      twitterImage.setAttribute('content', ogImageUrl);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (supabaseUrl) {
+      const ogImageUrl = `${supabaseUrl}/functions/v1/og-image`;
+      let ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage) {
+        ogImage.setAttribute('content', ogImageUrl);
+      }
+      let twitterImage = document.querySelector('meta[name="twitter:image"]');
+      if (twitterImage) {
+        twitterImage.setAttribute('content', ogImageUrl);
+      }
     }
 
     // Set og:url
