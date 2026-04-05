@@ -1,0 +1,47 @@
+name: Repository Audit
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *' # Every 3 days
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run Audit Script
+      id: run-audit
+      run: |
+        chmod +x ./scripts/audit.sh
+        ./scripts/audit.sh || echo "audit_failed=true" >> $GITHUB_ENV
+
+    - name: Create Optimization PR
+      if: env.audit_failed == 'true'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: repository optimization audit"
+        title: "Repository Optimization & Audit Results"
+        body: |
+          ### Weekly Audit Results
+
+          The automated audit found the following areas for optimization:
+
+          $(cat audit_report.md)
+
+          Please review and address these points to improve code quality and security.
+        branch: audit/optimization
+        base: main
+        delete-branch: true
