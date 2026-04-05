@@ -18,6 +18,9 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+playwright-report/
+test-results/
+audit_report.md
 *.suo
 *.ntvs*
 *.njsproj
