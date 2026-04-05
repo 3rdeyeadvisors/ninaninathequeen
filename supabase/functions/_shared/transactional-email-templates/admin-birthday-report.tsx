@@ -18,7 +18,7 @@ const AdminBirthdayReportEmail = ({ count = 0, month = '' }: AdminBirthdayReport
   return (
     <Html lang="en" dir="ltr">
       <Head />
-      <Preview>Birthday Emails Sent — {month} {year}</Preview>
+      <Preview>{`Birthday Emails Sent — ${month} ${year}`}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Text style={logo}>{SITE_NAME}</Text>

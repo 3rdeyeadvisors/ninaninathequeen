@@ -16,7 +16,7 @@ interface ReferralSuccessProps {
 const ReferralSuccessEmail = ({ referrerName = '', referredName = '', pointsAwarded = 25 }: ReferralSuccessProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>You've earned {pointsAwarded} referral points!</Preview>
+    <Preview>{`You've earned ${pointsAwarded} referral points!`}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Text style={logo}>{SITE_NAME}</Text>

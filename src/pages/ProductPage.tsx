@@ -21,7 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 const ProductPage = () => {
   const navigate = useNavigate();
   const { handle } = useParams<{ handle: string }>();
-  const { data: product, isLoading, isError } = useProduct(handle ? toHandle(handle) : '');
+  const { data: product, isLoading, isError } = useProduct(handle || '');
   const { data: reviews = [] } = useProductReviews(product?.id || '');
 
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
