@@ -6,7 +6,7 @@ import { Clock, CheckCircle2, Truck, Package, XCircle, Eye, Edit3, Plus, Loader2
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useAdminStore, type AdminOrder } from '@/stores/adminStore';
 import { useOrdersDb } from '@/hooks/useOrdersDb';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -157,34 +157,11 @@ export default function AdminOrders() {
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedQty, setSelectedQty] = useState(1);
 
-  const activeProducts = Object.entries(productOverrides)
+  const activeProducts = useMemo(() => Object.entries(productOverrides)
     .filter(([_, p]) => !p.isDeleted && p.status !== 'Inactive')
-    .map(([id, p]) => ({ id, ...p }));
+    .map(([id, p]) => ({ id, ...p })), [productOverrides]);
 
-  // Show loading skeleton while data is being restored from storage
-  if (!_hasHydrated) {
-    return (
-      <div className="min-h-screen bg-secondary/20">
-        <Header />
-        <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
-          <div className="flex flex-col gap-8 lg:gap-12">
-            <AdminSidebar />
-            <main className="flex-1 space-y-8 bg-card p-4 sm:p-8 rounded-2xl border border-border/50 shadow-sm">
-              <Skeleton className="h-10 w-48" />
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
-                ))}
-              </div>
-            </main>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
-  const handleEdit = (order: AdminOrder) => {
+  const handleEdit = useCallback((order: AdminOrder) => {
     setSelectedOrder(order);
     setEditStatus(order.status);
     setEditTracking(order.trackingNumber || '');
@@ -192,14 +169,14 @@ export default function AdminOrders() {
     setEditItemCost(order.itemCost || '0.00');
     setEditTransactionFee(order.transactionFee || '0.00');
     setIsEditing(true);
-  };
+  }, []);
 
-  const handleView = (order: AdminOrder) => {
+  const handleView = useCallback((order: AdminOrder) => {
     setSelectedOrder(order);
     setIsViewing(true);
-  };
+  }, []);
 
-  const handleSendCustomerEmail = async (type: 'order_confirmation' | 'shipping_confirmation') => {
+  const handleSendCustomerEmail = useCallback(async (type: 'order_confirmation' | 'shipping_confirmation') => {
     if (!selectedOrder) return;
     setIsSendingEmail(true);
     try {
@@ -225,9 +202,9 @@ export default function AdminOrders() {
     } finally {
       setIsSendingEmail(false);
     }
-  };
+  }, [selectedOrder]);
 
-  const saveOrderChanges = async () => {
+  const saveOrderChanges = useCallback(async () => {
     if (selectedOrder) {
       const success = await updateOrderDb(selectedOrder.id, {
         status: editStatus,
@@ -292,9 +269,9 @@ export default function AdminOrders() {
         toast.error('Failed to save. Please try again.');
       }
     }
-  };
+  }, [selectedOrder, updateOrderDb, editStatus, editTracking, editShippingCost, editItemCost, editTransactionFee]);
 
-  const addItemToNewOrder = () => {
+  const addItemToNewOrder = useCallback(() => {
     if (!selectedProductId) return;
     const product = activeProducts.find(p => p.id === selectedProductId);
     if (!product) return;
@@ -310,10 +287,10 @@ export default function AdminOrders() {
     setSelectedProductId('');
     setSelectedSize('');
     setSelectedQty(1);
-  };
+  }, [selectedProductId, activeProducts, selectedSize, selectedQty]);
 
 
-  const handleCreateOrder = async () => {
+  const handleCreateOrder = useCallback(async () => {
     if (!newOrder.customerName.trim()) {
       toast.error('Please enter a customer name');
       return;
@@ -362,7 +339,64 @@ export default function AdminOrders() {
     } else {
       toast.error(typeof result === 'string' ? result : 'Failed to create order');
     }
-  };
+  }, [newOrder, newOrderItems, createManualOrder]);
+
+  const fetchReturnRequests = useCallback(async () => {
+    setIsLoadingReturns(true);
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('return_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (data) setReturnRequests(data);
+    } catch (err) {
+      console.error('Failed to fetch returns:', err);
+    } finally {
+      setIsLoadingReturns(false);
+    }
+  }, []);
+
+  const updateReturnStatus = useCallback(async (id: string, status: string) => {
+    try {
+      const supabase = getSupabase();
+      await supabase.from('return_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+      setReturnRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+      toast.success('Return status updated');
+    } catch {
+      toast.error('Failed to update return status');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (_hasHydrated) {
+      fetchReturnRequests();
+    }
+  }, [_hasHydrated, fetchReturnRequests]);
+
+  // Show loading skeleton while data is being restored from storage
+  if (!_hasHydrated) {
+    return (
+      <div className="min-h-screen bg-secondary/20">
+        <Header />
+        <div className="pt-32 md:pt-40 pb-12 max-w-[1600px] mx-auto px-4 md:px-8">
+          <div className="flex flex-col gap-8 lg:gap-12">
+            <AdminSidebar />
+            <main className="flex-1 space-y-8 bg-card p-4 sm:p-8 rounded-2xl border border-border/50 shadow-sm">
+              <Skeleton className="h-10 w-48" />
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
+              </div>
+            </main>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
 
   const getStatusIcon = (status: AdminOrder['status']) => {
     switch (status) {
@@ -384,36 +418,6 @@ export default function AdminOrders() {
     }
   };
 
-  const fetchReturnRequests = async () => {
-    setIsLoadingReturns(true);
-    try {
-      const supabase = getSupabase();
-      const { data } = await supabase
-        .from('return_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (data) setReturnRequests(data);
-    } catch (err) {
-      console.error('Failed to fetch returns:', err);
-    } finally {
-      setIsLoadingReturns(false);
-    }
-  };
-
-  const updateReturnStatus = async (id: string, status: string) => {
-    try {
-      const supabase = getSupabase();
-      await supabase.from('return_requests').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
-      setReturnRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
-      toast.success('Return status updated');
-    } catch {
-      toast.error('Failed to update return status');
-    }
-  };
-
-  useEffect(() => {
-    fetchReturnRequests();
-  }, []);
 
   return (
     <div className="min-h-screen bg-secondary/20">

@@ -34,7 +34,6 @@ export function useWishlistSync() {
         const itemsToUpload = wishlistItems.filter(item => !remoteProductIds.has(item.id));
 
         if (itemsToUpload.length > 0) {
-          console.log(`[WishlistSync] Syncing ${itemsToUpload.length} local items to database...`);
           const { error: uploadError } = await supabase
             .from('wishlists' as any)
             .upsert(
@@ -58,7 +57,6 @@ export function useWishlistSync() {
           .filter((id: string) => !wishlistItems.some(item => item.id === id));
 
         if (remoteOnlyIds.length > 0) {
-          console.log(`[WishlistSync] Fetching ${remoteOnlyIds.length} remote items for local wishlist...`);
           const { data: products, error: productsError } = await supabase
             .from('products')
             .select('id, title, image, images, price')

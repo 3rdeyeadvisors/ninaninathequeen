@@ -21,11 +21,21 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Build
+      run: npm run build
+      env:
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
     - name: Run Audit Script
       id: run-audit
       run: |
         chmod +x ./scripts/audit.sh
         ./scripts/audit.sh || echo "audit_failed=true" >> $GITHUB_ENV
+
+    - name: Set PR Title
+      if: env.audit_failed == 'true'
+      run: echo "PR_TITLE=Auto-Fix: Audit Discovery $(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
     - name: Create Optimization PR
       if: env.audit_failed == 'true'
@@ -33,15 +43,15 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: "chore: repository optimization audit"
-        title: "Repository Optimization & Audit Results"
+        title: ${{ env.PR_TITLE }}
         body: |
-          ### Weekly Audit Results
+          ### Automated Audit Results
 
-          The automated audit found the following areas for optimization:
+          The automated audit found the following areas for optimization or required fixes:
 
           $(cat audit_report.md)
 
-          Please review and address these points to improve code quality and security.
+          Please review and merge these changes to maintain repository health.
         branch: audit/optimization
         base: main
         delete-branch: true
