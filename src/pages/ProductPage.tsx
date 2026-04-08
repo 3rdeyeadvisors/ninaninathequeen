@@ -35,6 +35,7 @@ const ProductPage = () => {
   const isCartLoading = useCartStore(state => state.isLoading);
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { user } = useCloudAuthStore();
+  const { data: allProducts = [] } = useProducts(100);
 
   const variants = product?.variants || [];
   const images = product?.images || [];
@@ -46,6 +47,19 @@ const ProductPage = () => {
       ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
       : 0
   , [reviews]);
+
+  const hasMatchingCounterpart = useMemo(() => {
+    if (!product) return false;
+    const cat = product.category;
+    if (cat !== 'Top' && cat !== 'Bottom') return false;
+    const oppositeCategory = cat === 'Top' ? 'Bottom' : 'Top';
+    const collectionKey = getCollectionKey(product.title);
+    return allProducts.some(p =>
+      p.category === oppositeCategory &&
+      getCollectionKey(p.title) === collectionKey &&
+      p.id !== product.id
+    );
+  }, [product, allProducts]);
 
   useEffect(() => {
     if (product) {
