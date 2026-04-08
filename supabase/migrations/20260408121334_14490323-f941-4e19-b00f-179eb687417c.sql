@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Public can read settings" ON public.store_settings;
