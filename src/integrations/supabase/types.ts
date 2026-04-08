@@ -654,7 +654,6 @@ export type Database = {
     Views: {
       public_store_settings: {
         Row: {
-          auto_sync: boolean | null
           contact_email: string | null
           contact_phone: string | null
           created_at: string | null
@@ -663,18 +662,14 @@ export type Database = {
           id: string | null
           instagram_url: string | null
           is_maintenance_mode: boolean | null
-          low_stock_threshold: number | null
-          pos_provider: string | null
           seo_description: string | null
           seo_title: string | null
           shipping_rate: number | null
           store_name: string | null
-          tax_rate: number | null
           tiktok_url: string | null
           updated_at: string | null
         }
         Insert: {
-          auto_sync?: boolean | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string | null
@@ -683,18 +678,14 @@ export type Database = {
           id?: string | null
           instagram_url?: string | null
           is_maintenance_mode?: boolean | null
-          low_stock_threshold?: number | null
-          pos_provider?: string | null
           seo_description?: string | null
           seo_title?: string | null
           shipping_rate?: number | null
           store_name?: string | null
-          tax_rate?: number | null
           tiktok_url?: string | null
           updated_at?: string | null
         }
         Update: {
-          auto_sync?: boolean | null
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string | null
@@ -703,13 +694,10 @@ export type Database = {
           id?: string | null
           instagram_url?: string | null
           is_maintenance_mode?: boolean | null
-          low_stock_threshold?: number | null
-          pos_provider?: string | null
           seo_description?: string | null
           seo_title?: string | null
           shipping_rate?: number | null
           store_name?: string | null
-          tax_rate?: number | null
           tiktok_url?: string | null
           updated_at?: string | null
         }
