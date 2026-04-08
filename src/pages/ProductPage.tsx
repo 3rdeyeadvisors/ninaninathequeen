@@ -1,5 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useProduct } from '@/hooks/useProducts';
+import { useProduct, useProducts } from '@/hooks/useProducts';
+import { getCollectionKey } from '@/lib/utils';
 import { useProductReviews } from '@/hooks/useReviewsDb';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
@@ -278,14 +279,14 @@ const ProductPage = () => {
                 {selectedVariant?.price.currencyCode} {parseFloat(selectedVariant?.price.amount || '0').toFixed(2)}
               </p>
 
-              {(product.category === 'Top' || product.category === 'Bottom') && (
+              {hasMatchingCounterpart && (
                 <p className="text-sm text-primary/80 font-sans mb-6 flex items-center gap-1.5">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary" />
                   Save $10 when you buy the matching {product.category === 'Top' ? 'bottom' : 'top'}
                 </p>
               )}
 
-              {product.category !== 'Top' && product.category !== 'Bottom' && (
+              {!hasMatchingCounterpart && (
                 <div className="mb-6" />
               )}
 
