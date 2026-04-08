@@ -38,7 +38,7 @@ const DiscountAppliedEmail = ({ customerName = 'there', discountType = 'Discount
 
 export const template = {
   component: DiscountAppliedEmail,
-  subject: (data: Record<string, any>) => `Your ${data.discountType || 'Discount'} has been applied!`,
+  subject: (data: Record<string, unknown>) => `Your ${data.discountType as string || 'Discount'} has been applied!`,
   displayName: 'Discount applied',
   previewData: { customerName: 'Jane', discountType: 'Birthday Discount', amountSaved: '5.00', newTotal: '84.00' },
 } satisfies TemplateEntry

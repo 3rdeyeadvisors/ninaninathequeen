@@ -50,7 +50,7 @@ const ShippingUpdateEmail = ({ customerName = '', orderId = '', status = '', tra
 
 export const template = {
   component: ShippingUpdateEmail,
-  subject: (data: Record<string, any>) => `Order Update — ${data.status || 'Status Change'}`,
+  subject: (data: Record<string, unknown>) => `Order Update — ${data.status as string || 'Status Change'}`,
   displayName: 'Shipping update',
   previewData: { customerName: 'Jane', orderId: 'abc12345-xyz', status: 'Shipped', trackingNumber: '1Z999AA10123456784' },
 } satisfies TemplateEntry

@@ -37,7 +37,7 @@ const ContactFormToSupportEmail = ({ name = '', email = '', message = '' }: Cont
 
 export const template = {
   component: ContactFormToSupportEmail,
-  subject: (data: Record<string, any>) => `New Inquiry from ${data.name || 'Customer'}`,
+  subject: (data: Record<string, unknown>) => `New Inquiry from ${data.name as string || 'Customer'}`,
   displayName: 'Contact form (to support)',
   previewData: { name: 'Jane Doe', email: 'jane@example.com', message: 'I have a question about sizing for the Rio Collection.' },
   to: 'support@ninaarmend.co',

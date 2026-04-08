@@ -10,6 +10,7 @@ import { useCartStore } from "@/stores/cartStore";
 import { useEffect } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { BackToTop } from "@/components/BackToTop";
 import { PageTransition } from "@/components/PageTransition";
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { AnimatePresence } from "framer-motion";
@@ -162,6 +163,7 @@ function AppContent() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <BackToTop />
       <PageTransition />
       <MaintenanceGuard>
         <AnimatedRoutes />

@@ -58,7 +58,7 @@ const OrderConfirmationEmail = ({ orderId = '', customerName = '', items = [], t
 
 export const template = {
   component: OrderConfirmationEmail,
-  subject: (data: Record<string, any>) => `Order Confirmed — ${(data.orderId || '').slice(0, 8).toUpperCase()}`,
+  subject: (data: Record<string, unknown>) => `Order Confirmed — ${((data.orderId as string) || '').slice(0, 8).toUpperCase()}`,
   displayName: 'Order confirmation',
   previewData: { orderId: 'abc12345-xyz', customerName: 'Jane', items: [{ title: 'Sunset Bikini Top', quantity: 1, price: '89.00', size: 'M' }], total: '89.00' },
 } satisfies TemplateEntry

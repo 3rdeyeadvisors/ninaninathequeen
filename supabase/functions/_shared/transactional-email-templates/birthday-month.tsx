@@ -41,7 +41,7 @@ const BirthdayMonthEmail = ({ name = 'there' }: BirthdayMonthProps) => (
 
 export const template = {
   component: BirthdayMonthEmail,
-  subject: (data: Record<string, any>) => `Happy Birthday Month, ${data.name || 'there'}! 🎂`,
+  subject: (data: Record<string, unknown>) => `Happy Birthday Month, ${data.name as string || 'there'}! 🎂`,
   displayName: 'Birthday month',
   previewData: { name: 'Jane' },
 } satisfies TemplateEntry

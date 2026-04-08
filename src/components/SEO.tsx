@@ -31,13 +31,13 @@ export const SEO = ({ title, description, noindex }: SEOProps) => {
     }
 
     // Set OG Title
-    let ogTitle = document.querySelector('meta[property="og:title"]');
+    const ogTitle = document.querySelector('meta[property="og:title"]');
     if (ogTitle) {
       ogTitle.setAttribute('content', finalTitle);
     }
 
     // Set OG Description
-    let ogDescription = document.querySelector('meta[property="og:description"]');
+    const ogDescription = document.querySelector('meta[property="og:description"]');
     if (ogDescription) {
       ogDescription.setAttribute('content', finalDescription);
     }
@@ -46,11 +46,11 @@ export const SEO = ({ title, description, noindex }: SEOProps) => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     if (supabaseUrl) {
       const ogImageUrl = `${supabaseUrl}/functions/v1/og-image`;
-      let ogImage = document.querySelector('meta[property="og:image"]');
+      const ogImage = document.querySelector('meta[property="og:image"]');
       if (ogImage) {
         ogImage.setAttribute('content', ogImageUrl);
       }
-      let twitterImage = document.querySelector('meta[name="twitter:image"]');
+      const twitterImage = document.querySelector('meta[name="twitter:image"]');
       if (twitterImage) {
         twitterImage.setAttribute('content', ogImageUrl);
       }

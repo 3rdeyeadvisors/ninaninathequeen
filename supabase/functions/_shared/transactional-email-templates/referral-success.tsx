@@ -42,7 +42,7 @@ const ReferralSuccessEmail = ({ referrerName = '', referredName = '', pointsAwar
 
 export const template = {
   component: ReferralSuccessEmail,
-  subject: (data: Record<string, any>) => `You've earned ${data.pointsAwarded || 25} referral points!`,
+  subject: (data: Record<string, unknown>) => `You've earned ${data.pointsAwarded as number || 25} referral points!`,
   displayName: 'Referral success',
   previewData: { referrerName: 'Jane', referredName: 'Sarah', pointsAwarded: 25 },
 } satisfies TemplateEntry

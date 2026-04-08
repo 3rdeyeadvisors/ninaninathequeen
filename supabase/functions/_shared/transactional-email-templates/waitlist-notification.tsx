@@ -34,7 +34,7 @@ const WaitlistNotificationEmail = ({ name = '', email = '' }: WaitlistNotificati
 
 export const template = {
   component: WaitlistNotificationEmail,
-  subject: (data: Record<string, any>) => `New Waitlist Signup: ${data.email || ''}`,
+  subject: (data: Record<string, unknown>) => `New Waitlist Signup: ${data.email as string || ''}`,
   displayName: 'Waitlist notification (admin)',
   previewData: { name: 'Jane', email: 'jane@example.com' },
   to: 'support@ninaarmend.co',
