@@ -7,7 +7,7 @@ import { ShoppingBag, Minus, Plus, Trash2, Loader2, Truck, CheckCircle2 } from "
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
 import { useProducts } from '@/hooks/useProducts';
-import { calculateSetDiscount } from '@/lib/utils';
+import { calculateSetDiscount, getCollectionKey } from '@/lib/utils';
 
 export const CartDrawer = () => {
   const navigate = useNavigate();
@@ -26,14 +26,33 @@ export const CartDrawer = () => {
 
   const { data: allProducts = [] } = useProducts(20);
 
-  const hasTopsNoBottom = topsCount > 0 && bottomsCount === 0;
-  const hasBottomNoTop = bottomsCount > 0 && topsCount === 0;
-
-  const upsellProduct = hasTopsNoBottom
-    ? allProducts.find(p => p.category === 'Bottom' && !items.some(i => i.product.id === p.id))
-    : hasBottomNoTop
-    ? allProducts.find(p => p.category === 'Top' && !items.some(i => i.product.id === p.id))
-    : null;
+  // Find upsell: prefer same-collection counterpart, fallback to any
+  const upsellProduct = (() => {
+    const cartTops = items.filter(i => i.product.category === 'Top');
+    const cartBottoms = items.filter(i => i.product.category === 'Bottom');
+    
+    // If we have tops but no bottoms, suggest a matching bottom
+    if (cartTops.length > 0 && cartBottoms.length === 0) {
+      const collectionKeys = cartTops.map(i => getCollectionKey(i.product.title));
+      const sameCollection = allProducts.find(p => 
+        p.category === 'Bottom' && 
+        collectionKeys.includes(getCollectionKey(p.title)) &&
+        !items.some(i => i.product.id === p.id)
+      );
+      return sameCollection || allProducts.find(p => p.category === 'Bottom' && !items.some(i => i.product.id === p.id)) || null;
+    }
+    // If we have bottoms but no tops, suggest a matching top
+    if (cartBottoms.length > 0 && cartTops.length === 0) {
+      const collectionKeys = cartBottoms.map(i => getCollectionKey(i.product.title));
+      const sameCollection = allProducts.find(p => 
+        p.category === 'Top' && 
+        collectionKeys.includes(getCollectionKey(p.title)) &&
+        !items.some(i => i.product.id === p.id)
+      );
+      return sameCollection || allProducts.find(p => p.category === 'Top' && !items.some(i => i.product.id === p.id)) || null;
+    }
+    return null;
+  })();
 
   const handleCheckout = () => {
     setIsOpen(false);

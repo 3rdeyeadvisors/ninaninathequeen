@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Product } from '@/hooks/useProducts';
+import { Product, useProducts } from '@/hooks/useProducts';
 import { useCartStore } from '@/stores/cartStore';
 import { useWishlistStore } from '@/stores/wishlistStore';
 import { useAdminStore } from '@/stores/adminStore';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag, Loader2, Heart, Tag } from 'lucide-react';
 import { MATCHING_SET_DISCOUNT } from '@/lib/constants';
+import { getCollectionKey } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 
 interface ProductCardProps {
@@ -38,10 +39,21 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const originalPrice = parseFloat(price.amount);
   const discountedPrice = isTopAndBottom ? originalPrice - 10 : originalPrice;
 
-  // All individual Top/Bottom products qualify for the $10 off matching set deal
+  // Check if a matching counterpart exists in the catalog
+  const { data: allProducts = [] } = useProducts(100);
   const isTopOrBottom = (override?.category === 'Top' || override?.category === 'Bottom' ||
                          product.category === 'Top' || product.category === 'Bottom');
-  const hasMatchingSet = isTopOrBottom && !isTopAndBottom;
+  const hasMatchingSet = useMemo(() => {
+    if (!isTopOrBottom || isTopAndBottom) return false;
+    const productCategory = override?.category || product.category;
+    const oppositeCategory = productCategory === 'Top' ? 'Bottom' : 'Top';
+    const collectionKey = getCollectionKey(product.title);
+    return allProducts.some(p => 
+      p.category === oppositeCategory && 
+      getCollectionKey(p.title) === collectionKey &&
+      p.id !== product.id
+    );
+  }, [isTopOrBottom, isTopAndBottom, product, override, allProducts]);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
