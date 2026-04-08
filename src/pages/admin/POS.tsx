@@ -268,7 +268,7 @@ export default function AdminPOS() {
       const skuMatch = (p as unknown as Record<string, unknown>).sku ? String((p as unknown as Record<string, unknown>).sku).toLowerCase().includes(q) : false;
       return titleMatch || skuMatch;
     });
-  }, [initialProducts, productOverrides, searchQuery]);
+  }, [initialProducts, searchQuery]);
 
   const addToCart = (product: Product) => {
     setSelectingProduct(product);

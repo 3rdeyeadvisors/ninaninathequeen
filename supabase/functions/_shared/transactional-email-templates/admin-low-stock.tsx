@@ -39,7 +39,7 @@ const AdminLowStockEmail = ({ productTitle = '', inventory = 0, threshold = 10 }
 
 export const template = {
   component: AdminLowStockEmail,
-  subject: (data: Record<string, any>) => `⚠️ Low Stock Alert — ${data.productTitle || 'Product'}`,
+  subject: (data: Record<string, unknown>) => `⚠️ Low Stock Alert — ${(data.productTitle as string) || 'Product'}`,
   displayName: 'Admin low stock alert',
   previewData: { productTitle: 'Sunset Bikini Top', inventory: 3, threshold: 10 },
   to: 'support@ninaarmend.co',

@@ -11,6 +11,32 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+interface RequestBody {
+  squareOrderId: string;
+  pendingId: string;
+}
+
+interface OrderItem {
+  productId: string;
+  variantId?: string;
+  title: string;
+  quantity: number;
+  price: string;
+  size?: string;
+}
+
+interface OrderMetadata {
+  customerName: string;
+  customerEmail: string;
+  items: OrderItem[];
+  shippingCost: string;
+  itemCost: string;
+  total: string;
+  discountAmount?: string;
+  discountType?: string;
+  setDiscountAmount?: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -18,7 +44,7 @@ Deno.serve(async (req) => {
 
   console.time('FinalizeOrder_TotalExecutionTime');
   try {
-    const { squareOrderId, pendingId } = await req.json()
+    const { squareOrderId, pendingId }: RequestBody = await req.json()
     if (!squareOrderId) {
       throw new Error('Square Order ID is required')
     }
@@ -36,7 +62,7 @@ Deno.serve(async (req) => {
       throw new Error('Could not retrieve order details. Please contact support.');
     }
 
-    const metadata = pendingRow.metadata;
+    const metadata = pendingRow.metadata as OrderMetadata;
 
     // Get secrets
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN')?.trim()
@@ -248,20 +274,21 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
 
-    } catch (fetchError: any) {
+    } catch (fetchError) {
       clearTimeout(timeoutId)
-      if (fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         console.error('[FinalizeSquareOrder] Square API request timed out after 20s')
         throw new Error('Square API request timed out. Verification will be retried on next page load.')
       }
       throw fetchError
     }
 
-  } catch (error: any) {
-    console.error('[FinalizeSquareOrder] Error:', error.message);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[FinalizeSquareOrder] Error:', errorMessage);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: errorMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

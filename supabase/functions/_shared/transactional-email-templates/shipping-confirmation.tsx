@@ -57,7 +57,7 @@ const ShippingConfirmationEmail = ({ orderId = '', customerName = '', trackingNu
 
 export const template = {
   component: ShippingConfirmationEmail,
-  subject: (data: Record<string, any>) => `Your Nina Armend Order Has Shipped — ${(data.orderId || '').slice(0, 8).toUpperCase()}`,
+  subject: (data: Record<string, unknown>) => `Your Nina Armend Order Has Shipped — ${(data.orderId as string || '').slice(0, 8).toUpperCase()}`,
   displayName: 'Shipping confirmation',
   previewData: { orderId: 'abc12345-xyz', customerName: 'Jane', trackingNumber: '1Z999AA10123456784', items: [{ title: 'Sunset Bikini Top', quantity: 1, price: '89.00', size: 'M' }], total: '89.00' },
 } satisfies TemplateEntry

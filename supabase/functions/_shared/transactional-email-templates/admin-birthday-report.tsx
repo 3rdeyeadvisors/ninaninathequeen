@@ -47,7 +47,7 @@ const AdminBirthdayReportEmail = ({ count = 0, month = '' }: AdminBirthdayReport
 
 export const template = {
   component: AdminBirthdayReportEmail,
-  subject: (data: Record<string, any>) => `Birthday Emails Sent — ${data.month || ''} ${new Date().getFullYear()}`,
+  subject: (data: Record<string, unknown>) => `Birthday Emails Sent — ${(data.month as string) || ''} ${new Date().getFullYear()}`,
   displayName: 'Admin birthday report',
   previewData: { count: 12, month: 'April' },
 } satisfies TemplateEntry

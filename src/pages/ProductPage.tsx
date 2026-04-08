@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useProduct, useProducts } from '@/hooks/useProducts';
+import { useProduct, useProducts, toHandle } from '@/hooks/useProducts';
 import { getCollectionKey } from '@/lib/utils';
 import { useProductReviews } from '@/hooks/useReviewsDb';
 import { useCartStore } from '@/stores/cartStore';
@@ -22,7 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 const ProductPage = () => {
   const navigate = useNavigate();
   const { handle } = useParams<{ handle: string }>();
-  const { data: product, isLoading, isError } = useProduct(handle || '');
+  const { data: product, isLoading, isError } = useProduct(toHandle(handle || ''));
   const { data: reviews = [] } = useProductReviews(product?.id || '');
 
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
@@ -92,7 +92,7 @@ const ProductPage = () => {
   useEffect(() => {
     if (!product || !selectedVariant) return;
 
-    const schema: any = {
+    const schema: Record<string, any> = {
       "@context": "https://schema.org",
       "@type": "Product",
       "name": product.title,

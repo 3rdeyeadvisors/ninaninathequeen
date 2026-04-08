@@ -43,7 +43,32 @@ Deno.serve(async (req) => {
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_ACCESS_TOKEN');
     const SQUARE_ENVIRONMENT = Deno.env.get('SQUARE_ENVIRONMENT') || 'production';
 
-    const { sourceId, amount, currency, locationId: requestLocationId, orderDetails } = await req.json()
+    interface OrderItem {
+      productId: string;
+      title: string;
+      price: string;
+      quantity: number;
+      size: string;
+    }
+
+    interface OrderDetails {
+      id?: string;
+      customerName: string;
+      customerEmail: string;
+      items: OrderItem[];
+      shippingCost: string;
+      itemCost: string;
+    }
+
+    interface RequestBody {
+      sourceId: string;
+      amount: string;
+      currency?: string;
+      locationId?: string;
+      orderDetails?: OrderDetails;
+    }
+
+    const { sourceId, amount, currency, locationId: requestLocationId, orderDetails }: RequestBody = await req.json()
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     const FINAL_SQUARE_TOKEN = SQUARE_ACCESS_TOKEN?.trim();
@@ -54,7 +79,7 @@ Deno.serve(async (req) => {
 
     // === SERVER-SIDE PRICE VALIDATION ===
     if (orderDetails?.items && Array.isArray(orderDetails.items)) {
-      const productIds = orderDetails.items.map((item: any) => item.productId).filter(Boolean);
+      const productIds = orderDetails.items.map((item: OrderItem) => item.productId).filter(Boolean);
       if (productIds.length > 0) {
         const { data: products, error: dbError } = await supabase
           .from('products')
@@ -194,18 +219,19 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
 
-    } catch (fetchError: any) {
+    } catch (fetchError) {
       clearTimeout(timeoutId)
-      if (fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         console.error('[ProcessPayment] Square API request timed out')
         throw new Error('Square API request timed out after 20 seconds')
       }
       throw fetchError
     }
 
-  } catch (error: any) {
-    console.error('[ProcessPayment] Unexpected error:', error.message)
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[ProcessPayment] Unexpected error:', errorMessage)
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })

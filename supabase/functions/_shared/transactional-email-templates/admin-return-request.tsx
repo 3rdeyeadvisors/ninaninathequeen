@@ -41,7 +41,7 @@ const AdminReturnRequestEmail = ({ orderId = '', customerName = '', customerEmai
 
 export const template = {
   component: AdminReturnRequestEmail,
-  subject: (data: Record<string, any>) => `Return Request — Order ${(data.orderId || '').slice(0, 8).toUpperCase()}`,
+  subject: (data: Record<string, unknown>) => `Return Request — Order ${((data.orderId as string) || '').slice(0, 8).toUpperCase()}`,
   displayName: 'Admin return request',
   previewData: { orderId: 'abc12345-xyz', customerName: 'Jane Doe', customerEmail: 'jane@example.com', reason: 'Wrong size' },
   to: 'support@ninaarmend.co',

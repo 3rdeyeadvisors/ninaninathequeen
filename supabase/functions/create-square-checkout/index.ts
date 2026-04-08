@@ -11,6 +11,33 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+interface OrderItem {
+  productId: string;
+  variantId?: string;
+  title: string;
+  quantity: number;
+  price: string;
+  size?: string;
+}
+
+interface OrderDetails {
+  customerName: string;
+  customerEmail: string;
+  items: OrderItem[];
+  shippingCost: string;
+  itemCost: string;
+  total: string;
+  discountAmount?: string;
+  discountType?: string;
+  setDiscountAmount?: string;
+  taxAmount?: string;
+}
+
+interface RequestBody {
+  orderDetails: OrderDetails;
+  locationId?: string;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -23,7 +50,7 @@ Deno.serve(async (req) => {
   console.time('TotalExecutionTime');
   try {
     console.time('RequestBodyParsing');
-    const { orderDetails, locationId: requestLocationId } = await req.json()
+    const { orderDetails, locationId: requestLocationId }: RequestBody = await req.json()
     console.timeEnd('RequestBodyParsing');
 
     if (!orderDetails) {
@@ -65,9 +92,9 @@ Deno.serve(async (req) => {
 
     if (orderDetails.items && Array.isArray(orderDetails.items)) {
       // Collect all product IDs for a batch lookup
-      const productIds = orderDetails.items.map((item: any) => item.productId).filter(Boolean);
+      const productIds = orderDetails.items.map((item: OrderItem) => item.productId).filter(Boolean);
       
-      let dbProducts: Record<string, string> = {};
+      const dbProducts: Record<string, string> = {};
       if (productIds.length > 0) {
         const { data: products, error: dbError } = await supabase
           .from('products')
@@ -206,7 +233,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body: any = {
+    const body = {
       idempotency_key: crypto.randomUUID(),
       checkout_options: {
         redirect_url: `${origin}/checkout/success?pending_id=${pendingId}`,
@@ -304,9 +331,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
 
-    } catch (fetchError: any) {
+    } catch (fetchError) {
       clearTimeout(timeoutId)
-      if (fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         console.error('[CreateSquareCheckout] Square API request timed out after 20s')
         return new Response(JSON.stringify({
           success: false,
@@ -319,11 +346,12 @@ Deno.serve(async (req) => {
       throw fetchError
     }
 
-  } catch (error: any) {
-    console.error('[CreateSquareCheckout] Unexpected error:', error.message)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[CreateSquareCheckout] Unexpected error:', errorMessage)
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: errorMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

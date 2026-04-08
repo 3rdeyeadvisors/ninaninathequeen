@@ -53,9 +53,8 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
 }
 
 // Move a message to the dead letter queue and log the reason.
-// deno-lint-ignore no-explicit-any
 async function moveToDlq(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   queue: string,
   msg: { msg_id: number; message: Record<string, unknown> },
   reason: string
@@ -112,8 +111,7 @@ Deno.serve(async (req) => {
     )
   }
 
-  // deno-lint-ignore no-explicit-any
-  const supabase: any = createClient(supabaseUrl, supabaseServiceKey)
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   // 1. Check rate-limit cooldown and read queue config
   const { data: state } = await supabase
@@ -157,13 +155,13 @@ Deno.serve(async (req) => {
     // messages not attempted when a 429 stops processing early.
     const messageIds = Array.from(
       new Set(
-        messages
-          .map((msg: any) =>
+        (messages as Array<{ message: Record<string, unknown> }>)
+          .map((msg) =>
             msg?.message?.message_id && typeof msg.message.message_id === 'string'
-              ? msg.message.message_id
+              ? (msg.message.message_id as string)
               : null
           )
-          .filter((id: any): id is string => Boolean(id))
+          .filter((id): id is string => Boolean(id))
       )
     )
     const failedAttemptsByMessageId = new Map<string, number>()
