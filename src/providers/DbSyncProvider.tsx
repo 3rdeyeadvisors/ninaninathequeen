@@ -4,6 +4,7 @@ import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { useCartStore } from '@/stores/cartStore';
 import { toast } from 'sonner';
 import { getSupabase } from '@/lib/supabaseClient';
+import type { ProductRow, OrderRow, CustomerRow, StoreSettingsRow } from '@/types/database';
 
 interface DbSyncContextType {
   isLoading: boolean;
@@ -45,13 +46,13 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
       const { data, error } = await supabase.from('products').select('*');
       if (error) { console.error('Error fetching products:', error); return; }
       if (data && data.length > 0) {
-        data.forEach((product) => {
+        (data as unknown as ProductRow[]).forEach((product) => {
           updateProductOverride(product.id, {
             id: product.id,
             title: product.title,
             price: product.price,
             inventory: product.inventory,
-            sizeInventory: (product.size_inventory as Record<string, number>) || {},
+            sizeInventory: product.size_inventory || {},
             image: product.image || '',
             description: product.description || '',
             productType: product.product_type || 'Bikini',
@@ -62,8 +63,8 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
             colorCodes: product.color_codes || [],
             sizes: product.sizes || [],
             isDeleted: product.is_deleted || false,
-            unitCost: (product as any).unit_cost || '0.00',
-            images: (product as any).images || [],
+            unitCost: product.unit_cost || '0.00',
+            images: product.images || [],
           });
         });
       }
@@ -77,7 +78,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         .from('orders').select('*').order('created_at', { ascending: false });
       if (error) { console.error('Error fetching orders:', error); return; }
       if (data) {
-        const formattedOrders: AdminOrder[] = data.map((order) => ({
+        const formattedOrders: AdminOrder[] = (data as unknown as OrderRow[]).map((order) => ({
           id: order.id,
           customerName: order.customer_name,
           customerEmail: order.customer_email,
@@ -85,11 +86,11 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
           total: order.total,
           shippingCost: order.shipping_cost || undefined,
           itemCost: order.item_cost || undefined,
-          transactionFee: (order as any).transaction_fee || undefined,
+          transactionFee: order.transaction_fee || undefined,
           status: order.status as AdminOrder['status'],
           trackingNumber: order.tracking_number || '',
           shippingAddress: (order.shipping_address as ShippingAddress) || undefined,
-          items: (order.items as AdminOrder['items']) || [],
+          items: (order.items as unknown as AdminOrder['items']) || [],
         }));
         setOrders(formattedOrders);
       }
@@ -103,7 +104,7 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
         .from('customers').select('*').order('created_at', { ascending: false });
       if (error) { console.error('Error fetching customers:', error); return; }
       if (data) {
-        const formattedCustomers: AdminCustomer[] = data.map((customer) => ({
+        const formattedCustomers: AdminCustomer[] = (data as unknown as CustomerRow[]).map((customer) => ({
           id: customer.id,
           name: customer.name,
           email: customer.email,
@@ -119,33 +120,33 @@ export function DbSyncProvider({ children }: DbSyncProviderProps) {
   const syncSettings = useCallback(async () => {
     try {
       const supabase = getSupabase();
-      const applySettings = (data: Record<string, unknown>) => {
+      const applySettings = (data: StoreSettingsRow) => {
         updateSettings({
-          storeName: (data.store_name as string) || 'NINA ARMEND',
-          currency: (data.currency as string) || 'USD',
+          storeName: data.store_name || 'NINA ARMEND',
+          currency: data.currency || 'USD',
           shippingRate: Number(data.shipping_rate) || 8.50,
-          lowStockThreshold: (data.low_stock_threshold as number) || 10,
+          lowStockThreshold: data.low_stock_threshold || 10,
           posProvider: (data.pos_provider as 'none' | 'square') || 'none',
-          seoTitle: (data.seo_title as string) || '',
-          seoDescription: (data.seo_description as string) || '',
-          instagramUrl: (data.instagram_url as string) || '',
-          facebookUrl: (data.facebook_url as string) || '',
-          tiktokUrl: (data.tiktok_url as string) || '',
-          contactEmail: (data.contact_email as string) || '',
-          contactPhone: (data.contact_phone as string) || '',
-          isMaintenanceMode: (data.is_maintenance_mode as boolean) ?? false,
-          birthdayEmailsSentMonth: data.birthday_emails_sent_month as number | undefined,
-          birthdayEmailsSentYear: data.birthday_emails_sent_year as number | undefined,
-          birthdayEmailsSentCount: data.birthday_emails_sent_count as number | undefined,
+          seoTitle: data.seo_title || '',
+          seoDescription: data.seo_description || '',
+          instagramUrl: data.instagram_url || '',
+          facebookUrl: data.facebook_url || '',
+          tiktokUrl: data.tiktok_url || '',
+          contactEmail: data.contact_email || '',
+          contactPhone: data.contact_phone || '',
+          isMaintenanceMode: data.is_maintenance_mode ?? false,
+          birthdayEmailsSentMonth: data.birthday_emails_sent_month ?? undefined,
+          birthdayEmailsSentYear: data.birthday_emails_sent_year ?? undefined,
+          birthdayEmailsSentCount: data.birthday_emails_sent_count ?? undefined,
         });
       };
       const { data: settings, error: settingsError } = await supabase
         .from('store_settings').select('*').limit(1).maybeSingle();
-      if (!settingsError && settings) { applySettings(settings); return; }
+      if (!settingsError && settings) { applySettings(settings as unknown as StoreSettingsRow); return; }
       const { data: publicSettings, error: publicError } = await supabase
-        .from('public_store_settings' as any).select('*').limit(1).maybeSingle();
+        .from('public_store_settings').select('*').limit(1).maybeSingle();
       if (!publicError && publicSettings) {
-        applySettings(publicSettings as unknown as Record<string, unknown>);
+        applySettings(publicSettings as unknown as StoreSettingsRow);
         return;
       }
       console.warn('Could not fetch store settings. Primary error:', settingsError?.message, '| Fallback error:', publicError?.message);

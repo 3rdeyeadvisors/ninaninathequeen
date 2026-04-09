@@ -20,7 +20,7 @@ export function useWishlistSync() {
       try {
         // 1. Fetch remote wishlist
         const { data: remoteWishlist, error: fetchError } = await supabase
-          .from('wishlists' as any)
+          .from('wishlists')
           .select('product_id');
 
         if (fetchError) {
@@ -28,14 +28,14 @@ export function useWishlistSync() {
           return;
         }
 
-        const remoteProductIds = new Set((remoteWishlist || []).map((w: any) => w.product_id));
+        const remoteProductIds = new Set((remoteWishlist || []).map((w: { product_id: string }) => w.product_id));
 
         // 2. Upload local items not in remote
         const itemsToUpload = wishlistItems.filter(item => !remoteProductIds.has(item.id));
 
         if (itemsToUpload.length > 0) {
           const { error: uploadError } = await supabase
-            .from('wishlists' as any)
+            .from('wishlists')
             .upsert(
               itemsToUpload.map(item => ({
                 user_id: user.id,
@@ -53,7 +53,7 @@ export function useWishlistSync() {
         // Note: This requires more product data than just the ID.
         // For simplicity, we'll fetch full product details for remote-only IDs.
         const remoteOnlyIds = (remoteWishlist || [])
-          .map((w: any) => w.product_id)
+          .map((w: { product_id: string }) => w.product_id)
           .filter((id: string) => !wishlistItems.some(item => item.id === id));
 
         if (remoteOnlyIds.length > 0) {
@@ -80,5 +80,5 @@ export function useWishlistSync() {
     };
 
     syncWishlist();
-  }, [isAuthenticated, isInitialized, user?.id, addToWishlist]);
+  }, [isAuthenticated, isInitialized, user?.id, addToWishlist, wishlistItems]);
 }

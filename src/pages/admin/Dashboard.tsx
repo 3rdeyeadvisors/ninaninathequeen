@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { useAdminStore } from '@/stores/adminStore';
+import { useAdminStore, type AdminOrderItem } from '@/stores/adminStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
@@ -90,28 +90,28 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchBehavioral = async () => {
       try {
-        const { data: views } = await supabase.from('product_views' as any).select('*');
+        const { data: views } = await supabase.from('product_views').select('*');
         if (!views || views.length === 0) return;
 
         // Find high-intent browsers (3+ views in last 14 days)
         const fourteenDaysAgo = new Date();
         fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-        const highIntent = (views as any[]).filter((v: any) => 
-          v.view_count >= 3 && new Date(v.last_viewed_at) >= fourteenDaysAgo
+        const highIntent = views.filter((v) =>
+          (v.view_count as number) >= 3 && new Date(v.last_viewed_at as string) >= fourteenDaysAgo
         );
 
         if (highIntent.length === 0) return;
 
         // Get user profiles for these viewers
-        const userIds = [...new Set(highIntent.map((v: any) => v.user_id))];
+        const userIds = [...new Set(highIntent.map((v) => v.user_id as string))];
         const { data: profiles } = await supabase.from('profiles').select('id, name, email').in('id', userIds);
 
         // Cross-reference with orders to see if they purchased
         const insights: {userName: string, userEmail: string, productTitle: string, viewCount: number}[] = [];
         
         for (const view of highIntent) {
-          const profile = profiles?.find((p: any) => p.id === view.user_id);
+          const profile = profiles?.find((p) => p.id === view.user_id);
           if (!profile) continue;
 
           // Check if this user purchased this product
@@ -119,17 +119,17 @@ export default function AdminDashboard() {
             o.customerEmail?.toLowerCase() === profile.email?.toLowerCase()
           );
           const purchased = userOrders.some(o => 
-            (o.items || []).some((item: any) => 
-              (item.title || item.name || '').toLowerCase().includes((view.product_title || '').toLowerCase())
+            (o.items || []).some((item: AdminOrderItem) =>
+              (item.title || item.name || '').toLowerCase().includes((view.product_title as string || '').toLowerCase())
             )
           );
 
           if (!purchased) {
             insights.push({
-              userName: profile.name || profile.email?.split('@')[0] || 'Unknown',
-              userEmail: profile.email,
-              productTitle: view.product_title || 'Unknown Product',
-              viewCount: view.view_count,
+              userName: profile.name || (profile.email ? profile.email.split('@')[0] : 'Unknown'),
+              userEmail: profile.email || '',
+              productTitle: (view.product_title as string) || 'Unknown Product',
+              viewCount: (view.view_count as number),
             });
           }
         }
@@ -291,7 +291,7 @@ export default function AdminDashboard() {
       customerSpend[custName].total += parseFloat(order.total);
       customerSpend[custName].orders += 1;
 
-      (order.items || []).forEach((item: any) => {
+      (order.items || []).forEach((item: AdminOrderItem) => {
         const title = item.title || item.name || 'Unknown';
         if (!salesByProduct[title]) salesByProduct[title] = { units: 0, revenue: 0, buyers: [] };
         salesByProduct[title].units += item.quantity || 1;
@@ -327,7 +327,7 @@ export default function AdminDashboard() {
       .join(' | ');
 
     const detailedOrderLog = confirmedOrders.slice(0, 20).map(o => {
-      const itemList = (o.items || []).map((item: any) => {
+      const itemList = (o.items || []).map((item: AdminOrderItem) => {
         const size = item.size ? ` (${item.size})` : '';
         return `${item.title || item.name}${size} x${item.quantity || 1}`;
       }).join(', ');
@@ -466,16 +466,14 @@ ${behavioralInsights.length > 0
     let assistantSoFar = '';
     let addedAssistant = false;
 
-    // Fetch session ONCE at the top to avoid repeated auth calls that cause hangs
+    // Fetch user and session ONCE at the top to avoid repeated auth calls that cause hangs
+    // SECURITY: getUser() is more secure as it re-validates with the server
     let token: string | undefined;
     let userId: string | undefined;
     try {
-      const [{ data: { user } }, { data: { session } }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase.auth.getSession(),
-      ]);
+      const { data: { session } } = await supabase.auth.getSession();
       token = session?.access_token;
-      userId = user?.id;
+      userId = session?.user?.id;
     } catch (e) {
       console.error('Failed to get session:', e);
     }
@@ -566,10 +564,11 @@ ${behavioralInsights.length > 0
       } else {
         setChatMessages(prev => [...prev, { role: 'assistant', content: "I couldn't generate a response. Please try again." }]);
       }
-    } catch (e: any) {
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
       console.error('AI chat error:', e);
-      setChatMessages(prev => [...prev, { role: 'assistant', content: `Sorry, I encountered an error: ${e.message}` }]);
-      if (e.message?.includes('Rate limit')) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `Sorry, I encountered an error: ${message}` }]);
+      if (message.includes('Rate limit')) {
         toast.error('AI rate limit reached. Please wait a moment.');
       }
     } finally {

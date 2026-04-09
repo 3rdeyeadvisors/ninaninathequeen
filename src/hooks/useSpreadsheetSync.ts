@@ -258,19 +258,20 @@ export function useSpreadsheetSync() {
         );
 
         try {
-          const success = await Promise.race([
+          const result = await Promise.race([
             bulkUpsertProducts(uniqueProductsToSync),
             timeoutPromise
           ]);
 
-          if (success) {
+          if (result === true) {
             uniqueProductsToSync.forEach(p => updateProductOverride(p.id, p));
             toast.success(`Sync complete! ${uniqueProductsToSync.length} products saved to database.`);
           } else {
             toast.error('Database save failed. Please log in as admin and try again.');
           }
-        } catch (err: any) {
-          if (err?.message === 'timeout') {
+        } catch (err) {
+          const isTimeout = err instanceof Error && err.message === 'timeout';
+          if (isTimeout) {
             // Still update local store so UI isn't stale
             uniqueProductsToSync.forEach(p => updateProductOverride(p.id, p));
             toast.warning('Upload is taking longer than expected. Products saved locally — they may still be syncing in the background.');

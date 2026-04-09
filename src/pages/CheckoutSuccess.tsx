@@ -68,7 +68,7 @@ export default function CheckoutSuccess() {
     };
 
     finalizeOrder();
-  }, [pendingId, clearCart]);
+  }, [pendingId, clearCart, searchParams, syncOrders, syncProducts]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

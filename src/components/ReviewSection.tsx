@@ -51,7 +51,7 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
         if (!orders) { setHasVerifiedPurchase(false); return; }
 
         const purchased = orders.some(order =>
-          (order.items as any[])?.some((item: any) => item.productId === productId || item.product_id === productId)
+          (order.items as { productId?: string; product_id?: string }[])?.some((item) => item.productId === productId || item.product_id === productId)
         );
         setHasVerifiedPurchase(purchased);
       } catch {
@@ -325,11 +325,11 @@ export function ReviewSection({ productId }: ReviewSectionProps) {
                       <div className="flex items-center gap-2 mb-2">
                         <ShieldCheck className="h-4 w-4 text-primary" />
                         <span className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-primary">
-                          {(review.admin_comment as any).authorName} — {(review.admin_comment as any).authorRole}
+                          {(review.admin_comment as { authorName: string }).authorName} — {(review.admin_comment as { authorRole: string }).authorRole}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground font-sans">
-                        {(review.admin_comment as any).text}
+                        {(review.admin_comment as { text: string }).text}
                       </p>
                     </div>
                   )}

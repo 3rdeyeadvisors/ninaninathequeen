@@ -4,6 +4,26 @@ import { useAdminStore, type ProductOverride } from '@/stores/adminStore';
 
 export type SyncResult = { success: true } | { success: false; reason: 'auth' | 'forbidden' | 'error' };
 
+interface ProductRow {
+  id: string;
+  title: string;
+  price: string;
+  inventory: number;
+  size_inventory: Record<string, number> | null;
+  image: string | null;
+  description: string | null;
+  product_type: string | null;
+  collection: string | null;
+  category: string | null;
+  status: string;
+  item_number: string | null;
+  color_codes: string[] | null;
+  sizes: string[] | null;
+  is_deleted: boolean | null;
+  unit_cost: string | null;
+  images: string[] | null;
+}
+
 /**
  * Hook to sync products with the database and Square.
  * Products are automatically synced to Square whenever they are added/edited/deleted.
@@ -32,13 +52,13 @@ export function useProductsDb() {
       if (data) {
         // Update local store with database products in bulk
         const overrides: Record<string, ProductOverride> = {};
-        data.forEach((product) => {
+        (data as unknown as ProductRow[]).forEach((product) => {
           overrides[product.id] = {
             id: product.id,
             title: product.title,
             price: product.price,
             inventory: product.inventory,
-            sizeInventory: (product.size_inventory as Record<string, number>) || {},
+            sizeInventory: product.size_inventory || {},
             image: product.image || '',
             description: product.description || '',
             productType: product.product_type || 'Bikini',
@@ -46,11 +66,12 @@ export function useProductsDb() {
             category: product.category || 'Other',
             status: product.status as 'Active' | 'Inactive' | 'Draft',
             itemNumber: product.item_number || '',
+            color_codes: product.color_codes || [],
             colorCodes: product.color_codes || [],
             sizes: product.sizes || [],
             isDeleted: product.is_deleted || false,
-            unitCost: (product as any).unit_cost || '0.00',
-            images: (product as any).images || [],
+            unitCost: product.unit_cost || '0.00',
+            images: product.images || [],
           };
         });
         setProductOverrides(overrides);
@@ -63,7 +84,7 @@ export function useProductsDb() {
   // Internal helper for syncing via edge function (includes auto-push to Square)
   // SECURITY: No longer passes adminEmail - server validates JWT instead
   // Returns { success, reason } — caller handles all toast messages
-  const syncWithEdgeFunction = async (products: ProductOverride | ProductOverride[]): Promise<SyncResult> => {
+  const syncWithEdgeFunction = useCallback(async (products: ProductOverride | ProductOverride[]): Promise<SyncResult> => {
     try {
       const supabase = getSupabase();
 
@@ -121,17 +142,17 @@ export function useProductsDb() {
       }
       return { success: false, reason: 'error' };
     }
-  };
+  }, [updateProductOverride]);
 
   // Upsert a product to the database (auto-syncs to Square)
   const upsertProduct = useCallback(async (product: ProductOverride): Promise<SyncResult> => {
     return await syncWithEdgeFunction(product);
-  }, []);
+  }, [syncWithEdgeFunction]);
 
   // Bulk upsert products to the database (auto-syncs to Square)
   const bulkUpsertProducts = useCallback(async (products: ProductOverride[]): Promise<SyncResult> => {
     return await syncWithEdgeFunction(products);
-  }, []);
+  }, [syncWithEdgeFunction]);
 
   // Soft delete a product in the database (auto-syncs to Square)
   const deleteProductDb = useCallback(async (productId: string) => {
@@ -142,7 +163,7 @@ export function useProductsDb() {
       : { id: productId, isDeleted: true };
 
     return await syncWithEdgeFunction(productData as ProductOverride);
-  }, []);
+  }, [syncWithEdgeFunction]);
 
   // Bulk delete products - batches all deletions into a single API call
   const bulkDeleteProducts = useCallback(async (productIds: string[]): Promise<SyncResult> => {
@@ -156,7 +177,7 @@ export function useProductsDb() {
     });
     
     return await syncWithEdgeFunction(productsToDelete as ProductOverride[]);
-  }, []);
+  }, [syncWithEdgeFunction]);
 
   return {
     fetchProducts,
