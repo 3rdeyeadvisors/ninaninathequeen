@@ -3,6 +3,26 @@ import { getSupabase } from '@/lib/supabaseClient';
 import { useAdminStore, type AdminSettings } from '@/stores/adminStore';
 import { toast } from 'sonner';
 
+interface StoreSettingsRow {
+  id: string;
+  store_name: string | null;
+  currency: string | null;
+  shipping_rate: number | null;
+  low_stock_threshold: number | null;
+  pos_provider: 'none' | 'square' | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  tiktok_url: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  is_maintenance_mode: boolean | null;
+  birthday_emails_sent_month: number | null;
+  birthday_emails_sent_year: number | null;
+  birthday_emails_sent_count: number | null;
+}
+
 /**
  * Hook to sync store settings with the database.
  * Fetches settings on mount and provides functions to update.
@@ -27,28 +47,28 @@ export function useSettingsDb() {
       }
 
       if (data) {
-        const settingsData = data as Record<string, unknown>;
-        settingsIdRef.current = settingsData.id as string;
+        const settingsData = data as unknown as StoreSettingsRow;
+        settingsIdRef.current = settingsData.id;
         updateSettings({
-          storeName: (settingsData.store_name as string) || 'NINA ARMEND',
-          currency: (settingsData.currency as string) || 'USD',
+          storeName: settingsData.store_name || 'NINA ARMEND',
+          currency: settingsData.currency || 'USD',
           shippingRate: Number(settingsData.shipping_rate) || 8.50,
-          lowStockThreshold: (settingsData.low_stock_threshold as number) || 10,
+          lowStockThreshold: settingsData.low_stock_threshold || 10,
           posProvider: (settingsData.pos_provider as 'none' | 'square') || 'none',
 
 
           
-          seoTitle: (settingsData.seo_title as string) || '',
-          seoDescription: (settingsData.seo_description as string) || '',
-          instagramUrl: (settingsData.instagram_url as string) || '',
-          facebookUrl: (settingsData.facebook_url as string) || '',
-          tiktokUrl: (settingsData.tiktok_url as string) || '',
-          contactEmail: (settingsData.contact_email as string) || '',
-          contactPhone: (settingsData.contact_phone as string) || '',
-          isMaintenanceMode: (settingsData.is_maintenance_mode as boolean) ?? false,
-          birthdayEmailsSentMonth: settingsData.birthday_emails_sent_month as number | undefined,
-          birthdayEmailsSentYear: settingsData.birthday_emails_sent_year as number | undefined,
-          birthdayEmailsSentCount: settingsData.birthday_emails_sent_count as number | undefined,
+          seoTitle: settingsData.seo_title || '',
+          seoDescription: settingsData.seo_description || '',
+          instagramUrl: settingsData.instagram_url || '',
+          facebookUrl: settingsData.facebook_url || '',
+          tiktokUrl: settingsData.tiktok_url || '',
+          contactEmail: settingsData.contact_email || '',
+          contactPhone: settingsData.contact_phone || '',
+          isMaintenanceMode: settingsData.is_maintenance_mode ?? false,
+          birthdayEmailsSentMonth: settingsData.birthday_emails_sent_month ?? undefined,
+          birthdayEmailsSentYear: settingsData.birthday_emails_sent_year ?? undefined,
+          birthdayEmailsSentCount: settingsData.birthday_emails_sent_count ?? undefined,
         });
       }
     } catch (err) {
@@ -104,7 +124,7 @@ export function useSettingsDb() {
       if (targetId) {
         const updatePromise = supabase
           .from('store_settings')
-          .update(updateData as any)
+          .update(updateData as unknown as StoreSettingsRow)
           .eq('id', targetId)
           .select('id')
           .maybeSingle();
@@ -116,8 +136,9 @@ export function useSettingsDb() {
         try {
           const result = await Promise.race([updatePromise, timeoutPromise]);
           error = result.error;
-        } catch (raceErr: any) {
-          console.error('[Settings] Update race failed:', raceErr.message);
+        } catch (raceErr) {
+          const message = raceErr instanceof Error ? raceErr.message : String(raceErr);
+          console.error('[Settings] Update race failed:', message);
           error = raceErr;
         }
       } else {
@@ -127,7 +148,7 @@ export function useSettingsDb() {
           .insert({
             id: '00000000-0000-0000-0000-000000000000', // Use the standard ID from migration
             ...updateData
-          } as any)
+          } as unknown as StoreSettingsRow)
           .select('id')
           .maybeSingle();
 

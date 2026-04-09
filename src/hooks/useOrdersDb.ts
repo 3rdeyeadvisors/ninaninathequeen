@@ -15,6 +15,21 @@ interface DbOrderUpdate {
   transaction_fee?: string;
 }
 
+interface OrderRow {
+  id: string;
+  customer_name: string;
+  customer_email: string;
+  date: string;
+  total: string;
+  shipping_cost: string | null;
+  item_cost: string | null;
+  transaction_fee: string | null;
+  status: string;
+  tracking_number: string | null;
+  shipping_address: ShippingAddress | null;
+  items: AdminOrder['items'];
+}
+
 /**
  * Hook to sync orders with the database.
  * Fetches orders on mount and provides functions to upsert.
@@ -37,7 +52,7 @@ export function useOrdersDb() {
       }
 
       if (data) {
-        const formattedOrders: AdminOrder[] = data.map((order) => ({
+        const formattedOrders: AdminOrder[] = (data as unknown as OrderRow[]).map((order) => ({
           id: order.id,
           customerName: order.customer_name,
           customerEmail: order.customer_email,
@@ -45,11 +60,11 @@ export function useOrdersDb() {
           total: order.total,
           shippingCost: order.shipping_cost || undefined,
           itemCost: order.item_cost || undefined,
-          transactionFee: (order as any).transaction_fee || undefined,
+          transactionFee: order.transaction_fee || undefined,
           status: order.status as AdminOrder['status'],
           trackingNumber: order.tracking_number || '',
           shippingAddress: (order.shipping_address as ShippingAddress) || undefined,
-          items: (order.items as AdminOrder['items']) || [],
+          items: order.items || [],
         }));
         
         setOrders(formattedOrders);
@@ -76,8 +91,8 @@ export function useOrdersDb() {
           transaction_fee: order.transactionFee,
           status: order.status,
           tracking_number: order.trackingNumber,
-          items: order.items,
-          shipping_address: order.shippingAddress as any,
+          items: order.items as unknown as Json,
+          shipping_address: order.shippingAddress as unknown as Json,
         }, { onConflict: 'id' })
         .select('id')
         .maybeSingle();
@@ -146,7 +161,7 @@ export function useOrdersDb() {
           status: order.status,
           tracking_number: order.trackingNumber,
           items: order.items as Json,
-          shipping_address: order.shippingAddress as any,
+          shipping_address: order.shippingAddress as unknown as Json,
         })
         .select('id')
         .maybeSingle();

@@ -1,8 +1,10 @@
 function createAudioContext(): AudioContext | null {
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return null;
     return new AudioContextClass();
-  } catch {
+  } catch (err) {
+    console.error('AudioContext creation failed:', err);
     return null;
   }
 }
@@ -21,7 +23,9 @@ export function playAddToCart() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
     osc.start();
     osc.stop(ctx.currentTime + 0.2);
-  } catch {}
+  } catch (err) {
+    console.warn('Audio playAddToCart failed:', err);
+  }
 }
 
 export function playWishlistToggle() {
@@ -38,7 +42,9 @@ export function playWishlistToggle() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
     osc.start();
     osc.stop(ctx.currentTime + 0.15);
-  } catch {}
+  } catch (err) {
+    console.warn('Audio playWishlistToggle failed:', err);
+  }
 }
 
 export function playPageTransition() {
@@ -56,7 +62,9 @@ export function playPageTransition() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
     osc.start();
     osc.stop(ctx.currentTime + 0.25);
-  } catch {}
+  } catch (err) {
+    console.warn('Audio playPageTransition failed:', err);
+  }
 }
 
 export const playSound = (type: 'success' | 'click' | 'remove' | 'error') => {

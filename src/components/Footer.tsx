@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useAdminStore } from '@/stores/adminStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useState } from 'react';
+import type { NewsletterSubscriberRow } from '@/types/database';
 
 const footerLinks = {
   shop: [
@@ -68,8 +69,8 @@ export function Footer() {
                 setIsSubscribing(true);
                 try {
                   const { error } = await supabase
-                    .from('newsletter_subscribers' as any)
-                    .insert({ email } as any);
+                    .from('newsletter_subscribers')
+                    .insert({ email } as unknown as NewsletterSubscriberRow);
                   if (error) {
                     if (error.code === '23505') {
                       toast.info('You\'re already subscribed!');
