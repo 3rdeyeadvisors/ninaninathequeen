@@ -12,6 +12,7 @@ import { useCloudAuthStore } from '@/stores/cloudAuthStore';
 import { PRODUCT_SIZES, MATCHING_SET_DISCOUNT } from '@/lib/constants';
 import { useAdminStore } from '@/stores/adminStore';
 import { useMemo } from 'react';
+import { getCollectionKey } from '@/lib/utils';
 
 export default function MixAndMatch() {
   const { user } = useCloudAuthStore();
@@ -204,22 +205,35 @@ export default function MixAndMatch() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-16">
-            <Button variant="outline" size="lg" className="rounded-full" onClick={handleRandomize}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Surprise Me
-            </Button>
-            <Button size="lg" className="rounded-full px-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-gold" onClick={handleAddSetToCart}>
-              <ShoppingBag className="h-4 w-4 mr-2" />
-              Add Set to Bag —{' '}
-              <span className="line-through opacity-60 mr-1">
-                ${(parseFloat(currentTop.price.amount) + parseFloat(currentBottom.price.amount)).toFixed(2)}
-              </span>
-              <span>
-                ${(parseFloat(currentTop.price.amount) + parseFloat(currentBottom.price.amount) - MATCHING_SET_DISCOUNT).toFixed(2)}
-              </span>
-            </Button>
-          </div>
+          {(() => {
+            const totalPrice = parseFloat(currentTop.price.amount) + parseFloat(currentBottom.price.amount);
+            const isMatchingSet = getCollectionKey(currentTop.title) === getCollectionKey(currentBottom.title);
+            return (
+              <div className="flex flex-col items-center gap-3 mt-16">
+                {isMatchingSet && (
+                  <p className="text-sm font-medium text-primary">✨ Matching set — save ${MATCHING_SET_DISCOUNT}!</p>
+                )}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Button variant="outline" size="lg" className="rounded-full" onClick={handleRandomize}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Surprise Me
+                  </Button>
+                  <Button size="lg" className="rounded-full px-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-gold" onClick={handleAddSetToCart}>
+                    <ShoppingBag className="h-4 w-4 mr-2" />
+                    Add Set to Bag —{' '}
+                    {isMatchingSet ? (
+                      <>
+                        <span className="line-through opacity-60 mr-1">${totalPrice.toFixed(2)}</span>
+                        <span>${(totalPrice - MATCHING_SET_DISCOUNT).toFixed(2)}</span>
+                      </>
+                    ) : (
+                      <span>${totalPrice.toFixed(2)}</span>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </main>
       <Footer />
