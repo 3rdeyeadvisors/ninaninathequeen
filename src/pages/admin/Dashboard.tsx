@@ -471,9 +471,12 @@ ${behavioralInsights.length > 0
     let token: string | undefined;
     let userId: string | undefined;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const [{ data: { user } }, { data: { session } }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.auth.getSession(),
+      ]);
       token = session?.access_token;
-      userId = session?.user?.id;
+      userId = user?.id;
     } catch (e) {
       console.error('Failed to get session:', e);
     }

@@ -66,7 +66,6 @@ export function useProductsDb() {
             category: product.category || 'Other',
             status: product.status as 'Active' | 'Inactive' | 'Draft',
             itemNumber: product.item_number || '',
-            color_codes: product.color_codes || [],
             colorCodes: product.color_codes || [],
             sizes: product.sizes || [],
             isDeleted: product.is_deleted || false,

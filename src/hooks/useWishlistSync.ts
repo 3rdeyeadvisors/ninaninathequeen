@@ -80,5 +80,6 @@ export function useWishlistSync() {
     };
 
     syncWishlist();
-  }, [isAuthenticated, isInitialized, user?.id, addToWishlist, wishlistItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isInitialized, user?.id, addToWishlist]);
 }
