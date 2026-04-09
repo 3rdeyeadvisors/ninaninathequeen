@@ -118,7 +118,7 @@ export default function MixAndMatch() {
           <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             {/* Top Selector */}
             <div className="relative group">
-              <div className="aspect-[4/5] overflow-hidden rounded-lg bg-secondary/30 border border-border/50 shadow-lg">
+              <div className="aspect-[4/5] relative overflow-hidden rounded-lg bg-secondary/30 border border-border/50 shadow-lg">
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={currentTop.id}
@@ -162,7 +162,7 @@ export default function MixAndMatch() {
 
             {/* Bottom Selector */}
             <div className="relative group">
-              <div className="aspect-[4/5] overflow-hidden rounded-lg bg-secondary/30 border border-border/50 shadow-lg">
+              <div className="aspect-[4/5] relative overflow-hidden rounded-lg bg-secondary/30 border border-border/50 shadow-lg">
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={currentBottom.id}
