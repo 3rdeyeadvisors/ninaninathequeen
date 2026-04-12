@@ -1,21 +1,40 @@
 
 
-## Fix: Mix & Match Page Shows $10 Off for Non-Matching Sets
+## Fix: Maintenance Mode Not Working
 
-### Problem
-The Mix & Match page **always** displays the $10 discount on the "Add Set to Bag" button, regardless of whether the selected top and bottom are from the same collection. However, the actual checkout logic (`calculateSetDiscount`) only applies the discount to **matching** sets (same `getCollectionKey`). This means users see a discounted price on the page but get charged the full price at checkout when items don't match.
+### Root Cause
+The previous security fix removed the `"Public can read settings"` RLS policy from `store_settings`. This was correct for the raw table (it exposed sensitive fields like `tax_rate`, `low_stock_threshold`). However, the `public_store_settings` view — which only exposes safe, public-facing columns — also depends on that table's RLS. With no public read policy, unauthenticated users get zero rows from both queries, so `isMaintenanceMode` defaults to `false`.
 
 ### Fix
+Recreate the `public_store_settings` view with `security_invoker = false` (i.e., it runs as the view owner, bypassing RLS on the underlying table). This is safe because the view already filters to only public-safe columns (store name, social URLs, contact info, shipping rate, maintenance flag). Sensitive columns like `tax_rate` and `low_stock_threshold` remain hidden.
 
-**`src/pages/MixAndMatch.tsx`** — Conditionally show the discount based on collection key matching.
+### Changes
 
-1. Import `getCollectionKey` from `@/lib/utils`.
-2. Compute `isMatchingSet` by comparing `getCollectionKey(currentTop.title) === getCollectionKey(currentBottom.title)`.
-3. Update the "Add Set to Bag" button:
-   - **Matching set**: show strikethrough original price + discounted price (current behavior).
-   - **Non-matching set**: show only the combined price, no strikethrough or discount text.
-4. Optionally add a small label like "Matching set — save $10!" when `isMatchingSet` is true, so users understand when the discount applies.
+**1. Database migration** — Recreate the view without security invoker:
+```sql
+DROP VIEW IF EXISTS public_store_settings;
+
+CREATE VIEW public_store_settings
+WITH (security_invoker = false)
+AS SELECT
+  id, store_name, currency, contact_email, contact_phone,
+  instagram_url, facebook_url, tiktok_url,
+  seo_title, seo_description, shipping_rate,
+  is_maintenance_mode, created_at, updated_at
+FROM store_settings;
+```
+
+**2. Fix unrelated build errors** in parallel:
+
+- **`src/pages/admin/Dashboard.tsx`** — Fix import: `AdminOrderItem` doesn't exist, change to the correct type or inline it.
+- **`src/hooks/useSpreadsheetSync.ts`** — Fix comparison of `SyncResult` with `boolean`.
+- **`supabase/functions/create-square-checkout/index.ts`** — Fix `pre_populated_data` type error by adding proper type assertion.
+- **`supabase/functions/process-email-queue/index.ts`** — Fix 5 type errors with `email_send_log` insert and `moveToDlq` calls by adding type assertions.
 
 ### Files modified
-- `src/pages/MixAndMatch.tsx`
+- New SQL migration (view recreation)
+- `src/pages/admin/Dashboard.tsx`
+- `src/hooks/useSpreadsheetSync.ts`
+- `supabase/functions/create-square-checkout/index.ts`
+- `supabase/functions/process-email-queue/index.ts`
 
