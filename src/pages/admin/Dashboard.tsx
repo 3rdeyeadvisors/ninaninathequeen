@@ -13,7 +13,15 @@ import { Badge } from '@/components/ui/badge';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { useAdminStore, type AdminOrderItem } from '@/stores/adminStore';
+import { useAdminStore } from '@/stores/adminStore';
+
+interface AdminOrderItem {
+  title?: string;
+  name?: string;
+  size?: string;
+  quantity?: number;
+  price?: string | number;
+}
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
@@ -295,13 +303,13 @@ export default function AdminDashboard() {
         const title = item.title || item.name || 'Unknown';
         if (!salesByProduct[title]) salesByProduct[title] = { units: 0, revenue: 0, buyers: [] };
         salesByProduct[title].units += item.quantity || 1;
-        salesByProduct[title].revenue += (parseFloat(item.price || '0') * (item.quantity || 1));
+        salesByProduct[title].revenue += (parseFloat(String(item.price || '0')) * (item.quantity || 1));
         if (!salesByProduct[title].buyers.includes(custName)) salesByProduct[title].buyers.push(custName);
 
         // Revenue by category
         const product = activeProducts.find(p => p.title === title);
         const cat = product?.category || 'Other';
-        revenueByCategory[cat] = (revenueByCategory[cat] || 0) + (parseFloat(item.price || '0') * (item.quantity || 1));
+        revenueByCategory[cat] = (revenueByCategory[cat] || 0) + (parseFloat(String(item.price || '0')) * (item.quantity || 1));
       });
     });
 
