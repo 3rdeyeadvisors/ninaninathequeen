@@ -263,7 +263,7 @@ export function useSpreadsheetSync() {
             timeoutPromise
           ]);
 
-          if (result === true) {
+          if (result && 'success' in result && result.success) {
             uniqueProductsToSync.forEach(p => updateProductOverride(p.id, p));
             toast.success(`Sync complete! ${uniqueProductsToSync.length} products saved to database.`);
           } else {

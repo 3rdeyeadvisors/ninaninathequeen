@@ -13,7 +13,15 @@ import { Badge } from '@/components/ui/badge';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { useAdminStore, type AdminOrderItem } from '@/stores/adminStore';
+import { useAdminStore } from '@/stores/adminStore';
+
+interface AdminOrderItem {
+  title?: string;
+  name?: string;
+  size?: string;
+  quantity?: number;
+  price?: string | number;
+}
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import ReactMarkdown from 'react-markdown';
